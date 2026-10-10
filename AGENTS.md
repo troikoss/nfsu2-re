@@ -1,7 +1,8 @@
 # NFSU2 RE recovery rules
 
-The current objective is to decompile UG2 until a basic source-built demo is
-playable. Prioritize the original systems required for that demo. See
+The current objective is to completely decompile UG2 PC v1.2 into verified,
+reproducibly buildable source. A playable demo is an intermediate milestone,
+not completion of the project. See
 docs/DECOMPILATION_SCOPE.md for the completion evidence.
 
 Recover original UG2 code and mechanics.

@@ -4,6 +4,9 @@ Independent source reconstruction and verification project for Need for Speed Un
 Created 2026-10-11 with new Git history.
 
 Contains our recovered UG2 PC v1.2 C++ and its analysis/verification tools.
+The objective is complete game decompilation into verified, reproducibly
+buildable source. A playable demo is an intermediate milestone. See
+[the decompilation scope](docs/DECOMPILATION_SCOPE.md) for completion evidence.
 Original code stays here; combined-game and platform changes belong in the
 separate application repositories. Existing research was copied without editing
 recovered algorithms. PROVENANCE.json records migration input fingerprints;

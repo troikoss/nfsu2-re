@@ -1,34 +1,42 @@
-# Underground 2 decompilation: basic playable demo
+# Underground 2 decompilation: complete game recovery
 
-The objective was revised on 2026-10-11: decompile UG2 until a really basic demo
-is playable. This supersedes the previous immediate requirement to decompile the
-whole game. The reference remains the locally supplied PC v1.2 executable.
+The objective was revised on 2026-10-11: completely decompile Underground 2
+PC v1.2 into verified, reproducibly buildable source. A basic playable demo
+remains an intermediate milestone; it does not complete this objective.
 
-Prioritize recovery of the original systems needed to load an original car and
-road, initialize vehicle state, accept controls, simulate driving and contact,
-and render a usable demonstration. Recover original mechanics rather than
-inventing replacements. Platform and presentation scaffolding must stay clearly
-distinguished from original recovered routines.
+Recover original code and mechanics from the locally supplied reference
+executable. Preserve evidence, call boundaries and arithmetic order. Keep
+unknown layouts explicit and distinguish platform scaffolding from recovered
+game routines. Do not substitute invented gameplay algorithms for original
+behavior.
 
-The demo milestone requires:
+Prioritize the driving and integration chain already under investigation, then
+extend recovery across the whole game: asset loading, rendering, audio, input,
+world simulation, collision, AI, racing, career, police, customization, menus,
+and persistence. Maintain a coverage inventory with unresolved routines,
+layouts, dependencies and verification limits; source presence alone is not
+evidence of completion.
 
-- Reproducible source builds and a locally runnable demonstration.
-- Locally supplied UG2 vehicle/world assets; no redistributed retail files.
-- A car that accelerates, steers and brakes under player input, with basic road
-  contact/collision and a way to recover after leaving the usable area.
-- Verification against original routines for the recovered driving chain,
-  including actual caller composition and necessary parameter/state loading.
-- A usable rendered view and a repeatable manual driving check.
-- No retail executable acting as the runtime game implementation. Isolated
-  emulation comparisons and an existing unrelated prototype cannot establish
-  completion of the source-built demo.
+Complete decompilation requires:
 
-Record provenance, unknown layouts, external runtime dependencies and limitations.
-Distinguish byte matching from bounded behavioral evidence. Retail assets,
-executables, compilers and generated disassembly remain local. Current verification
-still depends on an original conversion helper and mapped retail data; these
-analysis dependencies are not a completed native runtime.
+- Accounted-for executable code and data, with remaining unknowns resolved or
+  explicitly justified as external compiler/platform runtime dependencies.
+- Reproducible source builds of the game implementation, independent of a
+  retail executable as the runtime implementation.
+- Original UG2 assets loaded from the player's local installation, without
+  redistributing retail files.
+- Verification of recovered routines and their actual caller composition,
+  parameter loading, state transitions and subsystem integration.
+- A playable rebuilt game covering the original gameplay systems, with
+  repeatable end-to-end checks and documented limitations.
+- Byte-matching status reported separately from bounded behavioral evidence;
+  neither isolated emulation tests nor a playable driving demo establish
+  executable-wide completion.
 
-Full career, menus, AI, customization and executable-wide decompilation coverage
-are beyond this immediate milestone. Do not claim complete game decompilation
-when the basic demo becomes playable.
+Record provenance and verification evidence as recovery proceeds. Retail
+assets, executables, compilers and generated disassembly remain local. Current
+verification still depends on an original conversion helper and mapped retail
+data; these analysis dependencies are not a completed native runtime.
+
+Work on the separate application project is deferred. This repository's
+objective is original UG2 recovery.
