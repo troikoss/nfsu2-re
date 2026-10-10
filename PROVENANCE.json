@@ -1,0 +1,270 @@
+{
+  "schema": 1,
+  "kind": "Independent repository; not a Git fork",
+  "migration_date": "2026-10-11",
+  "prior_research_checkout": "cobanov/nfsu2-decomp",
+  "prior_checkout_baseline": "8415642c08e580cda24b19102b95e33ce2448fcf",
+  "local_recovery_not_in_prior_baseline": true,
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "f710e31c8260affd49dc60789df3c90d57f72ee726a1af399356400f873c58fa"
+    },
+    {
+      "path": "config/SPEED2_EXE_1_2/strings.json",
+      "sha256": "bbfef4fd0e315a2d6c8412e870bce7cf23d868197246e41247e9fccc9d8e61ee"
+    },
+    {
+      "path": "docs/pc-racing.md",
+      "sha256": "7a0d8d6362c6ba2082c316c817d44e53e55cfa2ae32490ece6408e85af34e50b"
+    },
+    {
+      "path": "docs/pc-strings.md",
+      "sha256": "995e9ab6b7d7429c2f3142265fc15d8446858b9ec91558fbf0479ad9477f4d7e"
+    },
+    {
+      "path": "docs/pc-vehicle-physics.md",
+      "sha256": "b9d0cabba9507220ad5660413e4f97a4d998d7c57b998a0d3892a69535979f52"
+    },
+    {
+      "path": "requirements-pc-analysis.txt",
+      "sha256": "99721697351cd889b29dbc84a559d4dd6f492f32098b4daca5debcab5175788f"
+    },
+    {
+      "path": "requirements-pc-strings.txt",
+      "sha256": "d1a96a1ef7d7e8c98ca88bbc2cd17795fc1812d91fe041564c1bcd186d84cf84"
+    },
+    {
+      "path": "src/Speed/Indep/Libs/bWare/Strings.cpp",
+      "sha256": "eee76179ea15929ca9190844cdf87642bcef99ac19c93074e974e8fad7212a52"
+    },
+    {
+      "path": "src/Speed/Indep/Libs/bWare/Strings.h",
+      "sha256": "697e8c151297e5c9c9be2e75b0c2b5841e42200505b5f14d59a5277962e6d329"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Gameplay/CareerEligibility.cpp",
+      "sha256": "71be3bea4816c8111bd038a2635023ae3d4a69b8580f8c17726f7608345ce641"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Gameplay/CareerReward.cpp",
+      "sha256": "61045a8f92218c389223fbeca36ab99abdadb44e2fc9f8eaeb69603044c7baa7"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Gameplay/CareerReward.h",
+      "sha256": "e09db6f160d3ec3df23012fb98b818599854afdca8239abc4315a756a1876150"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Gameplay/DriftRankList.cpp",
+      "sha256": "d804d1cd9c23e5b73bf6954c8d811e19d687a2f4fc5e07de1befeb442357dfbe"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Gameplay/DriftRanking.cpp",
+      "sha256": "36fd4dfeaf352c4f8c00124c8ea8667362588c604e93f9dc267f2baa60a6c147"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Gameplay/DriftRanking.h",
+      "sha256": "2b599a7e453d771e3903de403858ea95b6a972074e33a3d95710f3e7bea559c8"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DriveFeedbackCurve.cpp",
+      "sha256": "e432752323a518289bcf209a863af2dad57843ccad87c4d70b8ab264dc88f3a8"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DriveFeedbackCurve.h",
+      "sha256": "6197a2f23109010621d45913965f6b431173086ec8a6ea032dd910f1b5d4025b"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/Drivetrain.h",
+      "sha256": "bd334e66275206574ab2701b3120f94b01ecef6b1a4f907b192f5ca2c8ddcf87"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainAccessors.cpp",
+      "sha256": "a8914a89f97a32a5a12d69363c88bc724df6ba168610b2cb30b299ad10f25e86"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainCoupling.cpp",
+      "sha256": "f9ff8e1b8d606ce0e587ef452be6433c736a5e5d74b9b063e70adf06ccf51bed"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainDerivative.cpp",
+      "sha256": "2cda6b37bd4434be3046adb1c6be9e476f7540cbbdfb504fef5bb9a18f7812e1"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainDistribution.cpp",
+      "sha256": "a4417655f35bd64d489d1e7d3eae8070936c2e70e20bf885e6ebc3a8710c994a"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainFinishing.cpp",
+      "sha256": "ec4a67c47c6f0efd7cc006b468672e324a5d8af21badd950e3a66dad7b195c62"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainPostUpdate.cpp",
+      "sha256": "42ed4a4744f68945305610567170f99f31c70e26ecd94311ab46c1a5a5179418"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainPredicates.cpp",
+      "sha256": "e6ddb9f69a591f95efc915671d3a3a73ac8037005abe7aaf29527470c6617e77"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainRandom.cpp",
+      "sha256": "4827ddf3302bf642461cd4f4623f25c60c1ea32d8bbe0c7ab1f1b3b18a73b219"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainSynchronization.cpp",
+      "sha256": "0ca2a07e336a66f4fcbc3c25e6204ec0a6dd32f09c5b9937d3398282d6a0591b"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainWheelRate.cpp",
+      "sha256": "282e72790f545b8f9a553a23c971a354c6aa49c3707636bf38793e92d040d449"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainWheelScalar.cpp",
+      "sha256": "a72c0b6aebd0ec3051309a5da16bcfa48f28816acee37235f8b6edee0045ea51"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/DrivetrainWheelValue.cpp",
+      "sha256": "23842f057c390b41e625f4d609ff1d4db681d7bdeced2e3064cddebe12814c0e"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/Engine.h",
+      "sha256": "d91b27cb0a63eb4f2bf4811a38d1aae58506cc443a59ff50b02ac1cb6cbd3c72"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/EngineAdjustment.cpp",
+      "sha256": "7df2a7943ca02d3143471a8809238119e632ecacbd93c1493b409cab919abd3b"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/EngineCurve.cpp",
+      "sha256": "2000da7cefef719ae333f5fa048e54e950f08d07c934eec11aa8a0cabc4ca745"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/EngineDerivative.cpp",
+      "sha256": "d8d43720ac63abdd263e979bf32a8bbdee303db37c52c7941f633af84e5b4034"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/EngineDriveValue.cpp",
+      "sha256": "f72eea43527415904d64eca1a4b3008aff9fec0c380e75fa61b4b07ba6819f2c"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/EngineFeedback.cpp",
+      "sha256": "94000c80ed887700593d8a4ccad875d1075f079cf118179e6ef76a2bb2b18c2d"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/EngineMath.cpp",
+      "sha256": "3a45757f28104971487a5536e3d3fb33e23b1ca410c2f22d36fe9fecfef1e5f8"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/EnginePostUpdate.cpp",
+      "sha256": "ed73ce9172195b1665219b8a94a6558cba4b8386314f919edb77eef4aa00215e"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/VehicleDerivatives.cpp",
+      "sha256": "43c8143d6456cfee9315da31ad0fc7592201c84ac0288d697fba6f35016db83e"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/VehicleIntegrator.cpp",
+      "sha256": "645d6ffa85cc73177e4e383a50207aa169182c5074c1490d761c9cb59b7efd2d"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/VehicleIntegrator.h",
+      "sha256": "3f516691a404e3d104df2598cad1ea34c82dc88ea8ad6b655ccb94c314bb9402"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/WheelCorrectionScale.cpp",
+      "sha256": "a2715af4893aa22ab216e0afcfd169507669cd3c9e6800739c5dc2a2cbba02cf"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/WheelMath.cpp",
+      "sha256": "3c6c163cd4d89391ceb2fcdec8cd2dd088f38d2a74e5e546a13835c76cfee04b"
+    },
+    {
+      "path": "src/Speed/Indep/Src/Physics/WheelMath.h",
+      "sha256": "dd942097bd136d52ef15c2bfab21a7c3471f392d9f8efd30e76209d66057783d"
+    },
+    {
+      "path": "tools/find_pc_vehicle_consumers.py",
+      "sha256": "8cb89e32af1635aa2eaf07aff24ab5b41185ee11892125c025c428b95ed0699c"
+    },
+    {
+      "path": "tools/pc_coff.py",
+      "sha256": "1c065917bee2468c9592fa4725141b220195257773306b2230d38cb659ee13fd"
+    },
+    {
+      "path": "tools/probe_pc_race_eligibility.py",
+      "sha256": "b6c4ed0848a467a1e51265bde02fdf2e0012e27deeae8bbe743c8e54f26e3342"
+    },
+    {
+      "path": "tools/probe_pc_race_reward.py",
+      "sha256": "22e150c384c8085c581de283da3babf2096e3dd94b2aff6b9b2cad4deaafd397"
+    },
+    {
+      "path": "tools/probe_pc_vehicle_substeps.py",
+      "sha256": "d7367e2da10e167d59590ffad358afb299d802083db2b4b5eb965db57bd07798"
+    },
+    {
+      "path": "tools/recover_pc_index.py",
+      "sha256": "06326ff4fe040c1fc9b8ab2d539d0b26d22bc2c02d4bfe6e7fbea45f12fd47ec"
+    },
+    {
+      "path": "tools/verify_pc_drift_ranking.py",
+      "sha256": "0374b4e8e821a09ba652938007f19dc0bfeae9a9faa26fcdd4010185dddb849d"
+    },
+    {
+      "path": "tools/verify_pc_drive_feedback_curve.py",
+      "sha256": "41f36a9e8f5b433285041ee3aa5c6eed0efe627069a52dbb5d96faa2c48eafe0"
+    },
+    {
+      "path": "tools/verify_pc_drivetrain.py",
+      "sha256": "9195ff1ed3ca800225890a0a2ee41fa65483c0eaff9f75053d4f4ba86fac6115"
+    },
+    {
+      "path": "tools/verify_pc_drivetrain_coupling.py",
+      "sha256": "7d3c129ef558a95a1daf57a067a96f789406052c4a04c30cba111bc476fe0298"
+    },
+    {
+      "path": "tools/verify_pc_drivetrain_distribution.py",
+      "sha256": "a0807d5ef234cf2edad70694ed3cf4726ca7a853af461fa73e6d649c57506e81"
+    },
+    {
+      "path": "tools/verify_pc_drivetrain_integration.py",
+      "sha256": "6f69d024c321738b7796bcf432e5dc5269cef4cab91c256d64af33822c312bdc"
+    },
+    {
+      "path": "tools/verify_pc_drivetrain_post_update.py",
+      "sha256": "7474d899cd7b2bab10d8049380c74ced44ab31653d253cc9aa32eda97058fd10"
+    },
+    {
+      "path": "tools/verify_pc_drivetrain_synchronization.py",
+      "sha256": "b367265d4b91a362e5550ceed41255aa58cb58d66546588f95917c195eec0cf1"
+    },
+    {
+      "path": "tools/verify_pc_drivetrain_wheel_feedback.py",
+      "sha256": "ede757c87fb6e3fecc61ae40c2692f3e16851490003130f838d4965dbdd5ec69"
+    },
+    {
+      "path": "tools/verify_pc_engine.py",
+      "sha256": "602057438da9f04f43aec24e35586493757cc5bc1370adff3b6cc7b3ac0fd846"
+    },
+    {
+      "path": "tools/verify_pc_engine_post_update.py",
+      "sha256": "18f74848250497ac8dd43641d3e1958044544a5d56eaefda76af9e223abfc4e2"
+    },
+    {
+      "path": "tools/verify_pc_strings.py",
+      "sha256": "338cf6ce1479ef5465d867427e8d5df9beadf099b34f19cdf1a529455a6e10a7"
+    },
+    {
+      "path": "tools/verify_pc_vehicle_integrator.py",
+      "sha256": "7076ed140f1f3ea063ab64382a70586582cf01dbc42f4566c215b6303b83d992"
+    },
+    {
+      "path": "tools/verify_pc_wheel_correction_scale.py",
+      "sha256": "b958dbcacf97e7a9a0854a82f15a32d4ce57c1cf39edefee24d9335c2e620970"
+    },
+    {
+      "path": "tools/verify_pc_wheel_math.py",
+      "sha256": "400cbb28efc216657c6fa9946b6f46a38f07ead21821c090253bc8cac4c00816"
+    }
+  ]
+}

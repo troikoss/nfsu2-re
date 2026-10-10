@@ -1,0 +1,2 @@
+-r requirements-pc-strings.txt
+capstone==5.0.6

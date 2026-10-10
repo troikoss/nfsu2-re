@@ -1,0 +1,61 @@
+[
+  {
+    "name": "cshash",
+    "address": "0x43db50",
+    "size": 33,
+    "sha256": "c5798f0490c6fc265ff0ebd063a7c536e8281fb2789eb4434900ebb3d3896808"
+  },
+  {
+    "name": "cshashWithStartValue",
+    "address": "0x43db80",
+    "size": 33,
+    "sha256": "3ec924e8c5fa13609c8c0bc00d3d68d351fd76874723759ba67d5812da20ab78"
+  },
+  {
+    "name": "strlenWithNullcheck",
+    "address": "0x43dbb0",
+    "size": 26,
+    "sha256": "ce823b5a2fa97cf59781b19bb55176141c57dc94d0d835c34bd08c50f7d9d944"
+  },
+  {
+    "name": "cihash",
+    "address": "0x505450",
+    "size": 47,
+    "sha256": "8c43e57b7bcd7ccde6bf7571a00a79334bbbd6f6e459eb0e2de11cd6b6014641"
+  },
+  {
+    "name": "nfs_strcpy",
+    "reference_name": "strcpy",
+    "address": "0x43dbd0",
+    "size": 34,
+    "sha256": "d9f859178def73c3e0c1b5b95b7cddb33f85efa313f95145e0f7257bc6e371ec"
+  },
+  {
+    "name": "nfs_strncpy",
+    "reference_name": "strncpy",
+    "address": "0x43dc00",
+    "size": 40,
+    "sha256": "4d7df266863781463857f7e96d9e38a5ace7ebf19d04925d89abb9c30f8686ec"
+  },
+  {
+    "name": "nfs_strcmp",
+    "reference_name": "strcmp",
+    "address": "0x43dc30",
+    "size": 44,
+    "sha256": "b3d8269a32bc9c3d73d4ea7f8926ed88550f73d2478488cd3f223818c9ac3428"
+  },
+  {
+    "name": "nfs_stricmp",
+    "reference_name": "stricmp",
+    "address": "0x43dcc0",
+    "size": 67,
+    "sha256": "2eaae731d12d32202c0dcf191b980688d1207007fe87d1647c3901f4134f8347"
+  },
+  {
+    "name": "nfs_strncmp",
+    "reference_name": "strncmp",
+    "address": "0x43dc60",
+    "size": 89,
+    "sha256": "49e508738df1b0ce23650bdf26b63228e9dccb57b3614851478d616fc15ab6a2"
+  }
+]
