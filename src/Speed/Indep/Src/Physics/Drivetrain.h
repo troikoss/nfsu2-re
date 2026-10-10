@@ -56,7 +56,10 @@ struct DrivetrainWheel {
     float divisor2C;
     char unidentified30[0x40];
     WheelMatrix matrix70;
-    char unidentifiedB0[0x40];
+    WheelVector basisB0;
+    char unidentifiedBC[4];
+    WheelVector basisC0;
+    char unidentifiedCC[0x24];
     WheelVector vectorF0;
     char unidentifiedFC[4];
     float value100;

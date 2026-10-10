@@ -106,3 +106,36 @@ iterative drive correction, wheel force correction and drivetrain finishing.
 The mover's own body arithmetic, state layout and actual parameter/contact loading
 remain to be recovered and verified. Direct-call coverage is not proof that its
 whole transitive dependency graph or the playable demo is complete.
+
+
+Mover coupling: `VehicleMover::CorrectWheelCoupling` reconstructs 0x5abdf0
+(1,136 original / 625 rebuilt bytes) and passes 3,072 exact full-state
+comparisons with the recovered real drivetrain, wheel and math callees.
+It remains nonmatching. Inputs cover both selected body matrices, signed
+mode values, each wheel's adjustment/skip behavior, rotated frames, varied
+wheel radii/inertias and non-axis-aligned attachment arms.
+
+The actual original update order is now composed: initial drivetrain drive,
+four preparations, five passes of body/wheel response and drivetrain correction,
+four wheel force corrections, and drivetrain finishing. Branch counters verify
+12,288 preparations, 15,360 correction passes and drivetrain corrections,
+12,288 force corrections and 3,072 finishing calls. Whole state, the observed
+write footprint, stack, preserved registers and both FPU control words are checked.
+Gameplay callees are not stubbed; the original conversion runtime and mapped
+retail data remain analysis dependencies.
+
+First-wheel force components and accumulated X/Y sums preserve the original
+binary32 storage boundaries. Other force/torque terms retain wider intermediates;
+angular and linear response values are rounded at their observed stores. Fields
+and layouts remain partial and offset-based, rather than inferred SI definitions.
+The unused force-correction argument receives the original raw loop-index bits.
+
+Command: `python tools/verify_pc_vehicle_mover.py`.
+Report: ignored `build/analysis/racing/vehicle-mover-verification.json`.
+This method corrects wheel coupling; it does not integrate the body's pose or
+produce road contacts. The enclosing callback at 0x5b0520 still has unrecovered
+pre/post-coupling work, including body-force application and contact updates.
+For example, its 188-byte post-coupling method at 0x5a5b60 reads body vector
+0xc0, conditionally evaluates a curve and applies a scaled opposing body force.
+That method and its real callees have only been inspected, not recovered.
+Actual car-parameter loading and a source-built runnable demo remain incomplete.

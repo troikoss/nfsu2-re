@@ -553,6 +553,10 @@ Report: ignored `build/analysis/racing/engine-post-update-verification.json`.
 
 ## Wheel coupling traced for the next recovery step
 
+For the latest preparation/correction and full coupling recovery, see
+[WHEEL_RECOVERY_STATUS.md](WHEEL_RECOVERY_STATUS.md). The investigation below
+records the earlier state of the recovery.
+
 The controller's final callback `0x5b0520` calls mover routine `0x5abdf0`.
 The latter is 1,136 bytes, fingerprint
 `93627fe9e8572e1972ebad92d88d7b027eb5f414d101e72603f635a388162687`.
