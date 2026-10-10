@@ -1,4 +1,4 @@
-# Ignition recovery rules
+# NFSU2 RE recovery rules
 
 Recover original UG2 code and mechanics first. Other games only fill features or
 assets absent from UG2. Never add custom game policies, map offsets, wheel/FFB,

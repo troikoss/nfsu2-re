@@ -1,4 +1,4 @@
-# Ignition Recovery
+# NFSU2 RE
 
 Independent original-code recovery repository for the custom game project.
 Created 2026-10-11 with new Git history, not a fork of nfsu2-decomp.
