@@ -23,22 +23,33 @@ struct DrivetrainWheelSpec {
 };
 
 struct WheelCorrectionSpec {
-    char unidentified0[0xc];
+    float value0;
+    float divisor4;
+    float coefficient8;
     float coefficientC;
+    float coefficient10;
 };
 
 struct WheelSurface {
     float coefficient;
-    char unidentified4[0x94];
+    float coefficient4;
+    char unidentified8[0x90];
 };
 
+struct WheelPreparationSpec {
+    char unidentified0[4];
+    float coefficient4;
+    float coefficient8;
+};
+
+struct EngineCurve;
 struct DrivetrainAuxiliary;
 
 struct DrivetrainWheel {
     char unidentified0[0x14];
     DrivetrainWheelSpec *spec14;
     WheelCorrectionSpec *correctionSpec18;
-    char unidentified1C[4];
+    WheelPreparationSpec *preparationSpec1C;
     DrivetrainAuxiliary *auxiliary20;
     char unidentified24[4];
     float value28;
@@ -47,12 +58,14 @@ struct DrivetrainWheel {
     WheelMatrix matrix70;
     char unidentifiedB0[0x40];
     WheelVector vectorF0;
-    char unidentifiedFC[0xc];
+    char unidentifiedFC[4];
+    float value100;
+    float value104;
     float value108;
     int flag10C;
     char unidentified110[4];
     int surface114;
-    char unidentified118[4];
+    float value118;
     unsigned char flag11C;
     char unidentified11D[7];
     float value124;
@@ -68,13 +81,21 @@ struct DrivetrainWheel {
     char unidentified168[4];
     float value16C;
     float value170;
-    char unidentified174[0xc];
+    char unidentified174[4];
+    float coefficient178;
+    float coefficient17C;
     float coefficient180;
     float coefficient184;
     float coefficient188;
+    char unidentified18C[4];
+    float coefficient190;
+    float coefficient194;
 
     float GetCorrectionScale();
     void CorrectForces(float unidentifiedArgument);
+    void PrepareForces(float unidentifiedArgument, int mode);
+    void UpdateLockState(float input);
+    float EvaluateLateralForce(float input, float angle);
 };
 
 struct DrivetrainComponent {
@@ -194,6 +215,22 @@ extern float drivetrainFinishingCoefficients[];
 extern float wheelCorrectionOffset;
 extern float wheelCorrectionRangeScale;
 extern float wheelCorrectionMinimum;
+extern float wheelPreparationThreshold;
+extern float wheelPreparationSpeedScale;
+extern float wheelPreparationCoefficientThreshold;
+extern float wheelPreparationScale4;
+extern float wheelPreparationScale8;
+extern float wheelLockSumScale;
+extern float wheelLockValueScale;
+extern int wheelLateralMode;
+extern EngineCurve wheelLateralFallbackCurve;
+extern EngineCurve *wheelLateralCurves[];
+extern EngineCurve *wheelLateralLastCurve;
+extern float wheelLateralInputScale;
+extern float wheelLateralOutputScale;
+extern float wheelLateralFallbackScale;
+extern float wheelLateralAngleScale;
+extern float wheelLateralIndexScale;
 extern WheelSurface wheelSurfaces[];
 extern float wheelDriveForceScale;
 extern float wheelForceLimitScale;

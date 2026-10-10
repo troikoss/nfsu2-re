@@ -1,8 +1,8 @@
 # NFSU2 RE recovery rules
 
-The objective is complete Underground 2 decompilation. Recover the whole original
-game, including systems outside driving physics. A partial driving demo does not
-establish completion. See docs/DECOMPILATION_SCOPE.md for the completion evidence.
+The current objective is to decompile UG2 until a basic source-built demo is
+playable. Prioritize the original systems required for that demo. See
+docs/DECOMPILATION_SCOPE.md for the completion evidence.
 
 Recover original UG2 code and mechanics.
 Preserve evidence, call boundaries and arithmetic order. Keep unknown field names

@@ -11,7 +11,7 @@ synthetic inputs, not a full wheel correction or driving trace.
 The last pre-migration expanded drivetrain regression passed 23,040 comparisons.
 The wheel force correction at 0x59d600 is now reconstructed with its real
 helper chain (see below). Source attribute loading, contact generation, full
-wheel preparation/update and the vehicle mover still require recovery before
+wheel update and the vehicle mover still require recovery before
 native driving integration. No application gameplay was changed.
 
 
@@ -59,5 +59,50 @@ are not established merely by these tests.
 
 Command: `python tools/verify_pc_wheel_force_correction.py`.
 Report: ignored `build/analysis/racing/wheel-force-correction-verification.json`.
-The next dependency on the original mover path is wheel preparation at 0x5a8280;
-full mover 0x5abdf0 and collision/contact producers are still unrecovered.
+Wheel preparation at 0x5a8280 and its two missing helpers are now recovered
+(see below). Full mover 0x5abdf0 and collision/contact producers remain
+unrecovered.
+
+
+Wheel preparation: `PrepareForces` at 0x5a8280 (1,078 original / 1,085 rebuilt
+bytes) passes 4,576 exact whole-state comparisons. Preparation followed by force
+correction passes another 4,576 comparisons. Helpers `UpdateLockState` at
+0x59d400 (133 original / 142 rebuilt bytes) and `EvaluateLateralForce` at
+0x59d510 (225 original / 233 rebuilt bytes) each pass 4,608 comparisons.
+All three reconstructed bodies remain nonmatching. Both requested x87 control
+words are exercised; these are emulation comparisons, not native hardware tests.
+
+Preparation retains the original two coefficient contributions to drive state,
+local motion transformation and quantized angle, slip calculations, conditional
+negative-drive adjustment, lock-state update, slip/fallback force branches and
+low-speed rescaling. The negative-drive adjustment requires the second
+contribution to equal zero. Original 0x5a82d3 stores binary32 and 0x5a82f7 reloads
+it between additions; a local volatile reference preserves this rounding boundary
+rather than retaining the compiler's higher-precision intermediate.
+
+Lock-state update compares its coefficient sum against a velocity/input term;
+it may zero the wheel value and set or clear the lock flag. Lateral evaluation
+retains both the fallback curve and the indexed pair interpolation / last-curve
+paths. Source offsets and units remain provisional. The caller supplies
+nonnegative lateral angles; negative indices are not silently clamped.
+
+The preparation verifier visits every identified caller branch and links the
+real reconstructed helpers, curve lookup and existing angle/matrix routines.
+No gameplay callees are stubbed. The original conversion runtime and mapped
+lookup data are still analysis dependencies. Composing preparation with correction
+omits intervening body/contact updates and does not prove the full vehicle mover.
+Only the observed wheel fields may change; full state, stack, preserved registers
+and FPU control word are checked.
+
+Commands: `python tools/verify_pc_wheel_preparation_helpers.py` and
+`python tools/verify_pc_wheel_preparation.py`. Reports are ignored
+`build/analysis/racing/wheel-preparation-helpers-verification.json` and
+`build/analysis/racing/wheel-preparation-verification.json`.
+
+Static inspection of the 1,136-byte mover at 0x5abdf0 (SHA-256
+93627fe9e8572e1972ebad92d88d7b027eb5f414d101e72603f635a388162687) finds direct
+calls to recovered initial drive application, preparation, matrix helpers,
+iterative drive correction, wheel force correction and drivetrain finishing.
+The mover's own body arithmetic, state layout and actual parameter/contact loading
+remain to be recovered and verified. Direct-call coverage is not proof that its
+whole transitive dependency graph or the playable demo is complete.
