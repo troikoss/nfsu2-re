@@ -171,3 +171,44 @@ pair tables provide the initialized curve at 0x86b4a0. Its retail initialization
 and actual car parameters still need recovery. This body-force method does not
 advance position/orientation or create road contacts; the playable source-built
 demo remains incomplete.
+
+
+Body derivative recovery: `MoverBody::WriteDerivative` at 0x59c1e0 (1,033
+original / 1,021 rebuilt bytes) passes 2,048 exact whole-state/output comparisons.
+The 186-byte matrix derivative at 0x59c120 passes 4,096 comparisons including
+output aliases with its matrix/vector inputs and partial overlap. Neither body
+byte-matches, despite equal matrix-writer sizes. No gameplay callees are stubbed;
+rebuilt matrix/vector math and EngineCurve lookup run on the candidate side.
+The original conversion runtime is still an analysis dependency of curve lookup.
+
+The callback retains its conditional tilt/threshold adjustment to body vector
+0x110, scalar rise/fall logic, curve and state damping, and final Z-limit checks.
+The limit branch compares the original accumulator at 0x128, not the already
+modified output. Original damping Y/Z products cross explicit binary32 stores;
+the X products remain wider until addition to the output. Every identified
+conditional branch is visited under two FPU control words.
+
+Output slots 3, 23, 27 and 29..31 are untouched, as in the executable. They are
+not silently filled with zero. The matrix writer also retains its observed
+bottom-right value of 1.0. Its final component is evaluated before later zero
+writes, which matters when output overlaps input. This preserves observed
+behavior rather than substituting a textbook rotation derivative.
+
+Ownership is now corroborated beyond a table-shape guess: constructor 0x5a7f30
+(373 bytes, SHA-256 fc322b2face590dcad63214d5c2eb56610040cd42d72dd214c3de59256021006)
+installs vtable 0x7a20c4. Parent constructor 0x5b5cc0 calls it at 0x5b5d6d with
+car record +0x110, stores its result at mover +0x20, appends its +4 link to the
+integration list and adds its scalar count. Slot 0x04 returns 32 at 0x5a80b0;
+slot 0x0c returns the state region +0x20 at 0x5a80c0; slot 0x18 is the recovered
+derivative. Slot 0x20 at 0x5a80d0 returns a static pointer; the earlier generic
+name `BeforeIntegrate` does not imply that this body's callback mutates state.
+
+Command: `python tools/verify_pc_body_derivative.py`.
+Report: ignored `build/analysis/racing/body-derivative-verification.json`.
+The body post-update at 0x59c5f0 is still unrecovered. Inspection shows it refreshes
+derived vectors from integrated state, applies limits, updates matrices, saves
+and clears accumulators, and invokes a gravity-related helper. Constructor
+parameter refresh at 0x59b940 reads record +0 and matrices starting at +0x10;
+its matrix inversion callees and actual retail parameter imports remain pending.
+Original body/integrator composition and a playable native runtime are not yet
+verified. These finite comparisons do not establish completion of the demo.
