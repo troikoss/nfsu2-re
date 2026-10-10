@@ -11,4 +11,6 @@ void WheelScaleAdd(WheelVector *output, WheelVector *base, WheelVector *directio
 void WheelNormalize(WheelVector *output, WheelVector *input);
 void WheelCross(WheelVector *output, WheelVector *a, WheelVector *b);
 
+void WheelScale(WheelVector *output, WheelVector *input, float scale);
+
 #endif

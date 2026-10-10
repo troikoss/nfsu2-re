@@ -137,5 +137,37 @@ produce road contacts. The enclosing callback at 0x5b0520 still has unrecovered
 pre/post-coupling work, including body-force application and contact updates.
 For example, its 188-byte post-coupling method at 0x5a5b60 reads body vector
 0xc0, conditionally evaluates a curve and applies a scaled opposing body force.
-That method and its real callees have only been inspected, not recovered.
+That method and its real callees are now recovered (see below).
 Actual car-parameter loading and a source-built runnable demo remain incomplete.
+
+
+Post-coupling body force: `ApplyOpposingBodyForce` at 0x5a5b60 (188 original /
+191 rebuilt bytes) passes 3,072 exact full-state comparisons. It retains the
+original state-1/state-2 exclusions, signed mode gate, vector length addition
+order, below-threshold test, curve lookup and coefficient-scaled force addition.
+Threshold neighbors, exact threshold, zero and multi-component motion are tested.
+Body fields 0xc0 and 0x120 are exposed without moving existing offsets; their
+higher-level units and complete state lifecycle remain unresolved.
+
+Its pair lookup at 0x576790 (190 original / 192 rebuilt bytes) passes 5,266 exact
+float-return comparisons. Endpoints, single/nonpositive counts with a valid data
+pointer, narrow intervals and the epsilon midpoint path are preserved. This
+returning lookup differs from the older output-parameter `Evaluate`: count <= 0
+still reads the first value rather than leaving an output untouched. It does not
+silently sanitize the original table contract.
+
+Vector scaling at 0x4011f0 (39 bytes) and body force accumulation at 0x59bc20
+(53 bytes) both byte-match and each pass 4,096 exact whole-state comparisons,
+including input/output aliases and partial overlap. Both capture Y/Z before X
+writes, preserving original behavior for overlapping memory. All four routines
+pass 16,530 comparisons in total. Larger bodies remain nonmatching. Stack,
+preserved registers, control words, write footprint and output guards are checked.
+
+Command: `python tools/verify_pc_body_force.py`. Report: ignored
+`build/analysis/racing/body-force-verification.json`. There are no stubbed callees
+or borrowed executable-code dependencies on this rebuilt path; original retail
+instructions run only on the reference side of the isolated comparison. Synthetic
+pair tables provide the initialized curve at 0x86b4a0. Its retail initialization
+and actual car parameters still need recovery. This body-force method does not
+advance position/orientation or create road contacts; the playable source-built
+demo remains incomplete.
