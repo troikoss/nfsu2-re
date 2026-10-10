@@ -1,6 +1,8 @@
 #ifndef UG2_DRIVETRAIN_H
 #define UG2_DRIVETRAIN_H
 
+#include "WheelMath.h"
+
 // Partial original 32-bit layouts. Names describe observed use, not debug symbols.
 struct DrivetrainSpec {
     char unidentified0[8];
@@ -20,27 +22,59 @@ struct DrivetrainWheelSpec {
     int value18;
 };
 
+struct WheelCorrectionSpec {
+    char unidentified0[0xc];
+    float coefficientC;
+};
+
+struct WheelSurface {
+    float coefficient;
+    char unidentified4[0x94];
+};
+
 struct DrivetrainAuxiliary;
 
 struct DrivetrainWheel {
     char unidentified0[0x14];
     DrivetrainWheelSpec *spec14;
-    char unidentified18[8];
+    WheelCorrectionSpec *correctionSpec18;
+    char unidentified1C[4];
     DrivetrainAuxiliary *auxiliary20;
     char unidentified24[4];
     float value28;
     float divisor2C;
-    char unidentified30[0xd8];
+    char unidentified30[0x40];
+    WheelMatrix matrix70;
+    char unidentifiedB0[0x40];
+    WheelVector vectorF0;
+    char unidentifiedFC[0xc];
     float value108;
     int flag10C;
-    char unidentified110[0xc];
+    char unidentified110[4];
+    int surface114;
+    char unidentified118[4];
     unsigned char flag11C;
     char unidentified11D[7];
     float value124;
-    char unidentified128[0x44];
+    float value128;
+    char unidentified12C[4];
+    WheelVector vector130;
+    char unidentified13C[0x14];
+    WheelVector vector150;
+    char unidentified15C[4];
+    unsigned char flag160;
+    char unidentified161[3];
+    float value164;
+    char unidentified168[4];
     float value16C;
+    float value170;
+    char unidentified174[0xc];
+    float coefficient180;
+    float coefficient184;
+    float coefficient188;
 
     float GetCorrectionScale();
+    void CorrectForces(float unidentifiedArgument);
 };
 
 struct DrivetrainComponent {
@@ -64,7 +98,9 @@ struct DrivetrainAuxiliary {
     char unidentified3E8[4];
     float value3EC;
     float value3F0;
-    char unidentified3F4[0x38];
+    char unidentified3F4[0x30];
+    int mode424;
+    char unidentified428[4];
     int selector42C;
 };
 
@@ -158,6 +194,12 @@ extern float drivetrainFinishingCoefficients[];
 extern float wheelCorrectionOffset;
 extern float wheelCorrectionRangeScale;
 extern float wheelCorrectionMinimum;
+extern WheelSurface wheelSurfaces[];
+extern float wheelDriveForceScale;
+extern float wheelForceLimitScale;
+extern float wheelForceAngleScale;
+extern float wheelForcePi;
+extern int wheelForceBasisMode;
 float GetDrivetrainRandom(float range, unsigned int *state);
 
 #endif
