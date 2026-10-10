@@ -1,11 +1,11 @@
 # NFSU2 RE
 
-Independent original-code recovery repository for the custom game project.
-Created 2026-10-11 with new Git history, not a fork of nfsu2-decomp.
+Independent source reconstruction and verification project for Need for Speed Underground 2.
+Created 2026-10-11 with new Git history.
 
 Contains our recovered UG2 PC v1.2 C++ and its analysis/verification tools.
 Original code stays here; combined-game and platform changes belong in the
-separate custom game repository. Existing research was copied without editing
+separate application repositories. Existing research was copied without editing
 recovered algorithms. PROVENANCE.json records migration input fingerprints;
 the historical upstream baseline did not contain these local recovered files.
 
@@ -28,7 +28,6 @@ and wibo share temporary filenames.
 Example: python tools/verify_pc_wheel_math.py. This executes isolated original /
 rebuilt instructions, not the retail game. Native integration is still pending.
 
-No game assets, retail executables, compiler binaries, generated disassembly or
-GitHub remote are included. Existing project scaffolding informed the research;
+No game assets, retail executables, compiler binaries, generated disassembly are included. Existing project scaffolding informed the research;
 retain attribution for imported tooling. Original source provenance is not a
 claim to relicense EA assets or recovered game code.
