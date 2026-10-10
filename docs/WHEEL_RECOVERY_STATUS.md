@@ -205,10 +205,33 @@ name `BeforeIntegrate` does not imply that this body's callback mutates state.
 
 Command: `python tools/verify_pc_body_derivative.py`.
 Report: ignored `build/analysis/racing/body-derivative-verification.json`.
-The body post-update at 0x59c5f0 is still unrecovered. Inspection shows it refreshes
-derived vectors from integrated state, applies limits, updates matrices, saves
-and clears accumulators, and invokes a gravity-related helper. Constructor
+The body post-update at 0x59c5f0 is now recovered (see below). Constructor
 parameter refresh at 0x59b940 reads record +0 and matrices starting at +0x10;
 its matrix inversion callees and actual retail parameter imports remain pending.
 Original body/integrator composition and a playable native runtime are not yet
 verified. These finite comparisons do not establish completion of the demo.
+
+
+Body post-update: `MoverBody::PostUpdate` at 0x59c5f0 (903 original / 795
+rebuilt bytes) passes 2,048 exact whole-state comparisons. Its point-force
+helper 0x59bb00 (274/308) passes 4,096, including force/point/accumulator
+aliases. Matrix copy 0x4012b0, product 0x4013f0 and the multiply wrapper
+0x43c990 each pass 3,072 comparisons with partial output overlaps. None is
+counted as byte-matching. No callees are stubbed and no original runtime helper
+executes on the rebuilt side.
+
+The update derives vector 0xa0 from 0x70 times scalar 0x168, limits its length
+only when divisor 0x164 exceeds the original binary64 threshold at 0x7a1e88,
+derives 0xb0 from 0x110, transforms 0x80 through the selected inertia matrix
+(0x170 or 0x1b0 by flag 0x158) conjugated by orientation 0x30, limits the result
+at 0xc0, clamps scalar 0x90 at zero, writes the pose matrix 0xd0 from 0x30 and
+position 0x20, saves and clears accumulators 0x110/0x120, then applies a
+downward point force of 0x164 * 0x160 at the body origin when 0x160 is positive.
+The stored length crosses a binary32 boundary before the speed-limit division.
+Point-force caps use original limits at 0x7a1ad8 and 0x7a1adc.
+
+Command: `python tools/verify_pc_body_post_update.py`. Report: ignored
+`build/analysis/racing/body-post-update-verification.json`. Body, force and
+mover regressions also pass after the layout extension. Body construction and
+parameter refresh 0x59b940, actual retail record loading and the native runtime
+remain unrecovered.

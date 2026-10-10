@@ -15,7 +15,9 @@ from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
 from unicorn.x86_const import UC_X86_REG_EAX, UC_X86_REG_ECX, UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ESI
 
 ROOT = Path(__file__).resolve().parents[1]
-EXE = Path(os.environ.get("UG2_EXE", str(ROOT.parent / "games/Need for Speed Underground 2/speed2.exe")))
+_LOCAL_INSTALLS = (ROOT / "Need for Speed Underground 2", ROOT.parent / "games/Need for Speed Underground 2")
+GAME_DIR = Path(os.environ.get("UG2_DIR", str(next((p for p in _LOCAL_INSTALLS if (p / "speed2.exe").exists()), _LOCAL_INSTALLS[0]))))
+EXE = Path(os.environ.get("UG2_EXE", str(GAME_DIR / "speed2.exe")))
 ENTRY, END, CALLEE = 0x532e50, 0x532e9f, 0x5287a0
 EXPECTED_HASH = "56587b0b1dd3d92ddd82b9c03cc38df0d052a12b8be1c75cb24a72bfc065525e"
 

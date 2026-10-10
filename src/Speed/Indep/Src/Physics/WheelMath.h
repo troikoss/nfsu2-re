@@ -13,4 +13,8 @@ void WheelCross(WheelVector *output, WheelVector *a, WheelVector *b);
 
 void WheelScale(WheelVector *output, WheelVector *input, float scale);
 
+void BodyMatrixCopy(WheelMatrix *output, WheelMatrix *input);
+void BodyMatrixProduct(WheelMatrix *output, WheelMatrix *left, WheelMatrix *right);
+void WheelMultiply(WheelMatrix *output, WheelMatrix *left, WheelMatrix *right);
+
 #endif

@@ -5,7 +5,9 @@
 
 // Partial PC x86 layouts: fields observed in recovered mover/body routines.
 struct MoverBody {
-    char unidentified0[0x30];
+    char unidentified0[0x20];
+    WheelVector position20;
+    char unidentified2C[4];
     WheelMatrix matrix30;
     WheelVector vector70;
     char unidentified7C[4];
@@ -14,20 +16,28 @@ struct MoverBody {
     float value90;
     char unidentified94[0xc];
     WheelVector vectorA0;
-    char unidentifiedAC[0x14];
+    char unidentifiedAC[4];
+    WheelVector vectorB0;
+    char unidentifiedBC[4];
     WheelVector vectorC0;
-    char unidentifiedCC[0x44];
+    char unidentifiedCC[4];
+    WheelMatrix matrixD0;
     WheelVector vector110;
     char unidentified11C[4];
     WheelVector force120;
-    char unidentified12C[0x24];
+    char unidentified12C[4];
+    WheelVector saved130;
+    char unidentified13C[4];
+    WheelVector saved140;
+    char unidentified14C[4];
     int flag150;
     int flag154;
     int flag158;
     int flag15C;
-    char unidentified160[4];
+    float value160;
     float divisor164;
-    char unidentified168[8];
+    float value168;
+    char unidentified16C[4];
     WheelMatrix matrix170;
     WheelMatrix matrix1B0;
     char unidentified1F0[0x10];
@@ -35,6 +45,8 @@ struct MoverBody {
     float value204;
     float value208;
     void AddForce(WheelVector *input);
+    void ApplyForceAtPoint(WheelVector *force, WheelVector *point);
+    void PostUpdate();
     float *WriteDerivative(float *output);
 };
 struct MoverArm {
@@ -84,6 +96,13 @@ extern float bodyScalarRise;
 extern float bodyScalarFall;
 extern float bodyAngularDamping;
 extern float bodyLinearDamping;
+extern float bodyPostSpeedLimit;
+extern double bodyPostMassThreshold;
+extern float bodyPostResponseScale;
+extern float bodyPostAngularLimit;
+extern float bodyPointForceLimit;
+extern float bodyPointTorqueLimit;
 void BodyMatrixDerivative(WheelMatrix *output, WheelVector *input, WheelMatrix *matrix);
 
 #endif
+
