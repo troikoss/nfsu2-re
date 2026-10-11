@@ -16,5 +16,7 @@ void WheelScale(WheelVector *output, WheelVector *input, float scale);
 void BodyMatrixCopy(WheelMatrix *output, WheelMatrix *input);
 void BodyMatrixProduct(WheelMatrix *output, WheelMatrix *left, WheelMatrix *right);
 void WheelMultiply(WheelMatrix *output, WheelMatrix *left, WheelMatrix *right);
+void WheelInvert(WheelMatrix *output, WheelMatrix *input);
+void WheelOrthonormalize(WheelMatrix *output, WheelMatrix *input);
 
 #endif

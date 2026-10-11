@@ -16,7 +16,7 @@ public:
     virtual void UnknownSlot16() = 0;
     virtual void UnknownSlot20() = 0;
     virtual void WriteDerivatives(float *output) = 0;
-    virtual void UnknownSlot28() = 0;
+    virtual void UpdateAfterIntegration() = 0;
     virtual void BeforeIntegrate() = 0;
     IntegrationLink link;
 
@@ -33,6 +33,7 @@ public:
     char unidentified[8];
     IntegrationLink blocks;
     void CollectDerivatives(float *output);
+    void UpdateBlocksAfterIntegration();
     void Integrate(float duration);
 };
 

@@ -33,7 +33,9 @@ struct EngineAttributeOwner {
 };
 
 struct Engine {
-    char unidentified0[0x14];
+    void *vtable0;
+    char unidentified4[8];
+    char name0C[8];
     float state14;
     EngineSpec *spec;
     EngineAttributeOwner *owner1C;
@@ -56,6 +58,7 @@ struct Engine {
     float timeA8;
     float anchorAC;
 
+    void Construct(EngineSpec *source, EngineAttributeOwner *owner);
     float ComputeDriveValue();
     int WriteDerivative(float *output);
     float GetEffectiveControl();
@@ -100,6 +103,7 @@ extern float engineSineC3;
 extern float engineSineC5;
 extern float engineSineC7;
 extern float engineSineC9;
+float EngineSpecMaximum(EngineSpec *spec);
 float EngineMinimum(float a, float b);
 float EngineClamp(float value, float minimum, float maximum);
 float EngineSineUnits(unsigned int units);

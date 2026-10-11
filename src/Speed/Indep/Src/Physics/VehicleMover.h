@@ -2,10 +2,73 @@
 #define UG2_VEHICLE_MOVER_H
 
 #include "Drivetrain.h"
+#include "Ug2Layout.h"
+
+struct Engine;
+struct EngineSpec;
+class VehicleIntegrator;
+
+// Body record at car record +0x110: mass, inertia matrix and inertia Z scale.
+struct MoverBodySpec {
+    float mass0;
+    char unidentified4[0xc];
+    WheelMatrix inertia10;
+    float inertiaScale50;
+    char unidentified54[0xc];
+};
+
+// Suspension record at car record +0x170 + axle * 0x20.
+struct SuspensionSpec {
+    float progression0;
+    float stiffness4;
+    float damping8[2];
+    float antiRoll10;
+    float upper14;
+    float lower18;
+    float rest1C;
+};
+
+struct MoverAeroSpec {
+    float coefficient0;
+    float coefficient4;
+    float coefficient8;
+};
+
+// Copied from CarTypeInfo +0x110 by 0x5ac4f0 (0x2b0 bytes, 0xac dwords).
+struct CarPhysicsRecord {
+    WheelVector centre0;
+    char unidentifiedC[4];
+    DrivetrainWheelSpec wheels10[4];
+    struct CorrectionBlock {
+        WheelCorrectionSpec spec;
+        char unidentified14[0xc];
+    } correctionD0[2];
+    MoverBodySpec body110;
+    SuspensionSpec suspension170[2];
+    DrivetrainSpec drivetrain1B0;
+    char engine1F0[0x70];
+    MoverAeroSpec aero260;
+    float value26C;
+    WheelPreparationSpec preparation270;
+    float brakeBias27C;
+    float value280;
+    float value284;
+    float value288;
+    float value28C;
+    float value290;
+    char unidentified294[0xc];
+    float nitrousCapacity2A0;
+    int nitrousBottles2A4;
+    char unidentified2A8[8];
+};
 
 // Partial PC x86 layouts: fields observed in recovered mover/body routines.
 struct MoverBody {
-    char unidentified0[0x20];
+    void *vtable0;
+    char unidentified4[8];
+    char name0C[8];
+    MoverBodySpec *spec14;
+    char unidentified18[8];
     WheelVector position20;
     char unidentified2C[4];
     WheelMatrix matrix30;
@@ -40,44 +103,411 @@ struct MoverBody {
     char unidentified16C[4];
     WheelMatrix matrix170;
     WheelMatrix matrix1B0;
-    char unidentified1F0[0x10];
+    WheelVector centre1F0;
+    char unidentified1FC[4];
     float limit200;
     float value204;
     float value208;
+    void Construct(MoverBodySpec *spec);
+    void RefreshParameters();
+    void SetPose(WheelVector *position, WheelMatrix *matrix, WheelVector *velocity,
+                 WheelVector *angular, WheelMatrix *inertiaOutput);
+    void MoveCentre(WheelVector *centre);
+    void AddLimitedImpulse(WheelVector *impulse, WheelVector *point);
     void AddForce(WheelVector *input);
     void ApplyForceAtPoint(WheelVector *force, WheelVector *point);
     void PostUpdate();
     float *WriteDerivative(float *output);
 };
+UG2_CHECK_OFFSET(CarPhysicsRecord, correctionD0, 0xd0);
+UG2_CHECK_OFFSET(CarPhysicsRecord, body110, 0x110);
+UG2_CHECK_OFFSET(CarPhysicsRecord, suspension170, 0x170);
+UG2_CHECK_OFFSET(CarPhysicsRecord, drivetrain1B0, 0x1b0);
+UG2_CHECK_OFFSET(CarPhysicsRecord, engine1F0, 0x1f0);
+UG2_CHECK_OFFSET(CarPhysicsRecord, aero260, 0x260);
+UG2_CHECK_OFFSET(CarPhysicsRecord, preparation270, 0x270);
+UG2_CHECK_OFFSET(CarPhysicsRecord, brakeBias27C, 0x27c);
+UG2_CHECK_OFFSET(CarPhysicsRecord, value290, 0x290);
+UG2_CHECK_SIZE(CarPhysicsRecord, 0x2b0);
+UG2_CHECK_OFFSET(MoverBody, spec14, 0x14);
+UG2_CHECK_OFFSET(MoverBody, matrix170, 0x170);
+UG2_CHECK_OFFSET(MoverBody, centre1F0, 0x1f0);
+UG2_CHECK_OFFSET(MoverBody, value208, 0x208);
+
+struct AckermannSteering;
+
+// Suspension block, vtable 0x7a210c ("Suspnsn").
 struct MoverArm {
-    char unidentified0[0x90];
+    void *vtable0;
+    char unidentified4[8];
+    char name0C[8];
+    SuspensionSpec *spec14;
+    MoverArm *pair18;
+    float travel1C;
+    float rate20;
+    float force24;
+    char unidentified28[8];
+    WheelVector position30;
+    char unidentified3C[4];
+    WheelMatrix matrix40;
+    int contact80;
+    char unidentified84[4];
+    float extra88;
+    char unidentified8C[4];
     float value90;
     float value94;
+    float value98;
+    char unidentified9C[4];
+    DrivetrainWheel *wheelA0;
+    MoverBody *bodyA4;
+    AckermannSteering *steeringA8;
+    int indexAC;
+    float valueB0;
+    void Construct(int index, MoverBody *body, DrivetrainWheel *wheel,
+                   AckermannSteering *steering, SuspensionSpec *spec);
+    void SetMount(float extra, float offset);
+    void WriteDerivative(float *output);
+    void UpdateAfterIntegration();
+    float ApplyBumpStop();
 };
+UG2_CHECK_OFFSET(MoverArm, contact80, 0x80);
+UG2_CHECK_OFFSET(MoverArm, value90, 0x90);
+UG2_CHECK_OFFSET(MoverArm, indexAC, 0xac);
+
+// Front steering geometry, vtable 0x7a2084 ("VATwoWheelAckermanSteering").
+struct AckermannSteering {
+    void *vtable0;
+    CarPhysicsRecord *record4;
+    WheelMatrix *matrices8;
+    char unidentifiedC[4];
+    WheelMatrix wheelMatrices10[2];
+    unsigned short angle90;
+    void Construct(CarPhysicsRecord *record);
+    void SetAngle(unsigned short angle);
+    unsigned short GetAngle();
+};
+UG2_CHECK_OFFSET(AckermannSteering, wheelMatrices10, 0x10);
+UG2_CHECK_OFFSET(AckermannSteering, angle90, 0x90);
+
+// Aerodynamic/drag helper owned by the mover at +0x50.
+struct MoverAero {
+    // Created inline by the mover constructor from pool 0x86b2f4.
+    MoverAeroSpec *spec0;
+    MoverBody *body4;
+    float scale8;
+    float valueC;
+    float control10;
+    float grounded14;
+    char unidentified18[8];
+    WheelVector force20;
+    float value2C;
+    float value30;
+    float value34;
+    void Construct(MoverAeroSpec *spec, MoverBody *body);
+    void Apply(float *output);
+};
+
+// Driver controls object at mover +4; only observed slots are named.
+class MoverInput {
+public:
+    virtual void UnknownSlot00() = 0;
+    virtual void UnknownSlot04() = 0;
+    virtual void UnknownSlot08() = 0;
+    virtual void UnknownSlot0C() = 0;
+    virtual void UnknownSlot10() = 0;
+    virtual void UnknownSlot14() = 0;
+    virtual void UnknownSlot18() = 0;
+    virtual void UnknownSlot1C() = 0;
+    virtual int GetGearRequest() = 0;
+    virtual int GetDirectGear() = 0;
+    virtual void SetSelectedGear(int gear) = 0;
+    virtual void SetCurrentGear(int gear) = 0;
+    virtual void UnknownSlot30() = 0; virtual void UnknownSlot34() = 0; virtual void UnknownSlot38() = 0;
+    virtual void UnknownSlot3C() = 0; virtual void UnknownSlot40() = 0; virtual void UnknownSlot44() = 0;
+    virtual void UnknownSlot48() = 0; virtual void UnknownSlot4C() = 0; virtual void UnknownSlot50() = 0;
+    virtual void UnknownSlot54() = 0; virtual void UnknownSlot58() = 0; virtual void UnknownSlot5C() = 0;
+    virtual void UnknownSlot60() = 0; virtual void UnknownSlot64() = 0; virtual void UnknownSlot68() = 0;
+    virtual void UnknownSlot6C() = 0; virtual void UnknownSlot70() = 0; virtual void UnknownSlot74() = 0;
+    virtual void UnknownSlot78() = 0; virtual void UnknownSlot7C() = 0; virtual void UnknownSlot80() = 0;
+    virtual unsigned short GetGuideHeading() = 0;
+    char unidentified4[0x1dc];
+    unsigned short steering1E0;
+    char unidentified1E2[0xa];
+    float wheelInputs1EC[4];
+    float wheelTargets1FC[4];
+    float throttle20C;
+    float handbrake210;
+    float brake214;
+    void SetBrake(float value);
+    void SetHandbrake(float value);
+    void SetThrottle(float value);
+};
+
+UG2_CHECK_OFFSET(MoverAero, force20, 0x20);
+UG2_CHECK_OFFSET(MoverAero, value34, 0x34);
+UG2_CHECK_OFFSET(MoverInput, steering1E0, 0x1e0);
+UG2_CHECK_OFFSET(MoverInput, wheelInputs1EC, 0x1ec);
+UG2_CHECK_OFFSET(MoverInput, throttle20C, 0x20c);
+
+// Contact sub-body returned by 0x5a0820; 0x5a01b0 reports whether it touches.
+struct MoverContactBody {
+    bool IsTouching();
+};
+
 struct MoverMode {
     char unidentified0[0x18];
     signed char value18;
+    unsigned char value19;
+    char unidentified1A[0xb6];
+    float valueD0;
+    float valueD4;
+    char unidentifiedD8[0x48];
+    int value120;
+    char unidentified124[0x1c];
+    int value140;
+    MoverContactBody *GetBody(int index);
 };
+
+struct MoverOwnerLink {
+    int value0;
+    int value4;
+};
+
+struct VehicleMover;
+
+// Car object +0x1c. Only fields used by mover routines are named.
+struct MoverOwnerObject {
+    char unidentified0[0x10];
+    short value10;
+    char unidentified12[0x1ce];
+    MoverOwnerLink *link1E0;
+    bool IsRunning();
+};
+
+// Per-car physics/tuning object ("MenuCarInstance_10" in community names, ctor 0x5ac6e0).
+struct PhysicsInfo {
+    char unidentified0[0x10];
+    int value10;
+    signed char index14;
+    char unidentified15[0x1b];
+    CarPhysicsRecord record30;
+    float upgrades2E0[10];
+    void Compose(int mode, char refresh, char flag);
+    // Original 0x5b4fc0 operates on this object +0x10; called here with (1, 1, 1).
+    void Refresh(int refresh, int flag, char select);
+};
+
+// Car object +0xc passed to the mover constructor; only +0xd8 is observed here.
+struct MoverCarInfo {
+    char unidentified0[0xd8];
+    signed char valueD8;
+};
+
+// Car object +0x2c; only virtual slot 0x78 is observed by the mover constructor.
+class RaceParticipant {
+public:
+    virtual void Slot00() = 0; virtual void Slot04() = 0; virtual void Slot08() = 0;
+    virtual void Slot0C() = 0; virtual void Slot10() = 0; virtual void Slot14() = 0;
+    virtual void Slot18() = 0; virtual void Slot1C() = 0; virtual void Slot20() = 0;
+    virtual void Slot24() = 0; virtual void Slot28() = 0; virtual void Slot2C() = 0;
+    virtual void Slot30() = 0; virtual void Slot34() = 0; virtual void Slot38() = 0;
+    virtual void Slot3C() = 0; virtual void Slot40() = 0; virtual void Slot44() = 0;
+    virtual void Slot48() = 0; virtual void Slot4C() = 0; virtual void Slot50() = 0;
+    virtual void Slot54() = 0; virtual void Slot58() = 0; virtual void Slot5C() = 0;
+    virtual void Slot60() = 0; virtual void Slot64() = 0; virtual void Slot68() = 0;
+    virtual void Slot6C() = 0; virtual void Slot70() = 0; virtual void Slot74() = 0;
+    virtual int GetTuningLevel() = 0;
+};
+
+struct MoverContext {
+    char unidentified0[4];
+    int value4;
+    char unidentified8[0x8f8];
+    unsigned char flag900;
+};
+
+// The car object; its +0x40 region is DrivetrainAuxiliary.
 struct MoverModeOwner {
-    char unidentified0[0x38];
+    char unidentified0[0x10];
+    PhysicsInfo *physicsInfo10;
+    MoverContext *context14;
+    char unidentified18[4];
+    MoverOwnerObject *object1C;
+    CarPhysicsRecord *record20;
+    int value24;
+    int moverType28;
+    RaceParticipant *participant2C;
+    MoverInput *input30;
+    struct VehicleMover *mover34;
     int state38;
     MoverMode *mode3C;
-    char unidentified40[0x3e4];
+    union {
+        char unidentified40[0x3e4];
+        struct {
+            char state40[0x20];
+            float draftPosition60;
+            float draftPosition64;
+        } view40;
+    };
     int mode424;
+    int value428;
+    float speed42C;
+    float speed430;
+    int gear434;
+    char unidentified438[8];
+    float engineValue440;
+    char unidentified444[0x24];
+    float value468;
+    char unidentified46C[0x70];
+    float value4DC;
+    char unidentified4E0[4];
+    float value4E4;
+    char unidentified4E8[0x68];
+    unsigned char effectsEnabled550;
+    char unidentified551[0x7b];
+    int effectsObject5CC;
+    char unidentified5D0[0x38c];
+    unsigned char mask95C;
+    char unidentified95D[0xf];
+    int resetRequested96C;
+    char unidentified970[4];
+    int resetTick974;
+    float resetDuration978;
+    char unidentified97C[0x1c];
+    unsigned char effectsSuppressed998;
+    DrivetrainAuxiliary *State() {
+        return reinterpret_cast<DrivetrainAuxiliary *>(unidentified40);
+    }
+    bool HasWheelInputs();
+    int GetMoverWheelState(int wheel);
+    bool IsResetPending();
+    int HasContactBodies();
+    int AreWheelsSettled();
+    void RequestReset();
+    void ApplyGuideForce();
+    float GetEventCurveValue();
+    float GetDraftValue();
+    bool HasWheelEffects();
 };
+UG2_CHECK_OFFSET(MoverMode, valueD0, 0xd0);
+UG2_CHECK_OFFSET(MoverMode, value120, 0x120);
+UG2_CHECK_OFFSET(MoverMode, value140, 0x140);
+UG2_CHECK_OFFSET(PhysicsInfo, record30, 0x30);
+UG2_CHECK_OFFSET(MoverModeOwner, participant2C, 0x2c);
+UG2_CHECK_OFFSET(MoverModeOwner, mode424, 0x424);
+UG2_CHECK_OFFSET(MoverModeOwner, engineValue440, 0x440);
+UG2_CHECK_OFFSET(MoverModeOwner, value4E4, 0x4e4);
+UG2_CHECK_OFFSET(MoverModeOwner, mask95C, 0x95c);
+UG2_CHECK_OFFSET(MoverModeOwner, resetTick974, 0x974);
+UG2_CHECK_OFFSET(MoverModeOwner, effectsEnabled550, 0x550);
+UG2_CHECK_OFFSET(MoverModeOwner, effectsObject5CC, 0x5cc);
+UG2_CHECK_OFFSET(MoverModeOwner, effectsSuppressed998, 0x998);
+UG2_CHECK_OFFSET(MoverModeOwner, input30, 0x30);
+UG2_CHECK_OFFSET(MoverOwnerObject, link1E0, 0x1e0);
+
+// PhysicsMover, 0x130 bytes, vtable 0x7a25e0; integrator subobject at +8.
 struct VehicleMover {
-    char unidentified0[0x20];
+    void *vtable0;
+    MoverInput *input4;
+    char integrator8[0x14];
+    int stateCount1C;
     MoverBody *body20;
-    char unidentified24[4];
+    AckermannSteering *steering24;
     MoverArm *arms28[4];
     DrivetrainWheel *wheels38[4];
-    char unidentified48[4];
+    Engine *engine48;
     Drivetrain *drivetrain4C;
-    char unidentified50[0xc];
+    MoverAero *aero50;
+    CarPhysicsRecord *record54;
+    DrivetrainAuxiliary *state58;
     MoverModeOwner *owner5C;
+    int value60;
+    unsigned char flag64;
+    char unidentified65[3];
+    int value68;
+    float value6C;
+    float value70;
+    int value74[4];
+    unsigned char flag84;
+    char unidentified85[0xb];
+    WheelVector vector90;
+    char unidentified9C[0x44];
+    WheelVector vectorE0;
+    char unidentifiedEC[4];
+    WheelVector vectorF0;
+    char unidentifiedFC[4];
+    WheelVector sum100;
+    char unidentified10C[4];
+    WheelVector sum110;
+    char unidentified11C[8];
+    int value124;
+    char unidentified128[8];
+
+    VehicleIntegrator *Integrator() {
+        return reinterpret_cast<VehicleIntegrator *>(integrator8);
+    }
+    void Construct(CarPhysicsRecord *record, MoverCarInfo *carInfo, MoverInput *input,
+                   MoverModeOwner *owner);
+    float Update(float duration);
+    void InitialiseFromState();
+    void RefreshLoads();
+    void RefreshModes();
+    void TransferControls();
+    void DistributeBrakes(float duration);
+    void ApplyLaunchAssist();
+    void ExportState(float duration);
+    void UpdateAfterIntegration();
+    void FinishIntegration();
+    void ApplyControllerForces();
+    void ApplyYawAssist();
+    void ApplyTractionAssist();
+    void ApplyAirborneAssist();
+    void ApplyNetworkCorrection();
+    void SetResponseScale(float scale);
+    void ResolveRestAndBumpStops();
+    void ApplyWheelLift();
+    // Original PhysicsMover vtable slot 0x0c (0x503b00).
+    MoverBody *GetBody() {
+        return body20;
+    }
     void CorrectWheelCoupling();
     void ApplyOpposingBodyForce();
 };
+UG2_CHECK_OFFSET(VehicleMover, body20, 0x20);
+UG2_CHECK_OFFSET(VehicleMover, record54, 0x54);
+UG2_CHECK_OFFSET(VehicleMover, flag84, 0x84);
+UG2_CHECK_OFFSET(VehicleMover, vectorE0, 0xe0);
+UG2_CHECK_OFFSET(VehicleMover, sum100, 0x100);
+UG2_CHECK_OFFSET(VehicleMover, value124, 0x124);
+UG2_CHECK_SIZE(VehicleMover, 0x130);
+
+struct DraftTable {
+    char unidentified0[0x10];
+    int *offsets10;
+};
+
+// Draft tracker object at 0x8a1f28; 0x5fa540 (Update) is not yet recovered.
+class DraftTracker {
+public:
+    char unidentified0[0xc];
+    DraftTable *table0C;
+    char unidentified10[8];
+    int offset18;
+    void Update(float first, float second);
+    float GetValue(int index);
+};
+
+// Replay/ghost recorder object at 0x89cf48; only two queried methods are observed.
+class ReplayRecorder {
+public:
+    bool QueryState5EFE70();
+    bool QueryState5F00F0();
+};
+extern int *raceState890118;
+unsigned short WheelAngle(float x, float y);
+float ComputeTractionFactor(float slip, float handbrake, float speed, float base, float extra,
+                            int grounded, float *tilt, float event);
+int UpdateMoverCentre(MoverModeOwner *owner, MoverBody *body, unsigned char *pending);
 
 extern float moverOpposingForceThreshold;
 
@@ -105,4 +535,3 @@ extern float bodyPointTorqueLimit;
 void BodyMatrixDerivative(WheelMatrix *output, WheelVector *input, WheelMatrix *matrix);
 
 #endif
-

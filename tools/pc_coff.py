@@ -1,4 +1,6 @@
 """Analysis-only loader for linked x86 COFF sections, including local jump tables."""
+import json
+import os
 import struct
 
 
@@ -29,6 +31,9 @@ def read_object(path):
 
 def link_objects(paths, externals, start=0x2200000):
     objects = [read_object(path) for path in paths]
+    if os.environ.get("UG2_LINK_LOG"):
+        with open(os.environ["UG2_LINK_LOG"], "a") as log:
+            log.write(json.dumps({name: address for name, address in externals.items() if address < 0x1000000})+"\n")
     cursor, exports, functions = start, dict(externals), {}
     for obj in objects:
         for section in obj["sections"]:
