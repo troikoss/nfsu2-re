@@ -129,10 +129,10 @@ int MoverModeOwner::HasContactBodies() {
     if (mode424 > 0) {
         return 1;
     }
-    MoverMode *mode = mode3C;
-    int count = mode->value18;
+    CarCollisionBody *body = collisionBody3C;
+    int count = body->events18;
     for (int i = 0; i < count; ++i) {
-        if (mode->GetBody(i)->IsTouching()) {
+        if (body->GetEvent(i)->IsTouching()) {
             return 1;
         }
     }
@@ -202,7 +202,7 @@ int ApplyMoverRest(MoverModeOwner *owner, MoverBody *body, int *timer, int *stat
         if (WheelLength(&body->vectorA0) > drivetrainSelectorUpperThreshold) {
             *timer = 0;
         }
-        owner->mode3C->value19 = 1;
+        owner->collisionBody3C->active19 = 1;
         body->value160 = owner->state38 == 1 ? moverOwnerGravity : bodyGravity;
         return 0;
     }
@@ -225,7 +225,7 @@ int ApplyMoverRest(MoverModeOwner *owner, MoverBody *body, int *timer, int *stat
         if (WheelLength(&body->vectorA0) > drivetrainSelectorUpperThreshold) {
             *timer = 0;
         }
-        owner->mode3C->value19 = 1;
+        owner->collisionBody3C->active19 = 1;
         body->value160 = owner->state38 == 1 ? moverOwnerGravity : bodyGravity;
         return 1;
     }
@@ -254,7 +254,7 @@ int ApplyMoverRest(MoverModeOwner *owner, MoverBody *body, int *timer, int *stat
     } else {
         *timer = 0;
     }
-    owner->mode3C->value19 = 0;
+    owner->collisionBody3C->active19 = 0;
     body->value160 = 0.0f;
     return 1;
 }
@@ -351,7 +351,7 @@ void VehicleMover::ApplyYawAssist() {
 
 // Original 0x5a51b0: per-wheel lift impulses from the controls' four wheel inputs.
 void VehicleMover::ApplyWheelLift() {
-    if (owner5C->mode3C->value18 > 0) {
+    if (owner5C->collisionBody3C->events18 > 0) {
         return;
     }
     float *inputs = input4->wheelInputs1EC;

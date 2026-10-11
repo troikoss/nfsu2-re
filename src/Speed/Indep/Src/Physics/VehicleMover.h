@@ -1,6 +1,7 @@
 #ifndef UG2_VEHICLE_MOVER_H
 #define UG2_VEHICLE_MOVER_H
 
+#include "Collision/Collision.h"
 #include "Drivetrain.h"
 #include "Ug2Layout.h"
 
@@ -114,6 +115,7 @@ struct MoverBody {
                  WheelVector *angular, WheelMatrix *inertiaOutput);
     void MoveCentre(WheelVector *centre);
     void AddLimitedImpulse(WheelVector *impulse, WheelVector *point);
+    void AddScaledImpulse(WheelVector *impulse, WheelVector *point, float angularScale);
     void AddForce(WheelVector *input);
     void ApplyForceAtPoint(WheelVector *force, WheelVector *point);
     void PostUpdate();
@@ -249,25 +251,6 @@ UG2_CHECK_OFFSET(MoverInput, steering1E0, 0x1e0);
 UG2_CHECK_OFFSET(MoverInput, wheelInputs1EC, 0x1ec);
 UG2_CHECK_OFFSET(MoverInput, throttle20C, 0x20c);
 
-// Contact sub-body returned by 0x5a0820; 0x5a01b0 reports whether it touches.
-struct MoverContactBody {
-    bool IsTouching();
-};
-
-struct MoverMode {
-    char unidentified0[0x18];
-    signed char value18;
-    unsigned char value19;
-    char unidentified1A[0xb6];
-    float valueD0;
-    float valueD4;
-    char unidentifiedD8[0x48];
-    int value120;
-    char unidentified124[0x1c];
-    int value140;
-    MoverContactBody *GetBody(int index);
-};
-
 struct MoverOwnerLink {
     int value0;
     int value4;
@@ -340,7 +323,7 @@ struct MoverModeOwner {
     MoverInput *input30;
     struct VehicleMover *mover34;
     int state38;
-    MoverMode *mode3C;
+    CarCollisionBody *collisionBody3C;
     union {
         char unidentified40[0x3e4];
         struct {
@@ -356,7 +339,9 @@ struct MoverModeOwner {
     int gear434;
     char unidentified438[8];
     float engineValue440;
-    char unidentified444[0x24];
+    char unidentified444[4];
+    int value448;
+    char unidentified44C[0x1c];
     float value468;
     char unidentified46C[0x70];
     float value4DC;
@@ -366,7 +351,8 @@ struct MoverModeOwner {
     unsigned char effectsEnabled550;
     char unidentified551[0x7b];
     int colliderPack5CC;
-    char unidentified5D0[0x38c];
+    char unidentified5D0[0x388];
+    int forceFeedback958;
     unsigned char mask95C;
     char unidentified95D[0xf];
     int resetRequested96C;
@@ -389,9 +375,6 @@ struct MoverModeOwner {
     float GetDraftValue();
     bool HasWheelEffects();
 };
-UG2_CHECK_OFFSET(MoverMode, valueD0, 0xd0);
-UG2_CHECK_OFFSET(MoverMode, value120, 0x120);
-UG2_CHECK_OFFSET(MoverMode, value140, 0x140);
 UG2_CHECK_OFFSET(PhysicsInfo, record30, 0x30);
 UG2_CHECK_OFFSET(MoverModeOwner, participant2C, 0x2c);
 UG2_CHECK_OFFSET(MoverModeOwner, mode424, 0x424);

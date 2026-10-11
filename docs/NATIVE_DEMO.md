@@ -59,10 +59,60 @@ The demo now drives on UG2's L4RA streets using recovered world-collision code i
 - Skid-mark emitter `0x59dbb0` with rotation helper `0x59db50`.
 
 The skid-mark trail methods (`0x5e6e70`, `0x5d3230`) are a renderer seam: the demo
-records segments to draw them. The collider area fill `0x5e0d30`, used by barrier
-collision, is trapped. Barrier (car-versus-wall) collision `0x5ae930` is not recovered,
-so the demo respawns the car at its last grounded position after it leaves the
-collision coverage; this respawn is scaffolding.
+records segments to draw them. Wall collision is recovered in the fifth pass below; the
+demo still respawns a car that leaves the collision coverage (scaffolding).
+
+## Wall collision (fifth pass)
+
+Cars now collide with the track's walls through UG2's collision-body world, recovered in
+`src/Speed/Indep/Src/Physics/Collision/` (class names from the original slot pools and
+serialisation strings). Walls are not special-cased: every frame each moving body turns
+the track faces near it into `TrackPolygonCollisionBody` objects, pairs overlapping bodies,
+measures pairs with GJK and resolves touching pairs with an impulse.
+
+- World step `0x5ffa50` (after `0x5f0f00` advances every dynamic body), stale pairs
+  `0x592e60`, pair search `0x5b23b0` over the body list kept sorted by maximum X
+  (`0x5a0680`, largest width `0x5a05a0`), contact list sort `0x43bee0`/`0x5a0eb0`/`0x5a0dc0`,
+  contact removal `0x5af090`, orphan polygons `0x5a0cd0`, pools `0x5a0200`/`0x593db0`/`0x592b00`.
+- Bodies: `CollisionBody` `0x5a04f0`/`0x5a9c00`, `DynamicCollisionBody` `0x5a9ce0` (pose
+  snapshot `0x593210`, interpolated pose `0x593280`, rewind `0x593630`/`0x593590`, mover
+  attach `0x5938c0`, shape extents `0x5ae520`, bounds `0x5a9de0`, polygon reach `0x5937b0`,
+  polygon spawning `0x5ae930`), `CarCollisionBody` `0x5aec20` with slots `0x593b40`..`0x5a0be0`
+  (impulse `0x5a0b00` → `MoverBody` `0x59bd80`, inverse mass/inertia `0x593a00`/`0x593a40`,
+  restitution/friction `0x5a0c90`/`0x5a0be0`, shape choice `0x5a0a80`), `TrackPolygonCollisionBody`
+  `0x5aa0b0`/`0x5aefa0` with its fixed-body slots and polygon shape `0x5a1a90`.
+- Track faces near a body: collider area update `0x5e7100`, area fill `0x5e0d30`, planar
+  face distance `0x5d3450`; car hulls from `CARS/<car>/GEOMETRY.BIN` chunk `0x80034020`
+  (`0x5a1750`, lookup `0x5a18c0`, key = model name + `_CV`), falling back to the box `0x598760`.
+- Shapes: vertices `0x5aad20`/`0x5a1970`/`0x5a2010`/`0x5987d0`, support points (hull hill
+  climbing `0x5afba0`, polygon `0x5a2060`, box `0x5a2280`, point `0x5a2360`).
+- Pair witness `0x5a0340`/`0x5b22b0`, shapes `0x598590`, poses `0x598620`, distance update
+  `0x5b3d20`, GJK `0x5b3390` with the feature-pair sub-algorithm `0x595040` and simplex copies
+  `0x598130`/`0x598240`, pair test `0x5b5050`, thick-polygon flags `0x592f00`/`0x593010`.
+- Contacts: impact time bisection `0x5b4be0`, separation `0x5b42f0`, polygon normal side
+  `0x593df0`, contact frame `0x594000`, resolve `0x5b2610` (rewind, impulse, re-advance),
+  impulse with restitution and friction `0x5af0e0`/`0x5941c0`.
+- Contact events (the mover's "contact bodies"): `0x5a9b10`/`0x5a9430`/`0x5a9570`/`0x5ae470`,
+  lookup `0x5a0820`, wall/floor tests `0x5a0160`/`0x5a01b0`, accumulation part of `0x5a9620`.
+- World clock `0x57a0e0` (60 Hz frames, 4 kHz ticks at `0x86518c`), which ages the events.
+
+Verification: `tools/verify_pc_collision_simplex.py` runs the original and the MSVC 7.1
+rebuild of `0x595040`/`0x598130`/`0x598240` in Unicorn on 6,400 synthetic simplices. All
+non-degenerate cases agree within float rounding (about two thirds bit-identical); 42
+cases with duplicated or collinear vertices pick a different vertex at an exact tie
+because of x87 spill rounding. Nothing here is byte-matching; the rest is behaviour
+observed in the demo only. In the headless run with `UG2_STEER=-0.4` the Skyline hits
+walls at 71 and 90 km/h, loses roughly half its speed, and its centre stays 1.2 to 2.3 m
+in front of the wall plane.
+
+Scaffolding and seams (`src/Platform/Native/NativeCollision.cpp`): the car update `0x6012b0`
+is reduced to the mover step; collision effects after the impulse sums (sparks, sounds,
+replay, force feedback), audio registration `0x483e20`/`0x483e40` and the game message
+`0x5e0360` are no-ops; the hull key `0x61c320` is computed by the loader for stock parts;
+slot pools are heap blocks with the original capacities; the world clock runs after the
+step (its original call site is not recovered). World objects (type 1/2), cylinders,
+replay serialisation and mover point velocity (`0x59bec0`) are trapped. `UG2_DEBUG_COLLISION=1`
+prints every impulse with the wall normal and the car's distance to the wall plane.
 
 ## Original assets (third pass)
 
@@ -149,6 +199,51 @@ unnamed body-panel and skirt keys `0x3c84d757`/`0xa7366ae6`) are drawn in a fixe
 lighting is fixed-function OpenGL. The wheel model is drawn at the recovered wheel render
 frames (`0x5921b0`), mirrored for right-side wheels.
 
+## Drive camera and HUD (fifth pass)
+
+Recovered and applied by the demo (behaviour, not byte matching; `DriveCamera.cpp` and `HudGauge.cpp`
+compile with MSVC 7.1 `/Ox /Ob0`):
+
+- **Drive camera**, the mover Player::SetCameraState (`0x5f1fd0`) builds for state 1: constructor
+  `0x451660`, update `0x453570`, pose `0x44de90`, setting read `0x445eb0`, car frame `0x445e00`.
+  Eye, look-at and up are cubic Hermite followers (`0x5749e0`/`0x574df0`, restarted on every target
+  change, duration from the dynamics key) in car-local axes. Targets come from the per-car camera
+  table at CarTypeInfo `+0x720` (GLOBALB.BUN: six 16-byte `{type, angle, x, height, lateral}`
+  entries, types 0 far, 1 close, 2 bumper, 3 driver, 4 hood, 5 super far; option to type map
+  `0x502500`) plus the 4-frame average of the car acceleration (`car +0x80`) scaled and clamped by the
+  static dynamics curve table `0x7ec610` sampled at the constant `0x787154`. Field of view per type
+  is the table `0x7eb5b4` (71.5 degrees chase, 90 cockpit); near plane 0.5 (0.4 driver); projection
+  from `0x5c7ec0` (half-angle tangents from the field of view and the 1.1 / 0.8696 aspect constants).
+  Bumper and driver types hide the car (Camera `+0x280`). Keys: `C` cycles far/close/hood/bumper,
+  `V` looks back (hold); `--camera N` picks the profile option 0..4 (default 3, outside far).
+- **HUD**: `HUD_SingleRace.fng` from `GLOBAL/InGameFreeRoam.bun`. FNG layout (package `FEn\xe7`:
+  `PkHd`, `TypS`, `Res\xcc` with `RsNm`/`RsRq` (50 six-dword requests, name hash, name offset,
+  kind), `Obj\xcc` with `FOb\xea` blocks of `ObjD` 16-bit tag/size records and `Scrp` scripts) is read
+  from the loaders `0x5554a0`/`0x555140`/`0x5515e0`/`0x518380`. Object state block: colour (B, G, R, A
+  dwords), pivot, position, rotation quaternion, size and for images UVs. Position `OP +0xc` low half is
+  the resource index, `PA` the parent GUID, flag bit 0 hides (`0x50ca00`/`0x50ca50`). Coordinates are
+  640x480 with the origin at the screen centre; lower z draws in front. Object hashes are the case
+  folded `h = h * 33 + c` (`0x505450`) of names found in the executable (`3rdPersonNeedle`,
+  `3rdPersonSpeed`, `3rdPersonGear`, ...). The gauge feature is the recovered `0x4f5100`/`0x4c68d0`:
+  dial type `0x60fe10` (7500..10500 scale), needle sweep `(maximum rpm / scale) * 235` degrees, needle
+  angle `0x4aa0e0`, speed `|v| * 2.237` mph or `* 3.6` km/h, gear characters from `0x7f66a4`, gear
+  colour while shifting, skin textures `TACH_FILL_CUSTOM_nn`, `3RDPERSON_*LINES_CUSTOM_nn` and
+  `3RDPERSON_RPMDIAL_CUSTOM_nn` from `HUD_CustomTextures_ALL.bin` (`--hud-skin N`, 0 default), unit
+  text `MPH`/`KM/H` by hash from `LANGUAGES/English.bin` (`--metric`).
+
+Scaffolding in this pass: the FEng object model and renderer (`NativeFng.cpp`), UI text (the original
+uses GDI `CreateFontA` fonts; a system italic sans face is rasterised with the vendored
+`imstb_truetype.h`, public domain/MIT, override with `--hud-font`), the acceleration vector at car
+`+0x80` (its original producer is not recovered; it is the change of the exported velocity per second,
+inferred from its camera use and from `0x5ec3a0` dotting it with the forward axis), the free-drive
+feature selection (only the gauge cluster is shown; the mask logic `0x600090`/`0x4ca090` and the other
+features such as minimap, laps, nitrous bar and `tach_fill` colouring are not applied).
+
+Not recovered, left as seams: world collision pushes for the chase types (`0x444530`, `0x44b040`),
+camera shake (`0x452ed0`, `0x572a50`), Camera object finalisation (`0x447280`), the cockpit blocked
+tests (`0x445fc0`, `0x5d39f0`), the chase heading follower (`0x445c20`, only read by a subclass), the
+shift light, replay RPM source and HUDINDEX option.
+
 ## Platform scaffolding (not original code)
 
 `src/Platform/Native` contains everything that is not recovered UG2 code:
@@ -161,7 +256,7 @@ frames (`0x5921b0`), mirrored for right-side wheels.
   standing in for world collision `0x5e72e0`, scaffold race-status/context/random
   objects, keyboard controls, and stock car records copied from GLOBALB.BUN CarTypeInfo
   `+0x110` (upgrade composition `0x5ac4f0`/`0x5997e0` not yet recovered).
-- `DemoMain.cpp`: SDL2/OpenGL window, chase camera, HUD bars; `NativeAssets.cpp`/
+- `DemoMain.cpp`: SDL2/OpenGL window and input; `NativeFng.cpp`/`NativeHud.cpp`: FNG HUD; `NativeAssets.cpp`/
   `NativeScene.cpp` read and draw the original car and scenery assets (see above).
   `--placeholder` restores the box car and collision-polygon world.
 - Unrecovered routines the demo state should never reach stop the program with a
@@ -180,8 +275,8 @@ build/native/ug2demo --frames 60 --orbit 30 --screenshot car.ppm   # scripted ca
 ```
 
 The headless Skyline run accelerates through automatic shifts near 7,800 rpm and reaches
-about 95 km/h when its scripted steering takes it off the road at eight seconds; without
-barrier collision it then leaves the collision coverage and falls. These are plausibility
+about 95 km/h when its scripted steering takes it into the roadside wall at eight seconds,
+where it now slides along the wall instead of leaving the map. These are plausibility
 observations, not equivalence evidence.
 
 ## Known limitations
@@ -189,7 +284,7 @@ observations, not equivalence evidence.
 - All scenery instances are drawn regardless of their unidentified flags, so some LOD or
   variant pieces overlap; streaming, visibility and the original shaders are not recovered.
 - Paint, vinyls, damage textures and headlight/brakelight switching are not applied.
-- No barrier collision yet (see above); every collision pack is loaded at start-up
+- Every collision pack is loaded at start-up
   instead of the original streaming, and the spawn point is chosen heuristically.
 - Steering input scaling (±30° road-wheel angle), reverse engagement (hold brake at rest)
   and the controls object are scaffold; the original input filtering is unrecovered.

@@ -18,7 +18,6 @@ extern int topologyStreaming864F7C;
 
 void *bOMalloc(void *pool);
 void *bNewSlotPool(int size, int count, const char *name, int flags);
-void FillColliderArea(WCollider *collider, float *minimum, float *maximum);
 
 static void Unlink(WCollisionLink *link) {
     WCollisionLink *next = link->next;
@@ -681,7 +680,7 @@ void WCollider::RefreshArea() {
     for (int i = 0; i < groupCount2F0; ++i) {
         groups2F4[i]->enabled8 = 1;
     }
-    FillColliderArea(this, areaMinimum2C, areaMaximum34);
+    pack8->FillArea(this, areaMinimum2C, areaMaximum34);
     for (int i = 0; i < groupCount2F0; ++i) {
         groups2F4[i]->enabled8 = 0;
     }
@@ -882,4 +881,232 @@ float WCollider::QueryGround(WheelVector *position, int *surface, WheelVector *n
         *normal = best->normal70;
     }
     return bestHeight;
+}
+
+extern float collisionAreaHalf;
+extern float collisionAreaGrow;
+extern float collisionAreaLead;
+extern float collisionAreaLeadMinimum;
+extern float collisionAreaLeadMaximum;
+extern float collisionAreaCellSpan;
+extern float collisionAreaCellSpanScale;
+
+// Original 0x5e0d30: gather the pack polygons overlapping an area into the collider's
+// area list, ordered plain faces first, then flag-2 faces, then flag-8 faces.
+int WCollisionPack::FillArea(WCollider *collider, float *minimum, float *maximum) {
+    if (!faceCache || !polygonCountC) {
+        return 0;
+    }
+    int firstX = (int)((minimum[0] - originX38) * collisionCellScale);
+    int lastX = (int)((maximum[0] - originX38) * collisionCellScale);
+    int lastY = (int)((maximum[1] - originY3C) * collisionCellScale);
+    int count = 0;
+    int flagTwo = 0;
+    int flagEight = 0;
+    float minimumX = minimum[0];
+    float minimumY = minimum[1];
+    float maximumX = maximum[0];
+    float maximumY = maximum[1];
+    WCollisionPolygon *found[160];
+    for (int y = (int)((minimum[1] - originY3C) * collisionCellScale); y <= lastY; ++y) {
+        for (int x = firstX; x <= lastX; ++x) {
+            float cellLeft = (float)x * collisionCellSize + originX38;
+            float cellBottom = (float)y * collisionCellSize + originY3C;
+            int spanX = (int)(((maximum[0] - minimum[0]) + collisionAreaCellSpan) * collisionAreaCellSpanScale);
+            int startX = (int)((minimum[0] - cellLeft) * collisionSubcellScale);
+            unsigned int maskX = ((1 << (1 - spanX)) - 1) << (startX < 0 ? 0 : startX) & 0xf;
+            int spanY = (int)(((maximum[1] - minimum[1]) + collisionAreaCellSpan) * collisionAreaCellSpanScale);
+            int startY = (int)((minimum[1] - cellBottom) * collisionSubcellScale);
+            unsigned int maskY = ((1 << (1 - spanY)) - 1) << (startY < 0 ? 0 : startY) & 0xf;
+            unsigned int mask = 0;
+            if (maskY & 1) {
+                mask = maskX;
+            }
+            if (maskY & 2) {
+                mask |= maskX << 4;
+            }
+            if (maskY & 4) {
+                mask |= maskX << 8;
+            }
+            if (maskY & 8) {
+                mask |= maskX << 12;
+            }
+            int column = x <= 0 ? 0 : x;
+            if (columns34 - 1 < column) {
+                column = columns34 - 1;
+            }
+            int row = y <= 0 ? 0 : y;
+            if (rows36 - 1 < row) {
+                row = rows36 - 1;
+            }
+            WCollisionCell *cell = &cells20[columns34 * row + column];
+            int end = cell->start + cell->count;
+            for (int r = cell->start; r < end; ++r) {
+                if (!(mask & refs18[r].mask)) {
+                    continue;
+                }
+                WCollisionPolygon *polygon = &polygons8[refs18[r].polygon];
+                unsigned char flags = polygon->flags3;
+                if (flags & 0x20) {
+                    continue;
+                }
+                unsigned char extents = polygon->extents1;
+                if (!((float)((int)polygon->x8[extents & 3] << 13) * collisionCoordinateScale <= maximumX)
+                    || !((float)((int)polygon->y10[(extents >> 2) & 3] << 13) * collisionCoordinateScale <= maximumY)
+                    || (float)((int)polygon->x8[(extents >> 4) & 3] << 13) * collisionCoordinateScale < minimumX
+                    || (float)((int)polygon->y10[extents >> 6] << 13) * collisionCoordinateScale < minimumY) {
+                    continue;
+                }
+                if (polygon->group0 && !collisionManager.barriers82C[polygon->group0].enabled8) {
+                    continue;
+                }
+                if (count >= 0xa0) {
+                    continue;
+                }
+                found[count++] = polygon;
+                if (flags & 2) {
+                    ++flagTwo;
+                } else if (flags & 8) {
+                    ++flagEight;
+                }
+                polygon->flags3 = flags | 0x20;
+            }
+        }
+    }
+    int plain = count - flagEight - flagTwo;
+    WCollisionFace **front = collider->areaFaces3C;
+    WCollisionFace **last = collider->areaFaces3C + (count - flagEight);
+    WCollisionFace **middle = collider->areaFaces3C + plain;
+    for (int i = 0; i < count; ++i) {
+        WCollisionPolygon *polygon = found[i];
+        polygon->flags3 &= 0xdf;
+        WCollisionFace *face = GetFace(polygon);
+        if (polygon->flags3 & 2) {
+            *middle++ = face;
+        } else if (polygon->flags3 & 8) {
+            *last++ = face;
+        } else {
+            *front++ = face;
+        }
+    }
+    collider->areaValue2E4 = plain;
+    collider->areaCount2E0 = count;
+    collider->areaValue2E8 = flagTwo;
+    collider->areaValue2EC = flagEight;
+    return count;
+}
+
+// Original 0x5e7100: re-centre on the bounds, and refill the area when the bounds leave it.
+// The area is the bounds grown by 0.1 and stretched 0.2 s along the velocity (at most 3 m).
+bool WCollider::UpdateArea(float *minimum, float *maximum, WheelVector *velocity) {
+    float centre[2];
+    centre[0] = (minimum[0] + maximum[0]) * collisionAreaHalf;
+    centre[1] = (minimum[1] + maximum[1]) * collisionAreaHalf;
+    UpdatePack(centre, 0.0f);
+    boundsMinimum1C[1] = minimum[1];
+    boundsMinimum1C[0] = minimum[0];
+    boundsMaximum24[1] = maximum[1];
+    boundsMaximum24[0] = maximum[0];
+    if (areaMinimum2C[0] <= boundsMinimum1C[0] && boundsMaximum24[0] <= areaMaximum34[0]
+        && areaMinimum2C[1] <= boundsMinimum1C[1] && boundsMaximum24[1] <= areaMaximum34[1]) {
+        return false;
+    }
+    areaMinimum2C[1] = boundsMinimum1C[1];
+    areaMinimum2C[0] = boundsMinimum1C[0];
+    areaMaximum34[1] = boundsMaximum24[1];
+    areaMaximum34[0] = boundsMaximum24[0];
+    float lowX = areaMinimum2C[0] - collisionAreaGrow;
+    areaMinimum2C[0] = lowX;
+    float lowY = areaMinimum2C[1] - collisionAreaGrow;
+    areaMinimum2C[1] = lowY;
+    float highX = areaMaximum34[0] + collisionAreaGrow;
+    areaMaximum34[0] = highX;
+    float highY = areaMaximum34[1] + collisionAreaGrow;
+    areaMaximum34[1] = highY;
+    if (velocity) {
+        float leadX = velocity->x * collisionAreaLead;
+        float leadY = velocity->y * collisionAreaLead;
+        float x = collisionAreaLeadMinimum;
+        if (collisionAreaLeadMinimum < leadX && (x = leadX, collisionAreaLeadMaximum < leadX)) {
+            x = 3.0f;
+        }
+        float y = collisionAreaLeadMinimum;
+        if (collisionAreaLeadMinimum < leadY && (y = leadY, collisionAreaLeadMaximum < leadY)) {
+            y = collisionAreaLeadMaximum;
+        }
+        if (x <= 0.0f) {
+            areaMinimum2C[0] = lowX + x;
+        } else {
+            areaMaximum34[0] = highX + x;
+        }
+        if (y <= 0.0f) {
+            areaMinimum2C[1] = lowY + y;
+        } else {
+            areaMaximum34[1] = highY + y;
+        }
+    }
+    RefreshArea();
+    return true;
+}
+
+// Original 0x5d3450: planar (XY) distance from a point to the face outline, stopping at the
+// first edge closer than `limit`. Points inside a non-flag-2 face are at distance 0.
+float WCollisionFace::PlanarDistance(float *point, float limit) {
+    if (!(flagsA & 2) && EdgeDistance(point) <= 0.0f) {
+        return 0.0f;
+    }
+    float best = limit;
+    int count = vertexCount9;
+    float *vertex = vertices30[0];
+    for (int i = 0; i < count;) {
+        ++i;
+        float *next = vertices30[i % count];
+        float offset[2];
+        offset[0] = point[0] - vertex[0];
+        offset[1] = point[1] - vertex[1];
+        float edge[2];
+        edge[1] = next[1] - vertex[1];
+        edge[0] = next[0] - vertex[0];
+        float length = (float)sqrt(edge[1] * edge[1] + edge[0] * edge[0]);
+        Normalize2(edge, edge);
+        float along = offset[1] * edge[1] + offset[0] * edge[0];
+        float across = -edge[0] * offset[1] + offset[0] * edge[1];
+        float distance;
+        if (along < 0.0f) {
+            distance = (float)sqrt(across * across + along * along);
+        } else if (along <= length) {
+            distance = across < 0.0f ? -across : across;
+        } else {
+            float beyond = along - length;
+            distance = (float)sqrt(beyond * beyond + across * across);
+        }
+        if (distance < best) {
+            best = distance;
+            if (distance < limit) {
+                break;
+            }
+        }
+        count = vertexCount9;
+        vertex += 4;
+    }
+    return best;
+}
+
+extern const char collisionSectionNameFormat[];
+extern int collisionSectionNameSlot890010;
+extern char collisionSectionNames88FFD0[4][0x10];
+int bSPrintf(char *buffer, const char *format, ...);
+
+// Original 0x5d6d70: section number as text ("A12"), from four rotating buffers.
+const char *CollisionSectionName(int section) {
+    char *buffer = collisionSectionNames88FFD0[collisionSectionNameSlot890010 & 3];
+    ++collisionSectionNameSlot890010;
+    if (section < 1) {
+        buffer[0] = '-';
+        buffer[1] = '-';
+        buffer[2] = 0;
+        return buffer;
+    }
+    bSPrintf(buffer, collisionSectionNameFormat, (int)(char)(section / 100 + '@'), section % 100);
+    return buffer;
 }

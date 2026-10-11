@@ -3,7 +3,7 @@
 // Original PC v1.2 0x5abdf0. Preserve the preparation/five-pass/finishing order.
 void VehicleMover::CorrectWheelCoupling() {
     drivetrain4C->ApplyInitialDriveValue();
-    int mode = owner5C->mode3C->value18;
+    int mode = owner5C->collisionBody3C->events18;
     for (int i = 0; i < 4; ++i) {
         wheels38[i]->PrepareForces(0.0f, mode);
     }

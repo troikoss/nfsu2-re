@@ -102,7 +102,7 @@ float DrivetrainAuxiliary::GetSlipAngle() {
 
 // Original 0x5ec790: event curve sampled for four seconds after mode +0x140 is stamped.
 float MoverModeOwner::GetEventCurveValue() {
-    int stamp = mode3C->value140;
+    int stamp = collisionBody3C->tick140;
     if (stamp != 0 && stamp != 0x7fffffff) {
         volatile float elapsed = (float)(drivetrainClock - stamp) * drivetrainClockScale;
         if (elapsed < moverEventDuration) {
@@ -135,9 +135,9 @@ float ComputeTractionFactor(float slip, float handbrake, float speed, float base
 int UpdateMoverCentre(MoverModeOwner *owner, MoverBody *body, unsigned char *pending) {
     WheelVector centre;
     if (owner->state38 == 1) {
-        MoverMode *mode = owner->mode3C;
+        CarCollisionBody *collision = owner->collisionBody3C;
         float recordZ = owner->record20->centre0.z;
-        float target = (mode->valueD4 - mode->valueD0) * moverCentreBlend + mode->valueD0;
+        float target = (collision->upperD4 - collision->lowerD0) * moverCentreBlend + collision->lowerD0;
         centre.y = 0.0f;
         centre.x = 0.0f;
         volatile float z = target - (target - recordZ) * ((float)owner->mode424 * moverQuarterScale);
@@ -163,7 +163,7 @@ void VehicleMover::SetResponseScale(float scale) {
         scale = 1.0f;
     }
     float engineScale = scale;
-    if (owner5C->mask95C && owner5C->mode3C->value18) {
+    if (owner5C->mask95C && owner5C->collisionBody3C->events18) {
         engineScale = moverResponseMaskScale * scale;
     }
     engine48->coefficient90 = engineScale;
@@ -309,7 +309,7 @@ void VehicleMover::RefreshModes() {
     }
     if (record54->drivetrain1B0.selector10 > drivetrainSelectorUpperThreshold) {
         if (owner5C->speed430 * drivetrainSynchronizationScale < moverAwdSpeed
-            && owner5C->mode3C->value120 > 0) {
+            && owner5C->collisionBody3C->wallContacts120 > 0) {
             drivetrain4C->coefficientEC = 0.65f;
             return;
         }

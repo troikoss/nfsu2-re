@@ -179,3 +179,32 @@ void MoverBody::AddLimitedImpulse(WheelVector *impulse, WheelVector *point) {
     vector80.y = (float)(ay + vector80.y);
     vector80.z = (float)(az + vector80.z);
 }
+
+// Original 0x59bd80: like 0x59bc60, with the angular change scaled after its cap.
+void MoverBody::AddScaledImpulse(WheelVector *impulse, WheelVector *point, float angularScale) {
+    volatile float x = impulse->x, y = impulse->y, z = impulse->z;
+    double length = sqrt(z * z + y * y + x * x);
+    if (length > bodyImpulseLimit) {
+        double scale = bodyImpulseLimit / length;
+        x = x * scale;
+        y = y * scale;
+        z = z * scale;
+    }
+    vector70.x = x + vector70.x;
+    vector70.y = y + vector70.y;
+    vector70.z = z + vector70.z;
+    WheelVector linear = {x, y, z};
+    WheelVector angular;
+    WheelCross(&angular, point, &linear);
+    volatile float ax = angular.x, ay = angular.y, az = angular.z;
+    length = sqrt(ay * ay + az * az + ax * ax);
+    if (length > bodyAngularImpulseLimit) {
+        double scale = bodyAngularImpulseLimit / length;
+        ax = scale * ax;
+        ay = ay * scale;
+        az = az * scale;
+    }
+    vector80.x = ax * angularScale + vector80.x;
+    vector80.y = ay * angularScale + vector80.y;
+    vector80.z = az * angularScale + vector80.z;
+}

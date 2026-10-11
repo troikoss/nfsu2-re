@@ -196,6 +196,7 @@ void LoadTexturePack(const unsigned char *data, size_t begin, size_t end, Native
             }
         }
     }
+    if (getenv("UG2_DEBUG_PACK")) fprintf(stderr, "pack infos=%p count=%zu pixels=%zu\n", (const void *)infos, infoCount, pixelBytes);
     for (size_t i = 0; infos && pixelBase && i < infoCount; ++i) {
         const unsigned char *info = infos + i * 0x7c;
         size_t offset = Get32(info + 0x24), bytes = Get32(info + 0x2c);

@@ -1,4 +1,5 @@
 #include "NativeVehicle.h"
+#include "../../Speed/Indep/Libs/bWare/Strings.h"
 #include "OriginalImage.h"
 #include "../../Speed/Indep/Src/Physics/VehicleIntegrator.h"
 #include "../../Speed/Indep/Src/Physics/VehicleAllocation.h"
@@ -176,8 +177,6 @@ unsigned int bGetTicker() {
 // Unrecovered original routines. The demo state never reaches them; if it does, stop.
 void PhysicsInfo::Compose(int, char, char) { NativeTrap("car record composer 0x5b4dc0"); }
 void PhysicsInfo::Refresh(int, int, char) { NativeTrap("car record refresh 0x5b4fc0"); }
-bool MoverContactBody::IsTouching() { NativeTrap("contact body query 0x5a01b0"); return false; }
-MoverContactBody *MoverMode::GetBody(int) { NativeTrap("contact body lookup 0x5a0820"); return 0; }
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
 bool ReplayRecorder::QueryState5F00F0() { NativeTrap("replay recorder 0x5f00f0"); return false; }
 // Skid-mark trail methods belong to the skid-mark renderer (0x5e6e70/0x5d3230).
@@ -232,6 +231,9 @@ unsigned short NativeControls::GetGuideHeading() { return 0; }
 // Runtime and vehicle assembly.
 
 extern int *raceState890118;
+extern unsigned int nativeCollisionHullKey;
+void AdvanceWorldClock();
+extern float frameDuration865154;
 extern float resetDurationDefault;
 extern DrivetrainContext *drivetrainContext;
 extern DrivetrainRandom *drivetrainRandom;
@@ -260,7 +262,8 @@ unsigned int Read32(const std::vector<unsigned char> &data, size_t offset) {
 // chunk loader and the upgrade composition (0x5ac4f0/0x5997e0) are not yet recovered;
 // stock records are copied from CarTypeInfo +0x110 as 0x5ac4f0 does before upgrades.
 bool LoadStockRecord(const char *gameDirectory, const char *carName, CarPhysicsRecord *record,
-                     int *carIndex, char *error, int errorSize) {
+                     CameraSettingsTable *cameraSettings, int *carIndex, char *modelName, char *error,
+                     int errorSize) {
     std::vector<unsigned char> bundle;
     std::string path = std::string(gameDirectory) + "/GLOBAL/GLOBALB.BUN";
     if (!ReadFile(path, &bundle)) {
@@ -277,6 +280,9 @@ bool LoadStockRecord(const char *gameDirectory, const char *carName, CarPhysicsR
                 const char *name = reinterpret_cast<const char *>(&bundle[table + i * 0x890]);
                 if (strncmp(name, carName, 32) == 0) {
                     memcpy(record, &bundle[table + i * 0x890 + 0x110], sizeof(CarPhysicsRecord));
+                    memcpy(cameraSettings, &bundle[table + i * 0x890 + 0x720], sizeof(CameraSettingsTable));
+                    memcpy(modelName, &bundle[table + i * 0x890 + 0x20], 32);
+                    modelName[31] = 0;
                     *carIndex = i;
                     return true;
                 }
@@ -290,7 +296,50 @@ bool LoadStockRecord(const char *gameDirectory, const char *carName, CarPhysicsR
     return false;
 }
 
+// Platform scaffolding for the car geometry loader: read the car's collision hull chunk
+// (0x80034020) once per car and hand it to the recovered hull loader 0x5a1750. The hull
+// key is the CarTypeInfo model name (+0x20) hashed with "_CV" (0x61c320, stock parts).
+bool LoadCarHulls(const char *gameDirectory, const char *carName, const char *modelName, char *error,
+                  int errorSize) {
+    static std::vector<std::string> loaded;
+    nativeCollisionHullKey = cshashWithStartValue("_CV", cshash(modelName));
+    for (size_t i = 0; i < loaded.size(); ++i) {
+        if (loaded[i] == carName) {
+            return true;
+        }
+    }
+    std::vector<unsigned char> geometry;
+    std::string path = std::string(gameDirectory) + "/CARS/" + carName + "/GEOMETRY.BIN";
+    if (!ReadFile(path, &geometry)) {
+        snprintf(error, errorSize, "cannot read %s", path.c_str());
+        return false;
+    }
+    for (size_t offset = 0; offset + 8 <= geometry.size();) {
+        unsigned int id = Read32(geometry, offset);
+        unsigned int size = Read32(geometry, offset + 4);
+        if (id == 0x80034020) {
+            // Keep the chunk's 16-byte alignment phase; the loader aligns inside it.
+            unsigned char *raw = static_cast<unsigned char *>(malloc(size + 8 + 32));
+            unsigned char *chunk = reinterpret_cast<unsigned char *>(
+                ((reinterpret_cast<size_t>(raw) + 15) & ~static_cast<size_t>(15)) + (offset & 15));
+            memcpy(chunk, &geometry[offset], size + 8);
+            LoadCollisionHulls(reinterpret_cast<int *>(chunk));
+            break;
+        }
+        offset += 8 + size;
+    }
+    loaded.push_back(carName);
+    return true;
+}
+
 }  // namespace
+
+void DestroyNativeVehicle(NativeVehicle *vehicle) {
+    if (vehicle->owner && vehicle->owner->collisionBody3C) {
+        delete vehicle->owner->collisionBody3C;
+        vehicle->owner->collisionBody3C = 0;
+    }
+}
 
 bool InitialiseNativeRuntime(const char *gameDirectory, char *error, int errorSize) {
     std::string exe = std::string(gameDirectory) + "/speed2.exe";
@@ -298,11 +347,21 @@ bool InitialiseNativeRuntime(const char *gameDirectory, char *error, int errorSi
         return false;
     }
     RunPhysicsStaticInitializers();
+    // Collision-body world: static list heads, then the pools created at race start
+    // (0x5a0200, 0x593db0, 0x592b00).
+    RunCollisionStaticInitializers();
+    InitialiseCollisionPools();
+    InitialiseContactPool();
+    InitialiseCollisionEventPool();
     // Scaffold race-status object (constructed by 0x5fc730 with phase 0, free drive).
     raceState890118 = raceStatusScaffold;
     drivetrainContext = &contextScaffold;
     randomScaffold.stateF8 = 0x12345678u;
     drivetrainRandom = &randomScaffold;
+    // The same world object (0x890080) holds the collision event lists at +0 and +8.
+    CollisionEventOwner *events = reinterpret_cast<CollisionEventOwner *>(&randomScaffold);
+    events->unidentified0.next = events->unidentified0.previous = &events->unidentified0;
+    events->events8.next = events->events8.previous = &events->events8;
     return true;
 }
 
@@ -312,7 +371,9 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     memset(vehicle, 0, sizeof(*vehicle));
     PhysicsInfo *info = static_cast<PhysicsInfo *>(calloc(1, 0x400));
     int carIndex = 0;
-    if (!LoadStockRecord(gameDirectory, carName, &info->record30, &carIndex, error, errorSize)) {
+    char carTypeName[32];
+    if (!LoadStockRecord(gameDirectory, carName, &info->record30, &vehicle->cameraSettings, &carIndex, carTypeName,
+                         error, errorSize)) {
         return false;
     }
     info->value10 = carIndex;
@@ -320,7 +381,6 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     MoverModeOwner *owner = static_cast<MoverModeOwner *>(calloc(1, 0xa00));
     owner->physicsInfo10 = info;
     owner->context14 = static_cast<MoverContext *>(calloc(1, 0x910));
-    owner->mode3C = static_cast<MoverMode *>(calloc(1, 0x200));
     owner->record20 = &info->record30;
     owner->moverType28 = 1;
     NativeControls *controls = static_cast<NativeControls *>(calloc(1, sizeof(NativeControls)));
@@ -348,11 +408,20 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     state->matrix50.elements[4] = -s;
     state->matrix50.elements[5] = c;
     WheelIdentity(&state->matrix90);
+    // Car constructor 0x604260 creates the CarCollisionBody (0x5aec20) at +0x3c from the
+    // car's collision hull (CARS/<car>/GEOMETRY.BIN chunk 0x80034020).
+    if (!LoadCarHulls(gameDirectory, carName, carTypeName, error, errorSize)) {
+        return false;
+    }
+    owner->collisionBody3C = new CarCollisionBody(owner, 0);
     MoverCarInfo *carInfo = static_cast<MoverCarInfo *>(calloc(1, 0x100));
     VehicleMover *mover = static_cast<VehicleMover *>(calloc(1, sizeof(VehicleMover)));
     new (mover->integrator8) MoverIntegrator;
     owner->mover34 = mover;
     mover->Construct(&info->record30, carInfo, controls, owner);
+    // Mover factory 0x5f46a0 marks the body as mover-driven and attaches it (0x5938c0).
+    owner->collisionBody3C->hasMover5C = 1;
+    owner->collisionBody3C->AttachMover();
     vehicle->mover = mover;
     vehicle->owner = owner;
     vehicle->controls = controls;
@@ -386,5 +455,27 @@ void SetNativeControls(NativeVehicle *vehicle, float throttle, float brake, floa
 }
 
 float StepNativeVehicle(NativeVehicle *vehicle, float duration) {
-    return vehicle->mover->Update(duration);
+    // World update order from 0x609ce0: advance every dynamic body (0x5f0f00; the car body's
+    // Advance runs the car update, i.e. the mover step) and then resolve collisions
+    // (0x5ffa50). Scaffold: the world clock (0x57a0e0) is advanced after the step so the
+    // mover keeps reading a zero frame duration as before.
+    AdvanceCollisionBodies(duration);
+    UpdateCollisionWorld(collisionEventOwner890080, duration);
+    frameDuration865154 = duration;
+    AdvanceWorldClock();
+    float result = 0.0f;
+    // Scaffold producer for the acceleration vector at car +0x80 (state value40). The drive camera
+    // averages it (0x453570) and 0x5ec3a0 dots it with the forward axis; its original writer is
+    // not recovered, so it is taken as the change of the exported velocity per second.
+    DrivetrainAuxiliary *state = vehicle->owner->State();
+    if (vehicle->haveVelocity && duration > 0.0f) {
+        state->value40.x = (state->velocity30.x - vehicle->previousVelocity[0]) / duration;
+        state->value40.y = (state->velocity30.y - vehicle->previousVelocity[1]) / duration;
+        state->value40.z = (state->velocity30.z - vehicle->previousVelocity[2]) / duration;
+    }
+    vehicle->previousVelocity[0] = state->velocity30.x;
+    vehicle->previousVelocity[1] = state->velocity30.y;
+    vehicle->previousVelocity[2] = state->velocity30.z;
+    vehicle->haveVelocity = true;
+    return result;
 }

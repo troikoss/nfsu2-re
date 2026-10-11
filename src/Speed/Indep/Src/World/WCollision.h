@@ -67,6 +67,7 @@ struct WCollisionPack {
     WCollisionFace *GetFace(WCollisionPolygon *polygon);
     int ReleaseUnusedFaces(int count);
     void ShrinkColliderAreas();
+    int FillArea(WCollider *collider, float *minimum, float *maximum);
 };
 
 // Expanded polygon in the 0x400-entry cache at 0x883d90, 0x80 bytes.
@@ -88,6 +89,7 @@ struct WCollisionFace {
     float distance7C;
     WCollisionFace *Expand(WCollisionPolygon *polygon);
     float EdgeDistance(float *point);
+    float PlanarDistance(float *point, float limit);
 };
 
 struct WBarrierGroup {
@@ -171,6 +173,7 @@ struct WCollider {
     void SetPack(WCollisionPack *pack);
     void RefreshArea();
     void UpdatePack(float *point, float radius);
+    bool UpdateArea(float *minimum, float *maximum, WheelVector *velocity);
     float QueryGround(WheelVector *point, int *surface, WheelVector *normal, char *found);
 };
 

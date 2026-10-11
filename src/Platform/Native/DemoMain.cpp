@@ -4,6 +4,8 @@
 #include "NativeVehicle.h"
 #include "NativeWorld.h"
 #include "NativeScene.h"
+#include "NativeHud.h"
+#include "../../Speed/Indep/Src/Camera/DriveCamera.h"
 
 #include <SDL2/SDL.h>
 #include <GL/gl.h>
@@ -13,6 +15,7 @@
 #include <string.h>
 
 extern float engineValueScale;
+extern int drivetrainClock;
 
 namespace {
 
@@ -34,9 +37,14 @@ void LookAt(const float *eye, const float *centre, const float *up) {
     glTranslatef(-eye[0], -eye[1], -eye[2]);
 }
 
-void Perspective(float fovY, float aspect, float nearPlane, float farPlane) {
-    float top = nearPlane * tanf(fovY * 0.5f * 3.14159265f / 180.0f);
-    glFrustum(-top * aspect, top * aspect, -top, top, nearPlane, farPlane);
+// UG2 main view projection (0x5c7ec0): the half-angle tangents come from the camera's field of
+// view in 1/65536 turn units. The original far plane for eView type 1 is the immediate 15000.
+void UgFrustum(unsigned short fov, float nearPlane, float width, float height) {
+    CameraProjection projection;
+    ComputeCameraProjection(&projection, fov, height / width, nearPlane, 15000.0f);
+    glFrustum(-projection.tangentX * nearPlane, projection.tangentX * nearPlane,
+              -projection.tangentY * nearPlane, projection.tangentY * nearPlane, nearPlane,
+              projection.farPlane);
 }
 
 void DrawGround(float centreX, float centreY) {
@@ -287,6 +295,11 @@ int main(int argc, char **argv) {
     bool scripted = false;
     bool placeholder = false;
     float orbit = -1.0f;
+    bool metric = false;
+    bool noHud = false;
+    int hudSkin = 0;
+    const char *hudFont = 0;
+    int cameraOption = 3;       // profile drive camera option: 0 bumper, 1 hood, 2 close, 3 far, 4 super far
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--game") && i + 1 < argc) game = argv[++i];
         else if (!strcmp(argv[i], "--car") && i + 1 < argc) car = argv[++i];
@@ -295,6 +308,11 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--scripted")) scripted = true;
         else if (!strcmp(argv[i], "--placeholder")) placeholder = true;
         else if (!strcmp(argv[i], "--orbit") && i + 1 < argc) orbit = (float)atof(argv[++i]);
+        else if (!strcmp(argv[i], "--metric")) metric = true;
+        else if (!strcmp(argv[i], "--no-hud")) noHud = true;
+        else if (!strcmp(argv[i], "--hud-skin") && i + 1 < argc) hudSkin = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--hud-font") && i + 1 < argc) hudFont = argv[++i];
+        else if (!strcmp(argv[i], "--camera") && i + 1 < argc) cameraOption = atoi(argv[++i]);
     }
     unsigned short control = 0x027f;
     __asm__ volatile("fldcw %0" : : "m"(control));
@@ -309,7 +327,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     float spawn[4] = {track.spawn[0], track.spawn[1], track.spawn[2] + 0.45f, track.heading};
-    NativeVehicle vehicle;
+    static NativeVehicle vehicle;
     if (!CreateNativeVehicle(&vehicle, game, car, spawn[0], spawn[1], spawn[2], spawn[3], error, sizeof(error))) {
         fprintf(stderr, "ug2demo: %s\n", error);
         return 1;
@@ -355,9 +373,26 @@ int main(int argc, char **argv) {
         else fprintf(stderr, "ug2demo: %s model: %d solids, %d of %d parts textured, %d textures\n", car,
                      carModel.SolidCount(), carModel.TexturedParts(), carModel.Parts(), (int)textures.Count());
     }
+    NativeHud hud;
+    bool haveHud = false;
+    if (!placeholder && !noHud) {
+        haveHud = hud.Load(game, &textures, hudFont, error, sizeof(error));
+        if (!haveHud) fprintf(stderr, "ug2demo: %s; HUD disabled\n", error);
+        else hud.Configure(&vehicle, hudSkin);
+        if (haveHud && getenv("UG2_DEBUG_HUD")) hud.Describe();
+    }
     float lastGood[4] = {spawn[0], spawn[1], spawn[2], spawn[3]};
     int airborneFrames = 0;
     Camera camera = {{-8.0f, 0.0f, 3.0f}, {0.0f, 0.0f, 0.5f}};
+    InitialiseDriveCameraStatics();
+    DriveCameraMover driveCamera;
+    DriveCameraView cameraView;
+    memset(&cameraView, 0, sizeof(cameraView));
+    bool lookBack = false;
+    if (cameraOption < 0 || cameraOption > 4) cameraOption = 3;
+    // Player::SetCameraState (0x5f1fd0) builds the mover for the car with the option's type.
+    driveCamera.Construct(vehicle.owner, &vehicle.cameraSettings, 1, DriveCameraTypeForOption(cameraOption),
+                          false, false, false);
     float steer = 0.0f;
     Uint64 previous = SDL_GetPerformanceCounter();
     bool running = true;
@@ -367,11 +402,22 @@ int main(int argc, char **argv) {
             if (event.type == SDL_QUIT) running = false;
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) running = false;
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
+                DestroyNativeVehicle(&vehicle);
                 if (!CreateNativeVehicle(&vehicle, game, car, spawn[0], spawn[1], spawn[2], spawn[3], error,
                                          sizeof(error))) {
                     fprintf(stderr, "ug2demo: %s\n", error);
                     running = false;
+                } else {
+                    driveCamera.Destroy();
+                    driveCamera.Construct(vehicle.owner, &vehicle.cameraSettings, 1,
+                                          DriveCameraTypeForOption(cameraOption), false, lookBack, false);
+                    if (haveHud) hud.Configure(&vehicle, hudSkin);
                 }
+            }
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_c && !event.key.repeat) {
+                // JOY_EVENT_CAMERA_POV_CHANGE: far -> close -> hood -> bumper -> far.
+                cameraOption = (cameraOption + 3) % 4;
+                driveCamera.SetType(DriveCameraTypeForOption(cameraOption));
             }
         }
         Uint64 now = SDL_GetPerformanceCounter();
@@ -391,14 +437,19 @@ int main(int argc, char **argv) {
             throttle = t > 0.5f && t < 9.0f ? 1.0f : 0.0f;
             target = t > 4.0f && t < 7.0f ? 0.5f : 0.0f;
             brake = t > 10.0f ? 1.0f : 0.0f;
+            if (getenv("UG2_STEER")) {
+                // Scaffold test input: constant steering from t = 2 s (same as ug2sim).
+                target = t > 2.0f ? (float)atof(getenv("UG2_STEER")) : 0.0f;
+            }
         }
         float rate = 2.5f * duration;
         steer += (target - steer) > rate ? rate : ((target - steer) < -rate ? -rate : target - steer);
         SetNativeControls(&vehicle, throttle, brake, handbrake, steer);
         StepNativeVehicle(&vehicle, duration);
         {
-            // Scaffold respawn: barrier collision is not recovered yet, so a car that leaves
-            // the collision coverage is put back where it last had all four wheels down.
+            // Scaffold respawn: a car that still leaves the collision coverage (e.g. over a
+            // barrier the track data does not close) is put back where it last had all four
+            // wheels down.
             DrivetrainAuxiliary *state = vehicle.owner->State();
             MoverBody *b = vehicle.mover->body20;
             if (state->value3E4 == 4 && state->value3F0 > 2.0f) {
@@ -413,8 +464,13 @@ int main(int argc, char **argv) {
                 ++airborneFrames;
             }
             if (airborneFrames > 150) {
+                DestroyNativeVehicle(&vehicle);
                 CreateNativeVehicle(&vehicle, game, car, lastGood[0], lastGood[1], lastGood[2], lastGood[3], error,
                                     sizeof(error));
+                driveCamera.Destroy();
+                driveCamera.Construct(vehicle.owner, &vehicle.cameraSettings, 1,
+                                      DriveCameraTypeForOption(cameraOption), false, lookBack, false);
+                if (haveHud) hud.Configure(&vehicle, hudSkin);
                 airborneFrames = 0;
             }
         }
@@ -427,20 +483,36 @@ int main(int argc, char **argv) {
             forward[0] /= length;
             forward[1] /= length;
         }
-        float desired[3] = {m[12] - forward[0] * 7.5f, m[13] - forward[1] * 7.5f, m[14] + 2.6f};
+        {
+            bool wantLookBack = keys[SDL_SCANCODE_V] != 0;
+            if (wantLookBack != lookBack) {
+                lookBack = wantLookBack;
+                driveCamera.SetLookBack(lookBack);
+            }
+        }
+        driveCamera.Update(duration, drivetrainClock, &cameraView);
+        if (getenv("UG2_DEBUG_CAMERA") && frame % 30 == 0) {
+            DrivetrainAuxiliary *cs = vehicle.owner->State();
+            fprintf(stderr, "cam f%d speed %.1f accel %.2f %.2f %.2f eyeLocal %.2f %.2f %.2f fov %u\n", frame,
+                    cs->value3F0 * 3.6f, cs->value40.x, cs->value40.y, cs->value40.z,
+                    driveCamera.eye38->channels0[0].value0, driveCamera.eye38->channels0[1].value0,
+                    driveCamera.eye38->channels0[2].value0, (unsigned)cameraView.fov);
+        }
+        float up[3] = {cameraView.up[0], cameraView.up[1], cameraView.up[2]};
         if (orbit >= 0.0f) {
             // Inspection camera for screenshots: fixed angle around the car.
             float a = atan2f(forward[1], forward[0]) + orbit * 3.14159265f / 180.0f;
-            desired[0] = m[12] + cosf(a) * 5.0f;
-            desired[1] = m[13] + sinf(a) * 5.0f;
-            desired[2] = m[14] + 1.6f;
-            if (frame == 0 || frames) memcpy(camera.position, desired, sizeof(desired));
+            camera.position[0] = m[12] + cosf(a) * 5.0f;
+            camera.position[1] = m[13] + sinf(a) * 5.0f;
+            camera.position[2] = m[14] + 1.6f;
+            camera.target[0] = m[12];
+            camera.target[1] = m[13];
+            camera.target[2] = m[14] + 0.6f;
+            up[0] = 0.0f; up[1] = 0.0f; up[2] = 1.0f;
+        } else {
+            memcpy(camera.position, cameraView.eye, sizeof(camera.position));
+            memcpy(camera.target, cameraView.target, sizeof(camera.target));
         }
-        float blend = 1.0f - expf(-duration * 4.0f);
-        for (int i = 0; i < 3; ++i) camera.position[i] += (desired[i] - camera.position[i]) * blend;
-        camera.target[0] = m[12];
-        camera.target[1] = m[13];
-        camera.target[2] = m[14] + 0.6f;
 
         glViewport(0, 0, width, height);
         // Scaffold horizon colour sampled from the SKY_SUNRISE dome; the time-of-day clear and
@@ -449,10 +521,9 @@ int main(int argc, char **argv) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        Perspective(60.0f, (float)width / height, 0.3f, 3000.0f);
+        UgFrustum(cameraView.fov, cameraView.nearPlane, (float)width, (float)height);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-        float up[3] = {0.0f, 0.0f, 1.0f};
         LookAt(camera.position, camera.target, up);
         if (haveTrack) {
             float view[3] = {camera.target[0] - camera.position[0], camera.target[1] - camera.position[1],
@@ -463,7 +534,9 @@ int main(int argc, char **argv) {
         }
         else glCallList(worldList);
         DrawSkidMarks();
-        if (haveModel) {
+        if (cameraView.attachedToCar && orbit < 0.0f) {
+            // Camera +0x280 holds the car for the bumper and driver types: the car is not drawn.
+        } else if (haveModel) {
             DrawCarModel(&carModel, &vehicle);
         } else {
             DrawBody(&vehicle);
@@ -478,26 +551,10 @@ int main(int argc, char **argv) {
                  vehicle.carName, state->value3F0 * 3.6f, rpm,
                  gear == 0 ? "R" : (gear == 1 ? "N" : (char[]){(char)('0' + gear - 1), 0}));
         SDL_SetWindowTitle(window, title);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(0, width, 0, height, -1, 1);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        glDisable(GL_DEPTH_TEST);
-        float rpmFraction = rpm / 9000.0f;
-        glBegin(GL_QUADS);
-        glColor3f(0.1f, 0.1f, 0.1f);
-        glVertex2f(20, 20); glVertex2f(420, 20); glVertex2f(420, 44); glVertex2f(20, 44);
-        glColor3f(rpmFraction > 0.85f ? 0.9f : 0.2f, 0.8f, 0.2f);
-        glVertex2f(24, 24); glVertex2f(24 + 392 * rpmFraction, 24);
-        glVertex2f(24 + 392 * rpmFraction, 40); glVertex2f(24, 40);
-        float speedFraction = state->value3F0 * 3.6f / 300.0f;
-        glColor3f(0.1f, 0.1f, 0.1f);
-        glVertex2f(20, 50); glVertex2f(420, 50); glVertex2f(420, 74); glVertex2f(20, 74);
-        glColor3f(0.2f, 0.5f, 0.95f);
-        glVertex2f(24, 54); glVertex2f(24 + 392 * speedFraction, 54);
-        glVertex2f(24 + 392 * speedFraction, 70); glVertex2f(24, 70);
-        glEnd();
+        if (haveHud) {
+            hud.Update(&vehicle, metric);
+            hud.Draw(width, height);
+        }
         glEnable(GL_DEPTH_TEST);
         if (screenshot && frames && frame == frames - 1) SaveScreenshot(screenshot, width, height);
         if (haveTrack && frames && frame == frames - 1 && getenv("UG2_DEBUG_PICK")) {
@@ -506,7 +563,7 @@ int main(int argc, char **argv) {
             sscanf(getenv("UG2_DEBUG_PICK"), "%d %d", &px, &py);
             glMatrixMode(GL_PROJECTION);
             glLoadIdentity();
-            Perspective(60.0f, (float)width / height, 0.3f, 3000.0f);
+            UgFrustum(cameraView.fov, cameraView.nearPlane, (float)width, (float)height);
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
             LookAt(camera.position, camera.target, up);

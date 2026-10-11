@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     }
     printf("track: %d collision packs, spawn (%.1f %.1f %.1f)\n", track.packCount, track.spawn[0],
            track.spawn[1], track.spawn[2]);
-    NativeVehicle vehicle;
+    static NativeVehicle vehicle;
     if (!CreateNativeVehicle(&vehicle, game, car, track.spawn[0], track.spawn[1], track.spawn[2] + 0.45f,
                              track.heading, error, sizeof(error))) {
         fprintf(stderr, "ug2sim: %s\n", error);
@@ -47,6 +47,10 @@ int main(int argc, char **argv) {
             brake = seconds > 1.0f ? 1.0f : 0.0f;
         }
         float steer = seconds > 6.0f && seconds < 9.0f ? 0.3f : 0.0f;
+        if (getenv("UG2_STEER")) {
+            // Scaffold test input: constant steering from t = 2 s.
+            steer = seconds > 2.0f ? (float)atof(getenv("UG2_STEER")) : 0.0f;
+        }
         SetNativeControls(&vehicle, throttle, brake, 0.0f, steer);
         StepNativeVehicle(&vehicle, duration);
         if (frame % 30 == 0) {

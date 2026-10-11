@@ -3,6 +3,7 @@
 
 #include "../../Speed/Indep/Src/Physics/VehicleMover.h"
 #include "../../Speed/Indep/Src/Physics/Engine.h"
+#include "../../Speed/Indep/Src/Camera/DriveCamera.h"
 
 // Platform scaffolding: driver controls. The original control filtering that fills
 // these fields (speed-sensitive steering, input smoothing) is not yet recovered.
@@ -39,6 +40,11 @@ struct NativeVehicle {
     PhysicsInfo *info;
     MoverCarInfo *carInfo;
     char carName[32];
+    // Platform scaffolding: CarTypeInfo +0x720 camera table, and the previous velocity used to
+    // produce the acceleration vector (car +0x80) whose original producer is not recovered.
+    CameraSettingsTable cameraSettings;
+    float previousVelocity[3];
+    bool haveVelocity;
 };
 
 struct NativeSkidSegment {
@@ -59,5 +65,6 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
                          int errorSize);
 void SetNativeControls(NativeVehicle *vehicle, float throttle, float brake, float handbrake, float steer);
 float StepNativeVehicle(NativeVehicle *vehicle, float duration);
+void DestroyNativeVehicle(NativeVehicle *vehicle);
 
 #endif
