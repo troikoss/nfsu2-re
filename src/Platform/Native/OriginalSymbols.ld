@@ -664,3 +664,6 @@ physicsVariant10Rows = 0x7fc33c;
 physicsVariant2Rows = 0x7fc394;
 physicsUpgradeGradeScale = 0x787adc;
 physicsUpgradeRounding = 0x784260;
+physicsUpgradeSearchEpsilon = 0x7844f4;
+physicsUpgradeSearchBias = 0x7864e0;
+physicsUpgradeOverride7FC290 = 0x7fc290;

@@ -317,8 +317,10 @@ every 30 frames afterwards; `UG2_DEBUG_PAUSE=1` prints delivered messages and ga
 - `NativeVehicle.cpp`: vtable shims forwarding each original slot to the recovered
   method, the `New...` allocation factories, the D3DX matrix multiply,
   scaffold race-status/context/random
-  objects, keyboard controls, and stock car records copied from GLOBALB.BUN CarTypeInfo
-  `+0x110` (upgrade composition `0x5ac4f0`/`0x5997e0` not yet recovered).
+  objects, keyboard capture, and stock source rows loaded from GLOBALB.BUN
+  CarTypeInfo `+0x110`. Recovered `0x5ac4f0` now builds the stock physics record;
+  descriptor loading, tuning `0x5997e0` and enclosing parameter composition remain
+  unfinished. See [physics parameter evidence](pc-physics-parameters.md).
 - `DemoMain.cpp`: SDL2/OpenGL window and input; `NativeFng.cpp`/`NativeHud.cpp`: FNG HUD;
   `NativePause.cpp`: pause menu seams (see above); `NativeAssets.cpp`/
   `NativeScene.cpp` read and draw the original car and scenery assets (see above).

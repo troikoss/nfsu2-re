@@ -6,6 +6,7 @@
 #include "OriginalImage.h"
 #include "../../Speed/Indep/Src/Physics/VehicleIntegrator.h"
 #include "../../Speed/Indep/Src/Physics/VehicleAllocation.h"
+#include "../../Speed/Indep/Src/Physics/PhysicsUpgradeSource.h"
 #include "../../Speed/Indep/Src/World/WCollision.h"
 
 #include <math.h>
@@ -265,9 +266,10 @@ unsigned int Read32(const std::vector<unsigned char> &data, size_t offset) {
 }
 
 // Platform scaffolding for the GLOBALB.BUN CarTypeInfo chunk (0x34600). The original
-// chunk loader and the upgrade composition (0x5ac4f0/0x5997e0) are not yet recovered;
-// stock records are copied from CarTypeInfo +0x110 as 0x5ac4f0 does before upgrades.
+// chunk loader and tuning composition 0x5997e0 remain unrecovered. The recovered
+// 0x5ac4f0 builds the stock record from the full CarTypeInfo +0x110 source row.
 bool LoadStockRecord(const char *gameDirectory, const char *carName, CarPhysicsRecord *record,
+                     PhysicsUpgradeSelection *selection,
                      CameraSettingsTable *cameraSettings, int *carIndex, char *modelName, char *error,
                      int errorSize) {
     std::vector<unsigned char> bundle;
@@ -285,7 +287,12 @@ bool LoadStockRecord(const char *gameDirectory, const char *carName, CarPhysicsR
             for (int i = 0; i < count; ++i) {
                 const char *name = reinterpret_cast<const char *>(&bundle[table + i * 0x890]);
                 if (strncmp(name, carName, 32) == 0) {
-                    memcpy(record, &bundle[table + i * 0x890 + 0x110], sizeof(CarPhysicsRecord));
+                    // Native bundle/file access remains a platform seam. Compose
+                    // the requested stock grades with original 0x5ac4f0 instead
+                    // of treating the raw source row as a finished record.
+                    PhysicsUpgradeSource source;
+                    memcpy(&source, &bundle[table + i * 0x890 + 0x110], sizeof(source));
+                    source.BuildRecord(record, selection, 0);
                     memcpy(cameraSettings, &bundle[table + i * 0x890 + 0x720], sizeof(CameraSettingsTable));
                     memcpy(modelName, &bundle[table + i * 0x890 + 0x20], 32);
                     modelName[31] = 0;
@@ -387,12 +394,12 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     info->parameters10.Construct();
     int carIndex = 0;
     char carTypeName[32];
-    if (!LoadStockRecord(gameDirectory, carName, &info->parameters10.record30, &vehicle->cameraSettings, &carIndex, carTypeName,
+    if (!LoadStockRecord(gameDirectory, carName, &info->parameters10.record30, &info->parameters10.selection2E0, &vehicle->cameraSettings, &carIndex, carTypeName,
                          error, errorSize)) {
         return false;
     }
     info->parameters10.value0 = carIndex;
-    // Native stock-record entry seam: full 0x5b4dc0 upgrade/tuning composition
+    // Native stock-record entry seam: full 0x5b4dc0 tuning composition
     // and its computed class index remain unresolved. Keep the recovered
     // constructor and drive-curve builder instead of inventing their fields.
     info->parameters10.index4 = 0;

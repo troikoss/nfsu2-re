@@ -60,3 +60,9 @@ if(UG2_ENABLE_MODDING)
     include(CTest)
     add_subdirectory(modding)
 endif()
+
+add_executable(ug2recordprobe src/Platform/Native/PhysicsRecordProbe.cpp src/Platform/Native/OriginalImage.cpp)
+target_compile_options(ug2recordprobe PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2recordprobe ug2recovered m)
+target_link_options(ug2recordprobe PRIVATE ${UG2_LINK_FLAGS})

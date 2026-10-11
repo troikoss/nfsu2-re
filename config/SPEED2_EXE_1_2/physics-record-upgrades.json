@@ -54,6 +54,12 @@
       "size": 134,
       "sha256": "6b2044ee22f5611abf23c0e027ef48eed194ce69a85ebcdb0a7b9ad401da1184",
       "method": "ApplyUpgrade9"
+    },
+    {
+      "address": 5948656,
+      "size": 487,
+      "sha256": "da1f136d815f1c84fb699ad73c5379d2d44e471b7b5ea8f33b9bf9c4711bdd0a",
+      "method": "BuildRecord"
     }
   ]
 }

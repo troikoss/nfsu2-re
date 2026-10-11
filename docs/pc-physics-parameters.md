@@ -53,17 +53,19 @@ Unknown descriptor fields remain offset-based. The 0x94-byte selection object
 belongs at parameter +0x2e0, and the 0xe8-byte tuning object at +0x374.
 
 Native construction now calls the recovered constructor before loading its stock
-record, then the recovered drive-curve builder. The physics speed method is not
-yet called by steering. Record/upgrade composition `0x5b4dc0`, tuning application and mode variants remain
-unresolved. The refresh wrapper `0x5b4fc0` (140 bytes) is recovered in
+source row, composes its stock record through recovered `0x5ac4f0`, then calls
+the recovered drive-curve builder. The physics speed method is not
+yet called by steering. Parameter composition `0x5b4dc0`, tuning application and
+class-index calculation remain unresolved; recovered mode variants await that integration. The refresh wrapper `0x5b4fc0` (140 bytes) is recovered in
 `PhysicsRefresh.cpp` and replaces its native trap. It suppresses composition
 when the car index is -1, uses only the low byte of the select argument, chooses
 modes 0/3/10/2 with the original flag precedence, and forwards the first two
 arguments as complete dwords. The composer declaration retains those dwords
-rather than truncating them prematurely to chars. Native still copies a
-stock record and assigns index zero as a documented construction seam; its GLOBAL
-loader does not yet install upgrade descriptors. The constructor recovery does
-not establish full original record composition. Native traps retain the unresolved
+rather than truncating them prematurely to chars. Native still assigns index
+zero as a documented construction seam; its GLOBAL loader does not yet install
+upgrade descriptors. Stock entry uses the constructor's zero requested grades
+and builder flag zero. Recovering this path does not establish full original
+parameter/session composition. Native traps retain the unresolved
 method boundaries.
 
 ## Upgrade grades and component weights
@@ -84,8 +86,9 @@ That second pass uses the binary32 reciprocal stored during the first pass.
 The unrounded mean survives as the x87 return value, while the separately clamped
 mean times `0x787adc` is stored in the selection's grade array. A double return
 preserves that observed 53-bit value for the later original record modifiers.
-These helpers await the enclosing upgrade/record-composition chain before native
-use; native construction only calls the previously recovered clearing path.
+Native stock construction now invokes these helpers through the original record
+builder with zero requested grades. Non-stock native composition awaits original
+descriptor loading and enclosing parameter/session recovery.
 
 ## Per-upgrade record modifiers
 
@@ -105,9 +108,36 @@ fraction. Upgrade 7 removes the +0x290 limit when selected flags at +0x7d/+0x7e/
 +0x83 are nonzero, before its fraction-dependent branch. Arithmetic retains the
 original unrounded intermediates and field write order.
 
-These methods await enclosing record composition `0x5ac4f0` and parameter
-composition `0x5b4dc0` before native use. Nitro application occurs inline in the
-original record composer rather than in a tenth standalone method.
+Native stock construction now calls these methods through recovered record
+builder `0x5ac4f0`. Nitro application occurs inline in that builder rather than
+in a tenth standalone method. Parameter/tuning composition remains unfinished.
+
+## Automatic upgrade search and record construction
+
+`PhysicsUpgradeSearch.cpp` recovers item ranking `0x591130`, candidate search
+`0x5a6210`, and nearest-fraction selection `0x5a6880`. Ranking counts non-sentinel
+weights but sums the first count fields; it does not repair non-contiguous
+sentinels. Candidate search retains the original binary32 spill of the current
+candidate average before comparing with the unrounded best average. It searches
+requested levels/types and assumes their descriptors exist, as the original does.
+Nearest selection retains descending, ascending and alternating candidate orders,
+snapshot restoration, partial grade application, error/mean spills and the
+final query on a temporary after copying its snapshot back to the live object.
+It does not invent handling for missing descriptors or failed activation loops.
+
+`PhysicsRecordBuild.cpp` recovers full record builder `0x5ac4f0` (487 bytes).
+It copies the base row, optionally reconstructs selected flags from requested
+grades, clears the grade output array, applies the nine recovered modifiers and
+inline nitro updates, optionally derives kind-9 selection through the original
+nearest-fraction search, and rebuilds inertia. It keeps the `0x7fc290` override
+and low-byte flag semantics. The unknown record +0x2ac arithmetic remains explicit.
+
+Native `LoadStockRecord` now reads the full 0x780-byte source subobject and calls
+this builder with the constructor's zero requested grades and flag zero. Its
+previous raw 0x2b0-byte copy is removed. File/chunk access, stock entry selection,
+upgrade-table installation, tuning `0x5997e0`, parameter class-index calculation,
+mode/session composition and full steering remain separate unresolved seams.
+No retail descriptor data is synthesized or committed.
 
 ## Mode variants
 
@@ -129,11 +159,13 @@ mode integration.
 ## Verification
 
 ```sh
+cmake -S . -B build/native
+cmake --build build/native -j2
 build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_variants.py
-build/venv/bin/python tools/verify_pc_physics_record_upgrades.py
-cmake --build build/native -j2
+build/venv/bin/python tools/verify_pc_physics_upgrade_search.py
+build/venv/bin/python tools/verify_pc_physics_record_upgrades.py --native-stock build/native/ug2recordprobe
 python tools/smoke_native_driving.py
 ```
 
@@ -193,19 +225,45 @@ All covered callees execute recovered source, with no controlled interfaces.
 Fixtures exclude malformed counts/indices, cyclic prerequisites, NaNs and
 alternate FPU precision; finite coverage is not full upgrade-composition proof.
 
-The record-modifier verifier and `physics-record-upgrades.json` pin all nine
-methods and validate their fraction/lookup/accumulation dependencies. On
-2026-10-11, **3,312 bit-identical comparisons** passed (368 per method) using all
-46 retail source rows and eight finite weight/selection patterns. Full guarded
-source, destination, selection and descriptor buffers, stack cleanup and preserved
-registers agree. Original branch counters record 272 gear-variant copies, 270
-engine-range selections, 316 limit removals and 2,430 fraction clamp passes.
-There are no controlled interfaces; original `__ftol2` remains an analysis runtime
-dependency for conversions. MSVC uses `/Ox /Op /Ob0`. Generated results remain in
-`build/analysis/physics-record-upgrades/`. Retail rows with synthetic descriptors
-do not prove actual chunk loading, the enclosing composer or native integration.
+The search manifest `physics-upgrade-search.json` pins ranking, candidate search
+and nearest selection. **2,880 bit-identical comparisons** pass: 1,024 ranking
+cases, 1,280 candidate searches and 576 nearest selections. Full compared state,
+binary64 ranking/search returns, pointer returns, stack cleanup and preserved
+registers agree. Thirty synthetic groups cover all ten kinds at three levels,
+selected masks, three search orders, negative/zero/default counts and finite
+targets -0.9 through 1.2. Special ranking cases cover interspersed -1.0 sentinels.
+Original branch counters confirm 6,081 ascending and 4,017 descending comparisons,
+4,039 improved snapshots and 1,507 partial-grade steps. All covered callees run
+recovered source on the rebuilt side; `__ftol2` is an analysis runtime dependency.
+Missing group lookups, failed candidate activation, prerequisite cycles and NaNs
+remain excluded. Reports stay under `build/analysis/physics-upgrade-search/`.
+
+The expanded record-modifier verifier now passes **3,680 bit-identical comparisons**:
+368 per modifier and 368 full builder cases across 46 retail source rows and eight
+finite weight/selection patterns. Full guarded source, destination, selection and
+descriptor buffers, stack cleanup and preserved registers agree. Builder cases
+cover existing flags versus requested grades, low-byte flags 0/1/-1/256, inline
+nitro, correlation override and 92 actual nearest-selection calls. Rebuilt tests
+execute the recovered grade, fraction, search and matrix callees, with no controlled
+interfaces. MSVC uses `/Ox /Op /Ob0` for record units and `/Ox /Ob0` for separately
+compiled search/weight and matrix units. Reports stay under
+`build/analysis/physics-record-upgrades/`. Synthetic descriptors with retail rows
+do not establish actual upgrade chunk loading or complete parameter composition.
+
+The native `ug2recordprobe` target links the same recovered library as the demo,
+sets its 53-bit FPU precision, runs recovered parameter construction and builds
+stock records without executing original instructions. The verifier compares
+its binary record/selection output directly with emulated original `0x5ac4f0`.
+All **46 native stock records and selections are bit-identical**. This covers
+zero requested grades and the native startup's empty descriptor table, not
+non-stock upgrades or full parameter composition.
 
 Native build and forward/reverse driving smoke checks pass with the recovered
-constructor and curve builder integrated. Finite stock fixtures do not cover arbitrary upgrade combinations,
+constructor, stock record builder and drive curve integrated. Forward smoke now
+reaches 114.6 km/h and gears 0–4; reverse reaches 76.8 km/h. The former raw-copy
+entry reached 101.6 km/h and gears 0–3: original secondary engine-sample application
+and inertia construction materially change the physics input. These are native
+integration checks, not original full-game trajectory comparisons. Finite stock
+fixtures do not cover arbitrary upgrade combinations,
 malformed curves, alternate floating precision or full steering composition.
 **Byte matching is not established.**

@@ -1,0 +1,23 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 5837104,
+      "size": 134,
+      "sha256": "cb4a5d0613f76fa0bde3fde562d2266efa0218b3371ea2aa7c30c02004899963",
+      "symbol_prefix": "?AverageWeight@PhysicsUpgradeItem"
+    },
+    {
+      "address": 5923344,
+      "size": 232,
+      "sha256": "f8fe055be8323cd23f6cf26da980e104ca6e9a6eb7bc0ea45ab6dbd7ab21f6f2",
+      "symbol_prefix": "?FindPhysicsUpgradeCandidate@@"
+    },
+    {
+      "address": 5924992,
+      "size": 712,
+      "sha256": "8ac3d4a064377ee44778025e9e41d6802907cff4c0068506ba0774fc3b039e48",
+      "symbol_prefix": "?SelectNearest@PhysicsUpgradeSelection"
+    }
+  ]
+}

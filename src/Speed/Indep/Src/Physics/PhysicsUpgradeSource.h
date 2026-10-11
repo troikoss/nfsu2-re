@@ -9,6 +9,7 @@ struct PhysicsUpgradeSelection;
 // offsets explicit until the stock/upgrade tuning fields are identified.
 struct PhysicsUpgradeSource {
     char values0[0x780];
+    void BuildRecord(CarPhysicsRecord *, PhysicsUpgradeSelection *, char); // 0x5ac4f0
     void ApplyUpgrade0(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5a6b50
     void ApplyUpgrade1(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5a6bd0
     void ApplyUpgrade3(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5a6d00

@@ -11,6 +11,7 @@ struct PhysicsUpgradeItem {
     float weights30[4];
     int exclusions40[5];
     int requirements54[2];
+    double AverageWeight(); // 0x591130
 };
 struct PhysicsUpgradeGroup {
     int value0;
@@ -28,6 +29,7 @@ struct PhysicsUpgradeSelection {
     int ClearGroups(int value); // 0x5a6450
     int SetGrade(int grade, int value); // 0x5a64a0
     double GetFraction(int value, int count, float *output); // 0x5a6580
+    double SelectNearest(float fraction, int *values, int count); // 0x5a6880
 };
 UG2_CHECK_OFFSET(PhysicsUpgradeItem, weights30, 0x30);
 UG2_CHECK_SIZE(PhysicsUpgradeItem, 0x5c);
@@ -40,5 +42,8 @@ PhysicsUpgradeItem *GetPhysicsUpgradeItem(int index); // 0x500150
 PhysicsUpgradeGroup *FindPhysicsUpgradeGroup(int value, int level); // 0x500100
 void AccumulatePhysicsUpgradeWeights(float *output, PhysicsUpgradeSelection *selection,
                                      PhysicsUpgradeGroup *group, int count); // 0x5a61a0
+
+PhysicsUpgradeItem *FindPhysicsUpgradeCandidate(PhysicsUpgradeSelection *, int level,
+                                                int *values, int count, char smallest); // 0x5a6210
 
 #endif
