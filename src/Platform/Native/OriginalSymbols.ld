@@ -597,3 +597,25 @@ value8635A8 = 0x8635a8;
 value85BA67 = 0x85ba67;
 value8500D0 = 0x8500d0;
 players8900AC = 0x8900ac;
+
+/* In-game options (Frontend/PauseOptions.cpp), mapped retail data and native session state. */
+value89E7E6 = 0x89e7e6;
+value89E7D8 = 0x89e7d8;
+value890108 = 0x890108;
+volumes83AA28 = 0x83aa28;
+audio82B884 = 0x82b884;
+jumpCamera83AA20 = 0x83aa20;
+mirror83AA18 = 0x83aa18;
+units83AA1A = 0x83aa1a;
+raceMap83AA1B = 0x83aa1b;
+exploreMap83AA1C = 0x83aa1c;
+difficulty83AC30 = 0x83ac30;
+playerSettings83AA64 = 0x83aa64;
+settings83AAB4 = 0x83aab4;
+memoryCard83A9E0 = 0x83a9e0;
+prompt844AD8 = 0x844ad8;
+autosave844AD9 = 0x844ad9;
+resolution870D1C = 0x870d1c;
+resolutions86E880 = 0x86e880;
+levelOfDetail87099C = 0x87099c;
+displayChanged8709D1 = 0x8709d1;

@@ -37,6 +37,20 @@ struct FengScript {
     std::vector<FengEvent> events;
 };
 
+// Message responses: 'MsgR' per object and 'PkgR' per package, read like 0x54d1d0. Each response
+// names a message ('Mi') and lists commands of type 'Ri', parameter 'Ru' and target 'Rt'; 0x52c7c0
+// runs them (0 script, 1 message to an object, 2 message to the game, 0x300/0x301/0x500/0x501 if/else).
+struct FengResponseCommand {
+    unsigned int type;
+    unsigned int parameter;
+    unsigned int target;
+};
+struct FengResponse {
+    unsigned int message;
+    std::vector<FengResponseCommand> commands;
+};
+const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses, unsigned int message);
+
 struct FengObject : HudVisibilityObject {
     // Recovered prefix: type18 (1 image, 2 string, 5 group), flags1C, child list.
     unsigned int hash;       // ObjD 'Oh'
@@ -65,6 +79,7 @@ struct FengObject : HudVisibilityObject {
     float depth;             // accumulated z for sorting
 
     std::vector<FengScript> scripts;
+    std::vector<FengResponse> responses;
     int activeScript;
     float scriptMilliseconds;
 
@@ -81,6 +96,8 @@ public:
     bool Load(const unsigned char *data, size_t size, size_t offset, std::string *error);
     FengObject *Find(unsigned int hash);
     FengObject *Find(const char *name) { return Find(FengHash(name)); }
+    FengObject *FindGuid(unsigned int guid);
+    const std::vector<FengResponse> &Responses() const { return responses_; }
     std::vector<FengObject *> &Objects() { return objects_; }
     // Names from the executable are not needed to draw; `Describe` lists the package for debugging.
     void Describe() const;
@@ -102,6 +119,7 @@ public:
     static void GetSize(FengObject *object, float *x, float *y);
     static void SetState(FengObject *object, int key, const float *value);
     static void PlayScript(FengObject *object, const char *name, bool restart);
+    static bool PlayScriptHash(FengObject *object, unsigned int hash, bool restart);  // 0x5178b0
     void AdvanceScripts(float seconds);
     static void SetText(FengObject *object, const char *text);     // 0x537be0
 
@@ -115,6 +133,7 @@ private:
     void Gather(FengObject *object, const float *parent, float parentAlpha, std::vector<DrawItem> *items);
     std::vector<FengObject *> objects_;
     std::vector<FengObject *> roots_;
+    std::vector<FengResponse> responses_;
     std::map<FengObject *, std::pair<float, float> > modTranslations_;
 };
 

@@ -13,6 +13,7 @@
 - [HUD minimap](pc-hud-minimap.md): angle/TrackInfo/indicator helper verification, city-map integration and rendering seams.
 - [Freeroam HUD](pc-hud-freeroam.md): turbo/NOS/heat, shift light, career text, GPS and notification scheduling, mask dispatch and bounded animation evidence.
 - [Pause menu](pc-pause-menu.md): `UI_Pause.fng` object, option lists and item handlers, with SEH-aware original/rebuilt verification; runs in the native demo on `Esc`.
+- [In-game settings](pc-pause-options.md): recovered category screens and option handlers, bounded verification, and native list/widget seams.
 - [Racing](pc-racing.md): drift ranking, career reward/eligibility recovery, and bounded verification.
 - [Vehicle physics](pc-vehicle-physics.md): timestep, integrator, engine, and drivetrain investigation.
 - [Wheel and body physics](pc-wheel-physics.md): vector math, wheel preparation/correction, coupling, and body verification.

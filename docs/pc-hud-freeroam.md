@@ -107,11 +107,13 @@ region transition or reward event. An ignored analysis fixture supplied explicit
 synthetic values to inspect these layouts; they are not gameplay evidence.
 
 The native FNG adapter retains scripts and supports constant tracks plus
-noncycling interpolation-1 type-4 vector/type-6 colour message tracks. The `-1`
+interpolation-1 type-4 vector/type-6 colour message tracks with cycle 0 or 1. The `-1`
 key is a baseline and later keys are offsets, as in `0x52bdc0`; arithmetic calls
 use recovered primitives. ZoomIn and Cash_Animate use this bounded path.
 Unsupported dynamic interpolation/cycles trap. The full FEng track dispatcher,
-quaternion/relative/cycle playback and script lifecycle remain unrecovered.
+quaternion/relative/other-cycle playback and script lifecycle remain unrecovered.
+Cycle-1 support was added for the settings highlight scripts; see
+[settings integration](pc-pause-options.md).
 
 Original rendering trace `0x536a50 -> 0x51a5d0 -> 0x5c7ea0 -> 0x5c5020` leads to
 texture state `0x5bcc30`: blend mode 2 selects SRCALPHA/ONE, mode 5

@@ -27,25 +27,69 @@ float RdF(const unsigned char *p) {
 
 const unsigned int kInitScript = 0x1744b3;  // 0x5515e0 / 0x5554a0: the "Init" script hash
 
+// 0x54d1d0: tagged records 'Mi' (new response), 'Ri' (new command), 'Ru', 'Rt'; 'MC' and 'Rs' unused.
+void ReadResponses(const unsigned char *data, size_t size, std::vector<FengResponse> *responses) {
+    for (size_t t = 0; t + 4 <= size;) {
+        unsigned int tag = Rd16(data + t);
+        unsigned int len = Rd16(data + t + 2);
+        if (t + 4 + len > size) break;
+        unsigned int value = len >= 4 ? Rd32(data + t + 4) : 0;
+        if (tag == 0x694d) {
+            FengResponse response;
+            response.message = value;
+            responses->push_back(response);
+        } else if (!responses->empty()) {
+            std::vector<FengResponseCommand> &commands = responses->back().commands;
+            if (tag == 0x6952) {
+                FengResponseCommand command = {value, 0, 0};
+                commands.push_back(command);
+            } else if (tag == 0x7552 && !commands.empty()) {
+                commands.back().parameter = value;
+            } else if (tag == 0x7452 && !commands.empty()) {
+                commands.back().target = value;
+            }
+        }
+        t += 4 + len;
+    }
+}
+
 // Retained retail tracks use the -1 key as a baseline, and later keys as
 // offsets (0x52bdc0). This bounded platform adapter supports message tracks
-// of types 4/6, noncycling interpolation 1, and constant tracks at time zero.
+// of types 4/6, interpolation 1 with cycle 0/1, and constant tracks at time zero.
 // Other animation forms remain explicit seams.
 void ApplyTrack(const FengTrack &track, unsigned char *state, int stateBytes, int time) {
     if (track.keys.empty() || track.offset < 0 || track.offset * 4 + track.size > stateBytes) return;
     unsigned char *out = state + track.offset * 4;
     const unsigned char *base = &track.keys[0].second[0];
     if (track.keys.size() == 1) { memcpy(out, base, track.size); return; }
-    if (track.interpolation != 1 || track.cycle != 0 || (track.type != 4 && track.type != 6)) {
+    if (track.interpolation != 1 || track.cycle > 1 || (track.type != 4 && track.type != 6)) {
         // The loader can still use a constant first key for unrecovered tracks.
         if (time == 0) { memcpy(out, base, track.size); return; }
+        fprintf(stderr, "FEng track type=%d interpolation=%d cycle=%d duration=%d offset=%d time=%d\n", track.type, track.interpolation, track.cycle, track.duration, track.offset, time);
         NativeTrap("FEng message track interpolation/cycle");
     }
+    // 0x52bdc0: cycle 1 joins the last key to the first over the remaining duration.
+    if (track.cycle == 1 && track.duration > 0) time %= track.duration;
     size_t upper = 1;
     while (upper + 1 < track.keys.size() && track.keys[upper].first < time) ++upper;
     size_t lower = upper > 1 ? upper - 1 : upper;
     float fraction = 1.0f;
-    if (track.keys[upper].first > time) {
+    if (track.cycle == 1) {
+        int lowerTime, upperTime;
+        if (time > track.keys[upper].first) {
+            lower = upper; upper = 1;
+            lowerTime = track.keys[lower].first;
+            upperTime = track.duration + track.keys[upper].first;
+        } else if (upper == 1 && time < track.keys[upper].first) {
+            lower = track.keys.size() - 1;
+            lowerTime = track.keys[lower].first - track.duration;
+            upperTime = track.keys[upper].first;
+        } else {
+            lowerTime = track.keys[lower].first;
+            upperTime = track.keys[upper].first;
+        }
+        fraction = upperTime > lowerTime ? (float)(time - lowerTime) / (upperTime - lowerTime) : 0;
+    } else if (track.keys[upper].first > time) {
         if (upper == 1) fraction = 0.0f;
         else fraction = (float)(time - track.keys[lower].first) /
                         (float)(track.keys[upper].first - track.keys[lower].first);
@@ -128,6 +172,8 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             resourceHashes.push_back(FengHash(name.c_str()));
                         }
                     }
+                } else if (id2 == 0x52676b50) {  // 'PkgR'
+                    ReadResponses(data + q + 8, end2 - q - 8, &responses_);
                 } else if (id2 == 0xcc6a624f) {
                     size_t r = q + 8;
                     while (r + 8 <= end2) {
@@ -193,6 +239,8 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         }
                                         t += 4 + len;
                                     }
+                                } else if (id4 == 0x5267734d) {  // 'MsgR'
+                                    ReadResponses(data + s + 8, end4 - s - 8, &object->responses);
                                 } else if (id4 == 0x70726353) {  // 'Scrp'
                                     scripts.push_back(std::vector<unsigned char>(data + s + 8, data + end4));
                                 }
@@ -286,6 +334,20 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
     return !objects_.empty();
 }
 
+FengObject *FengPackage::FindGuid(unsigned int guid) {
+    for (size_t i = 0; i < objects_.size(); ++i) {
+        if (objects_[i]->guid == guid) return objects_[i];
+    }
+    return 0;
+}
+
+const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses, unsigned int message) {
+    for (size_t i = 0; i < responses.size(); ++i) {
+        if (responses[i].message == message) return &responses[i];
+    }
+    return 0;
+}
+
 FengObject *FengPackage::Find(unsigned int hash) {
     for (size_t i = 0; i < objects_.size(); ++i) {
         if (objects_[i]->hash == hash) return objects_[i];
@@ -316,14 +378,18 @@ void FengPackage::SetRotation(FengObject *object, float degrees) {
 }
 
 void FengPackage::PlayScript(FengObject *object, const char *name, bool restart) {
-    if (!object) return;
-    unsigned int hash = FengHash(name);
+    if (object) PlayScriptHash(object, FengHash(name), restart);
+}
+
+bool FengPackage::PlayScriptHash(FengObject *object, unsigned int hash, bool restart) {
+    if (!object) return false;
     for (size_t i = 0; i < object->scripts.size(); ++i) {
         if (object->scripts[i].hash != hash) continue;
         if (object->activeScript != (int)i || restart) object->scriptMilliseconds = 0;
         object->activeScript = (int)i;
-        return;
+        return true;
     }
+    return false;
 }
 
 void FengPackage::AdvanceScripts(float seconds) {
@@ -342,7 +408,10 @@ void FengPackage::AdvanceScripts(float seconds) {
             ApplyTrack(script.tracks[k], state, sizeof(state), (int)object->scriptMilliseconds);
         ReadState(object, state, sizeof(state));
         object->scriptMilliseconds += seconds * 1000.0f;
-        if (object->scriptMilliseconds > script.duration) object->scriptMilliseconds = (float)script.duration + 1.0f;
+        bool cycling = false;
+        for (size_t k = 0; k < script.tracks.size(); ++k) cycling |= script.tracks[k].cycle == 1;
+        if (!cycling && object->scriptMilliseconds > script.duration)
+            object->scriptMilliseconds = (float)script.duration + 1.0f;
     }
 }
 

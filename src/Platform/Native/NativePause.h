@@ -2,16 +2,17 @@
 #define UG2_NATIVE_PAUSE_H
 
 // Platform scaffolding: runs the recovered pause menu (Speed/Indep/Src/Frontend/PauseMenu.cpp,
-// PauseFNGObject 0x4eb410) over UG2's own UI_Pause.fng and UI_InGameDialog.fng. The packages are
-// the JDLZ-compressed 0x30210 chunks of GLOBAL/InGameCommon.bun, unpacked by the recovered bWare
-// decompressor. FEng, the IconScroller base, the in-game dialog and the game flow are not
-// recovered; NativePause.cpp supplies them as seams at their original call boundaries.
+// PauseFNGObject 0x4eb410) and in-game options (Frontend/PauseOptions.cpp) over UG2's own
+// UI_Pause.fng, UI_PauseOptionsMain.fng, UI_PauseOptions.fng and UI_InGameDialog.fng from
+// GLOBAL/InGameCommon.bun. FEng, the IconScroller and options list bases, the option item bases,
+// the in-game dialog and the game flow are not recovered; NativePause.cpp and
+// NativePauseOptions.cpp supply them as seams at their original call boundaries.
 #include "NativeFng.h"
 
 #include <string>
 #include <vector>
 
-enum NativePauseKey { kPauseKeyLeft, kPauseKeyRight, kPauseKeyAccept, kPauseKeyBack };
+enum NativePauseKey { kPauseKeyLeft, kPauseKeyRight, kPauseKeyAccept, kPauseKeyBack, kPauseKeyUp, kPauseKeyDown, kPauseKeyStart };
 
 // What the demo does for the game-flow messages the menu queues (0x5f4240 / 0x5f41e0).
 enum NativePauseRequest { kPauseRequestNone, kPauseRequestResume, kPauseRequestRestart, kPauseRequestQuit };
@@ -22,6 +23,10 @@ public:
     ~NativePause();
     bool Load(const char *gameDirectory, NativeTextureCache *textures, const char *fontPath, char *error,
               int errorSize);
+    // Native view/input context: settings shared with the driving demo for this session.
+    void SetViewSettings(bool metric, int camera);
+    bool Metric() const;
+    int CameraOption() const;
     bool Loaded() const;
     bool Active() const;
     // JOY_EVENT_PAUSE seam: constructs the screen through FNGINIT_UI_Pause.fng (0x4f4790).

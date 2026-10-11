@@ -286,25 +286,25 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   sounds and Dim/UNDIM scripts are not modelled.
 - FEng (`0x537a10`, `0x50c900`, `0x50b8a0`/`0x50b8c0`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
-  scripts only fire their package events (no animation tracks).
+  scripts fire package events and the bounded animation tracks described in the settings pass below.
 - FEng sprite rendering: the object quaternion is projected onto the screen plane, so the
   180-degree x/y turns UI_Pause uses to mirror frame corners and bar caps draw as mirrors; sprites
   with UVs inside [0,1] sample with GL_CLAMP_TO_EDGE so linear filtering does not wrap edge texels.
 - In-game dialog `0x558790`: two-button form of `UI_InGameDialog.fng` with the caller's labels,
   text and result messages; value `0x1C` is read as the initially highlighted button (Cancel).
 - Game flow `0x5f4240`/`0x5f41e0`: messages 1/2 resume, 3 restarts like `R`, 6 (Quit to Main
-  Menu) exits the demo, others resume with a log line. `UI_PauseOptionsMain.fng` and the replay
-  screen are not available and resume the game. The PC help bar (`0x54e6a0`/`0x54e6e0`) is tracked,
+  Menu) exits the demo, others resume with a log line. The replay
+  screen is not available and resume the game. The PC help bar (`0x54e6a0`/`0x54e6e0`) is tracked,
   not drawn. Real clock `0x8651ac` advances at an assumed 4 kHz so `AcceptsInput` (`0x4a7bc0`)
   opens input one frame after the screen.
-- The player record at `0x8900ac` is now 0x54 bytes of native storage (player 0, `+0x50` = 0) so
-  `0x4a7bf0` offers Options.
+- The pointer table at `0x8900ac` shares the native HUD player slot, or a native
+  fallback when the HUD is disabled, so `0x4a7bf0` offers Options.
 
 Text justification (`Sj`) is read as flags from retail strings: bit 0 centres and bit 1
 right-aligns (dialog button labels sit at their button centres with `Sj` 1; HUD speed digits
 use 2). This corrected the native HUD's swapped centre/right handling.
 
-`--pause-at N` opens the menu at frame N and `--pause-keys LRAB` presses left/right/accept/back
+`--pause-at N` opens the menu at frame N and `--pause-keys LRABUDS` presses left/right/accept/back/up/down/start
 every 30 frames afterwards; `UG2_DEBUG_PAUSE=1` prints delivered messages and game-flow requests.
 
 ## Platform scaffolding (not original code)
@@ -414,3 +414,30 @@ Use `--width W --height H`; `--no-mods` restores the original native presentatio
 Rendering and debug picking share the adjusted projection. Recovered camera and
 physics routines are unchanged. `original_physics` forwards to the recovered solver;
 custom physics is supplied by third-party providers through documented native seams.
+
+## In-game settings integration
+
+The pause menu's Options item now opens the recovered Audio/Display/Gameplay/Player
+category screen and recovered option handlers. The native demo supplies the unrecovered
+list/widget bases using the player's retail FNG objects and scripts. See
+[settings evidence and limitations](pc-pause-options.md) for the distinction between
+verified original code and platform seams.
+
+Use left/right for category and value changes, up/down (or W/S) for rows, Enter to
+accept, Esc/Backspace to return, and P/Pause to resume from settings. Units and camera
+choices feed the demo; audio, display backends, persistence and other gameplay setting
+effects remain incomplete. Changes are session-only. Scripted keys also support U/D/S.
+
+```sh
+python tools/smoke_native_pause_options.py
+build/native/ug2demo --frames 260 --pause-at 20 --pause-keys RAALDL --screenshot build/audio.ppm
+```
+
+Generated screenshots for this pass: `build/analysis/native-options/{audio,display,gameplay,player}.ppm`.
+
+The native slider fill and knob use the geometry read from retail `0x540d20`.
+For the supplied frontend reference, the adapter reads the dark track tint from
+retail `UI_Options.fng`; the pause package otherwise uses a white track. Arrows
+appear on the selected slider. These visual choices are native presentation
+seams; see `docs/pc-pause-options.md` for the original-code verification and
+rendered slider checks.

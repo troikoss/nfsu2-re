@@ -319,7 +319,7 @@ int main(int argc, char **argv) {
 #endif
     int cameraOption = 3;       // profile drive camera option: 0 bumper, 1 hood, 2 close, 3 far, 4 super far
     int pauseAt = -1;           // scripted capture: open the pause menu at this frame
-    const char *pauseKeys = ""; // then press L/R/A/B (left, right, accept, back), one per 30 frames
+    const char *pauseKeys = ""; // then press L/R/A/B/U/D/S (left, right, accept, back), one per 30 frames
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--game") && i + 1 < argc) game = argv[++i];
         else if (!strcmp(argv[i], "--car") && i + 1 < argc) car = argv[++i];
@@ -435,6 +435,7 @@ int main(int argc, char **argv) {
     memset(&cameraView, 0, sizeof(cameraView));
     bool lookBack = false;
     if (cameraOption < 0 || cameraOption > 4) cameraOption = 3;
+    if (havePause) pause.SetViewSettings(metric, cameraOption);
     // Player::SetCameraState (0x5f1fd0) builds the mover for the car with the option's type.
     driveCamera.Construct(vehicle.owner, &vehicle.cameraSettings, 1, DriveCameraTypeForOption(cameraOption),
                           false, false, false);
@@ -450,7 +451,10 @@ int main(int argc, char **argv) {
                 SDL_Keycode key = event.key.keysym.sym;
                 if (key == SDLK_LEFT || key == SDLK_a) pause.Key(kPauseKeyLeft);
                 else if (key == SDLK_RIGHT || key == SDLK_d) pause.Key(kPauseKeyRight);
+                else if (key == SDLK_UP || key == SDLK_w) pause.Key(kPauseKeyUp);
+                else if (key == SDLK_DOWN || key == SDLK_s) pause.Key(kPauseKeyDown);
                 else if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_SPACE) pause.Key(kPauseKeyAccept);
+                else if (key == SDLK_p || key == SDLK_PAUSE) pause.Key(kPauseKeyStart);
                 else if (key == SDLK_ESCAPE || key == SDLK_BACKSPACE) pause.Key(kPauseKeyBack);
                 continue;
             }
@@ -476,6 +480,7 @@ int main(int argc, char **argv) {
                 // JOY_EVENT_CAMERA_POV_CHANGE: far -> close -> hood -> bumper -> far.
                 cameraOption = (cameraOption + 3) % 4;
                 driveCamera.SetType(DriveCameraTypeForOption(cameraOption));
+                if (havePause) pause.SetViewSettings(metric, cameraOption);
             }
         }
         Uint64 now = SDL_GetPerformanceCounter();
@@ -491,11 +496,19 @@ int main(int argc, char **argv) {
                     char c = pauseKeys[index];
                     if (c == 'L') pause.Key(kPauseKeyLeft);
                     else if (c == 'R') pause.Key(kPauseKeyRight);
+                    else if (c == 'U') pause.Key(kPauseKeyUp);
+                    else if (c == 'D') pause.Key(kPauseKeyDown);
+                    else if (c == 'S') pause.Key(kPauseKeyStart);
                     else if (c == 'A') pause.Key(kPauseKeyAccept);
                     else if (c == 'B') pause.Key(kPauseKeyBack);
                 }
             }
             pause.Update(duration);
+            metric = pause.Metric();
+            if (cameraOption != pause.CameraOption()) {
+                cameraOption = pause.CameraOption();
+                driveCamera.SetType(DriveCameraTypeForOption(cameraOption));
+            }
             NativePauseRequest request = pause.TakeRequest();
             if (request == kPauseRequestQuit) {
                 running = false;

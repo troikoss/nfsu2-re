@@ -1,14 +1,16 @@
-// Platform scaffolding for the recovered pause menu. Nothing in this file is original code:
-// it supplies the unrecovered FEng, IconScroller, dialog and game-flow interfaces that
-// Speed/Indep/Src/Frontend/PauseMenu.cpp calls, at the original call boundaries. Each seam
-// names the retail routine it stands in for; behaviour taken from a read of that routine is
-// marked as such and is not verified.
+// Platform scaffolding for the recovered pause menu and in-game options. Nothing in this file is
+// original code: it supplies the unrecovered FEng, IconScroller, dialog and game-flow interfaces
+// that Speed/Indep/Src/Frontend/PauseMenu.cpp and PauseOptions.cpp call, at the original call
+// boundaries. Each seam names the retail routine it stands in for; behaviour taken from a read of
+// that routine is marked as such and is not verified.
 #include "NativePause.h"
 #include "NativeAssets.h"
+#include "NativeFrontend.h"
 #include "NativeHud.h"
-#include "../../Speed/Indep/Src/Frontend/PauseMenu.h"
+#include "../../Speed/Indep/Src/Frontend/PauseOptions.h"
 #include "../../Speed/Indep/Libs/bWare/Compression.h"
 
+#include <map>
 #include <new>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,31 +26,68 @@ extern int realClock8651AC;
 namespace {
 
 const unsigned int kAccept = 0x0c407210;      // accept, also the item React message
+const unsigned int kPadAccept = 0x406415e3;   // PAD_ACCEPT (package-level accept in 0x54d4b0)
 const unsigned int kPadBack = 0x911ab364;     // PAD_BACK
 const unsigned int kPadLeft = 0x9120409e;     // PAD_LEFT
 const unsigned int kPadRight = 0xb5971bf1;    // PAD_RIGHT
+const unsigned int kPadUp = 0x72619778;       // PAD_UP
+const unsigned int kPadStart = 0xb5af2461;   // PAD_START
+const unsigned int kPadDown = 0x911c0a4b;     // PAD_DOWN
 const unsigned int kExitComplete = 0xe1fde1d1; // EXIT_COMPLETE
-const unsigned int kStartDim = 0x96dda9e6;    // 0x543d40 -> 0x538c00
 const unsigned int kStopDim = 0x251bf83e;     // 0x543d40 -> 0x538ca0
+const unsigned int kFrontendTick = 0xc98356ba; // sent to every FNG object each frame (0x5663b0)
+
+// Message targets of the FEng queue (0x51aa20 / 0x541fc0).
+const int kTargetGame = -1;     // the screen's FNG object handler (owner slot +0x18)
+const int kTargetPackage = -3;  // package-level responses
+const int kTargetInput = -5;    // owner slot +0x1c, not modelled
+const int kTargetObject = 1;    // one object's responses
 
 unsigned int Rd32(const unsigned char *p) { return p[0] | p[1] << 8 | p[2] << 16 | (unsigned int)p[3] << 24; }
 
+bool Debug() { return getenv("UG2_DEBUG_PAUSE") != 0; }
+
+typedef void *(*ScreenFactory)(void *data);
+void *CreatePause(void *data) { return CreatePauseFNGObject(data); }
+void *CreateOptionsMain(void *data) { return CreatePauseOptionsMainFNGObject(data); }
+void *CreateOptions(void *data) { return CreatePauseOptionsFNGObject(data); }
+
 struct NativeScreen {
-    explicit NativeScreen(const char *packageName)
-        : name(packageName), package(0), loaded(false), shown(false), value10(0), controlMask(0) {}
+    NativeScreen(const char *packageName, ScreenFactory create, bool list)
+        : name(packageName), factory(create), optionsList(list), package(0), loaded(false), shown(false),
+          value10(0), controlMask(0), focus(0), object(0) {}
     // Every showing starts from the package's loaded state, as a newly pushed FEng package does.
     bool Reset(std::string *error) {
         delete package;
         package = new FengPackage;
+        currentScript.clear();
+        focus = 0;
         return package->Load(&data[0], data.size(), 0, error);
     }
+    void Deliver(unsigned int message, int value8, int valueC) {
+        if (!object) return;
+        if (optionsList) static_cast<OptionsScrollerFNGObject *>(object)->MessageHandler(message, value8, valueC, 0);
+        else static_cast<IconScrollerFNGObject *>(object)->MessageHandler(message, value8, valueC, 0);
+    }
+    void DestroyObject() {
+        if (!object) return;
+        void *doomed = object;
+        object = 0;
+        if (optionsList) delete static_cast<OptionsScrollerFNGObject *>(doomed);
+        else delete static_cast<IconScrollerFNGObject *>(doomed);
+    }
     const char *name;
+    ScreenFactory factory;
+    bool optionsList;
     std::vector<unsigned char> data;  // 0x30203 chunk
     FengPackage *package;
     bool loaded;
     bool shown;
-    int value10;           // FEng package +0x10 (0x50b8a0 / 0x50b8c0)
+    int value10;           // FEng package +0x10 (0x50b8a0 / 0x50b8c0), kept across showings
     unsigned int controlMask;
+    FengObject *focus;     // package +0x8c
+    std::map<FengObject *, unsigned int> currentScript;  // object +0x54 script hash
+    void *object;          // FNG object created by the package's FNGINIT factory
 };
 
 struct RunningScript {
@@ -62,11 +101,14 @@ struct RunningScript {
 struct PendingMessage {
     NativeScreen *screen;
     unsigned int message;
-    int value8;
+    FengObject *object;   // value8 delivered to the game, or the sender of a response command
+    int target;
+    FengObject *targetObject;
 };
 
 // The in-game dialog 0x558790 is not recovered. Button order, labels and result messages follow
-// its arguments; reading value1C as the initially highlighted button is an interpretation.
+// its arguments; reading value1C as the initially highlighted button is an interpretation. The
+// "" and GenericDialog_SMALL.fng dialogs of the options screens use the same package.
 struct NativeDialog {
     bool shown;
     NativeScreen *parent;
@@ -75,15 +117,22 @@ struct NativeDialog {
     int selected;
 };
 
-NativeScreen pauseScreen("UI_Pause.fng");
-NativeScreen dialogScreen("UI_InGameDialog.fng");
+NativeScreen pauseScreen("UI_Pause.fng", CreatePause, false);
+NativeScreen optionsMainScreen("UI_PauseOptionsMain.fng", CreateOptionsMain, false);
+NativeScreen optionsScreen("UI_PauseOptions.fng", CreateOptions, true);
+NativeScreen dialogScreen("UI_InGameDialog.fng", 0, false);
+NativeScreen *const screens[] = {&pauseScreen, &optionsMainScreen, &optionsScreen, &dialogScreen};
+const size_t kScreenCount = sizeof(screens) / sizeof(screens[0]);
 NativeDialog dialog;
 NativeTextureCache *textures = 0;
 NativeFont font;
 std::vector<unsigned char> language;
-IconScrollerFNGObject *pauseObject = 0;
 std::vector<RunningScript> scripts;
 std::vector<PendingMessage> messages;
+// FngShow / FngRemove run after the current delivery: the caller keeps using its object.
+NativeScreen *switchFrom = 0;
+NativeScreen *switchTo = 0;
+NativeScreen *removeScreen = 0;
 NativePauseRequest request = kPauseRequestNone;
 bool helpBarLoaded = false;
 const char *returnPackage = 0;
@@ -95,8 +144,21 @@ Replay8650B8 nativeReplay;
 NativeScreen *FindScreen(const char *name) {
     if (!name) return 0;
     unsigned int hash = FengHash(name);
-    if (hash == FengHash(pauseScreen.name) && pauseScreen.loaded) return &pauseScreen;
-    if (hash == FengHash(dialogScreen.name) && dialogScreen.loaded) return &dialogScreen;
+    for (size_t i = 0; i < kScreenCount; ++i) {
+        if (screens[i]->loaded && hash == FengHash(screens[i]->name)) return screens[i];
+    }
+    return 0;
+}
+
+NativeScreen *ScreenOfObject(FengObject *object) {
+    for (size_t i = 0; i < kScreenCount; ++i) {
+        NativeScreen *screen = screens[i];
+        if (!screen->shown) continue;
+        std::vector<FengObject *> &objects = screen->package->Objects();
+        for (size_t k = 0; k < objects.size(); ++k) {
+            if (objects[k] == object) return screen;
+        }
+    }
     return 0;
 }
 
@@ -137,22 +199,173 @@ bool LoadCompressedPackage(const std::vector<unsigned char> &bundle, NativeScree
     return false;
 }
 
-void Queue(NativeScreen *screen, unsigned int message, int value8) {
-    PendingMessage pending = {screen, message, value8};
+// Plain 0x30203 packages: the PkHd name string sits at chunk +0x30.
+bool LoadPlainPackage(const std::vector<unsigned char> &bundle, NativeScreen *screen, std::string *error) {
+    size_t nameLength = strlen(screen->name) + 1;
+    for (size_t offset = 0; offset + 8 <= bundle.size();) {
+        unsigned int id = Rd32(&bundle[offset]);
+        unsigned int length = Rd32(&bundle[offset + 4]);
+        if (length > bundle.size() - offset - 8) break;
+        if (id == 0x30203 && length > 0x30 + nameLength && !memcmp(&bundle[offset + 0x30], screen->name, nameLength)) {
+            screen->data.assign(bundle.begin() + offset, bundle.begin() + offset + 8 + length);
+            if (!screen->Reset(error)) return false;
+            screen->loaded = true;
+            return true;
+        }
+        offset += 8 + length;
+    }
+    *error = std::string(screen->name) + " not found";
+    return false;
+}
+
+void Post(NativeScreen *screen, unsigned int message, FengObject *object, int target, FengObject *targetObject = 0) {
+    PendingMessage pending = {screen, message, object, target, targetObject};
     messages.push_back(pending);
 }
 
-void Deliver(NativeScreen *screen, unsigned int message, int value8) {
-    if (getenv("UG2_DEBUG_PAUSE")) fprintf(stderr, "pause: %s <- %08x (%08x)\n", screen->name, message, value8);
-    if (screen == &pauseScreen && pauseScreen.shown && pauseObject)
-        pauseObject->MessageHandler(message, value8, 0, 0);
+void RemoveScripts(NativeScreen *screen) {
+    for (size_t i = 0; i < scripts.size();) {
+        if (scripts[i].screen == screen) scripts.erase(scripts.begin() + i);
+        else ++i;
+    }
+}
+
+// 0x5178b0 with the object's script list: the object's current script, its tracks (FengPackage)
+// and its package events (EXIT_COMPLETE).
+void PlayScript(NativeScreen *screen, FengObject *object, unsigned int hash, bool restart) {
+    if (!screen || !object) return;
+    for (size_t i = 0; i < object->scripts.size(); ++i) {
+        if (object->scripts[i].hash != hash) continue;
+        for (size_t k = 0; k < scripts.size(); ++k) {
+            if (scripts[k].object == object) {
+                if (!restart && scripts[k].script == &object->scripts[i]) return;
+                scripts.erase(scripts.begin() + k);
+                break;
+            }
+        }
+        screen->currentScript[object] = hash;
+        FengPackage::PlayScriptHash(object, hash, restart);
+        RunningScript running = {screen, object, &object->scripts[i], 0.0f, 0};
+        scripts.push_back(running);
+        return;
+    }
+}
+
+// 0x504490: from the conditional at `index`, the command that closes it (or its else at depth 1).
+size_t SkipBlock(const std::vector<FengResponseCommand> &commands, size_t index) {
+    size_t count = commands.size();
+    if (index == count - 1) return count;
+    int depth = 1;
+    do {
+        ++index;
+        unsigned int type = commands[index].type;
+        if (type == 0x500) {
+            if (depth == 1) depth = 0;
+        } else if (type == 0x300 || type == 0x301) {
+            ++depth;
+        } else if (type == 0x501) {
+            --depth;
+        }
+    } while (index < count - 1 && depth != 0);
+    return index;
+}
+
+// 0x52c7c0, the commands the options and pause packages use.
+void RunResponse(NativeScreen *screen, const FengResponse &response, FengObject *object) {
+    const std::vector<FengResponseCommand> &commands = response.commands;
+    for (size_t i = 0; i < commands.size(); ++i) {
+        const FengResponseCommand &command = commands[i];
+        unsigned int current = object && screen->currentScript.count(object) ? screen->currentScript[object] : 0;
+        switch (command.type) {
+        case 0:
+            PlayScript(screen, object, command.parameter, true);
+            break;
+        case 1: {
+            FengObject *target = screen->package->FindGuid(command.target);
+            if (target) Post(screen, command.parameter, object, kTargetObject, target);
+            break;
+        }
+        case 2:
+            Post(screen, command.parameter, object, kTargetGame);
+            break;
+        case 3:
+            Post(screen, command.parameter, object, kTargetInput);
+            break;
+        case 0x300:
+            if (current != command.parameter) i = SkipBlock(commands, i);
+            break;
+        case 0x301:
+            if (current == command.parameter) i = SkipBlock(commands, i);
+            break;
+        case 0x500:
+            i = SkipBlock(commands, i);
+            break;
+        case 0x501:
+            break;
+        default:
+            if (Debug()) fprintf(stderr, "pause: response command %x not modelled\n", command.type);
+            break;
+        }
+    }
+}
+
+void Process(const PendingMessage &pending) {
+    NativeScreen *screen = pending.screen;
+    if (!screen->shown) return;
+    if (pending.target == kTargetGame) {
+        if (Debug()) fprintf(stderr, "pause: %s <- %08x (%p)\n", screen->name, pending.message, (void *)pending.object);
+        screen->Deliver(pending.message, (int)(size_t)pending.object, 0);
+    } else if (pending.target == kTargetPackage) {
+        const FengResponse *response = FindFengResponse(screen->package->Responses(), pending.message);
+        if (response) RunResponse(screen, *response, 0);
+    } else if (pending.target == kTargetObject && pending.targetObject) {
+        const FengResponse *response = FindFengResponse(pending.targetObject->responses, pending.message);
+        if (response) RunResponse(screen, *response, pending.targetObject);
+    }
+}
+
+void ShowScreen(NativeScreen *screen);
+void CloseScreen(NativeScreen *screen);
+
+void ApplyDeferred() {
+    if (removeScreen) {
+        NativeScreen *screen = removeScreen;
+        removeScreen = 0;
+        CloseScreen(screen);
+    }
+    if (switchFrom || switchTo) {
+        NativeScreen *from = switchFrom, *to = switchTo;
+        switchFrom = switchTo = 0;
+        if (from) CloseScreen(from);
+        if (to) ShowScreen(to);
+    }
 }
 
 void Pump() {
-    for (int guard = 0; !messages.empty() && guard < 64; ++guard) {
+    for (int guard = 0; guard < 256; ++guard) {
+        ApplyDeferred();
+        if (messages.empty()) break;
         PendingMessage pending = messages.front();
         messages.erase(messages.begin());
-        Deliver(pending.screen, pending.message, pending.value8);
+        Process(pending);
+    }
+    ApplyDeferred();
+}
+
+// 0x54d4b0: a pad message goes to the focus object when it responds to it, else to the
+// package-level responses; nothing else is sent. Accept is 0x0c407210 on the focus object and
+// PAD_ACCEPT on the package.
+void Input(NativeScreen *screen, unsigned int message) {
+    FengObject *focus = screen->focus;
+    if (focus && FindFengResponse(focus->responses, message)) {
+        Post(screen, message, 0, kTargetObject, focus);
+        Post(screen, message, focus, kTargetInput);
+        return;
+    }
+    if (message == kAccept) message = kPadAccept;
+    if (FindFengResponse(screen->package->Responses(), message)) {
+        Post(screen, message, 0, kTargetPackage);
+        Post(screen, message, 0, kTargetInput);
     }
 }
 
@@ -170,6 +383,45 @@ void DialogHighlight() {
 void CloseDialog() {
     dialog.shown = false;
     dialogScreen.shown = false;
+}
+
+NativeScreen *ActiveScreen() {
+    for (size_t i = 0; i < kScreenCount; ++i) {
+        if (screens[i] != &dialogScreen && screens[i]->shown) return screens[i];
+    }
+    return 0;
+}
+
+void ShowScreen(NativeScreen *screen) {
+    if (!screen->loaded || screen->shown) return;
+    std::string error;
+    if (!screen->Reset(&error)) NativeTrap("FEng package reload");
+    screen->shown = true;
+    // FEng creation data: package name, three unidentified words, help-bar mask (+0x20).
+    static unsigned int data[5];
+    data[0] = (unsigned int)(size_t)screen->name;
+    screen->object = screen->factory(data);
+    if (Debug()) fprintf(stderr, "pause: showing %s\n", screen->name);
+}
+
+void CloseScreen(NativeScreen *screen) {
+    if (!screen->shown) return;
+    screen->DestroyObject();
+    screen->shown = false;
+    RemoveScripts(screen);
+    for (size_t i = 0; i < messages.size();) {
+        if (messages[i].screen == screen) messages.erase(messages.begin() + i);
+        else ++i;
+    }
+    if (dialog.parent == screen) CloseDialog();
+}
+
+void CloseAll() {
+    for (size_t i = 0; i < kScreenCount; ++i) CloseScreen(screens[i]);
+    CloseDialog();
+    scripts.clear();
+    messages.clear();
+    switchFrom = switchTo = removeScreen = 0;
 }
 
 // IconScroller embedded at IconScrollerFNGObject +0x4c (base vtable 0x795cbc, derived
@@ -248,6 +500,8 @@ public:
             e.object->size[1] = h;
             FengPackage::SetPosition(e.object, x, y);
         }
+        // 0x52f680 -> 0x52ce40: the selected icon's object takes the package focus.
+        NativeFrontendSetFocus(owner_->package4, entries_[selected_].object);
     }
 
     // 0x51f9f0 (no wrap): steps over disabled icons (+0x20); stays put when none is left.
@@ -287,19 +541,25 @@ NativeIconScroller *ScrollerOf(IconScrollerFNGObject *object) {
     return static_cast<NativeIconScroller *>(object->Scroller());
 }
 
-void ClosePause() {
-    if (pauseObject) {
-        IconScrollerFNGObject *object = pauseObject;
-        pauseObject = 0;
-        delete object;
-    }
-    pauseScreen.shown = false;
-    CloseDialog();
-    scripts.clear();
-    messages.clear();
+}  // namespace
+
+// ---- Shared frontend seams (NativeFrontend.h) ------------------------------------------------
+
+FengPackage *NativeFrontendPackage(const char *package) {
+    NativeScreen *screen = FindScreen(package);
+    return screen && screen->shown ? screen->package : 0;
 }
 
-}  // namespace
+void NativeFrontendSetFocus(const char *package, FengObject *object) {
+    NativeScreen *screen = FindScreen(package);
+    if (screen) screen->focus = object;
+}
+
+void NativeFrontendPlayScript(FengObject *object, unsigned int hash, bool restart) {
+    PlayScript(ScreenOfObject(object), object, hash, restart);
+}
+
+std::string NativeFrontendString(unsigned int hash) { return Localised(hash); }
 
 // ---- IconScroller base seams --------------------------------------------------------------
 
@@ -415,7 +675,7 @@ void IconScrollerFNGObject::Value50DA20(unsigned int message, int value8, int va
     memcpy(unidentified140, stored, sizeof(stored));
 }
 
-// ---- FEng seams (cdecl interfaces declared in PauseMenu.h) --------------------------------
+// ---- FEng seams (cdecl interfaces declared in PauseMenu.h / PauseOptions.h) -----------------
 
 unsigned int FngHash(const char *name) { return FengHash(name); }  // 0x505450
 
@@ -424,9 +684,29 @@ void *FngFindObject(const char *package, unsigned int hash) {  // 0x537a10
     return screen ? screen->package->Find(hash) : 0;
 }
 
+void *FngFindObject5379C0(const char *package, unsigned int hash) {  // 0x5379c0
+    return FngFindObject(package, hash);
+}
+
 void FngSetLabelString(void *object, unsigned int hash) {  // 0x50c900
     if (object) FengPackage::SetText(static_cast<FengObject *>(object), hash ? Localised(hash).c_str() : "");
 }
+
+// 0x537be0: formats into the string object (the options use it with literal strings only).
+void FngPrintf(void *object, const char *format, ...) {
+    if (object) FengPackage::SetText(static_cast<FengObject *>(object), format);
+}
+
+void FngHideObject(void *object) { FengPackage::Hide(static_cast<FengObject *>(object)); }  // 0x50ca00
+void FngShowObject(void *object) { FengPackage::Show(static_cast<FengObject *>(object)); }  // 0x50ca50
+
+// 0x51cf70: object script by name (Highlight, UnHighlight, Disable, Disabled, Blink).
+void FngSetObjectScript(void *object, const char *script, bool restart) {
+    NativeFrontendPlayScript(static_cast<FengObject *>(object), FengHash(script), restart);
+}
+
+// 0x50d150: menu sound from table 0x837fe0; there is no frontend audio in the demo.
+void FngPlayMenuSound(const char *, int, int) {}
 
 void FngSetPackageValue10(const char *package, int value) {  // 0x50b8c0
     NativeScreen *screen = FindScreen(package);
@@ -448,18 +728,31 @@ bool FngIsLoaded(const char *package) {  // 0x52cf60
     return screen && screen->shown;
 }
 
-void FngRemove(const char *package) {  // 0x5379a0
-    if (FengHash(package) == FengHash(FngHelpBarName())) helpBarLoaded = false;
+// 0x5379a0: removing a screen package closes it after the current message.
+void FngRemove(const char *package) {
+    if (FengHash(package) == FengHash(FngHelpBarName())) {
+        helpBarLoaded = false;
+        return;
+    }
+    NativeScreen *screen = FindScreen(package);
+    if (screen && screen->shown) removeScreen = screen;
 }
 
 void FngAdd(const char *package, const char *, int, int) {  // 0x555f10
     if (FengHash(package) == FengHash(FngHelpBarName())) helpBarLoaded = true;
 }
 
-// 0x537980. The options and replay screens are not recovered; the demo returns to the game.
-void FngShow(const char *, const char *name, int) {
-    fprintf(stderr, "ug2demo: %s is not available in the native demo; resuming\n", name);
-    request = kPauseRequestResume;
+// 0x537980: replaces the calling package with `name`. Screens without recovered code (replay,
+// PC customize options, performance dyno) return to the game.
+void FngShow(const char *from, const char *name, int) {
+    NativeScreen *target = FindScreen(name);
+    if (!target || !target->factory) {
+        fprintf(stderr, "ug2demo: %s is not available in the native demo; resuming\n", name);
+        request = kPauseRequestResume;
+        return;
+    }
+    switchFrom = FindScreen(from);
+    switchTo = target;
 }
 
 void FngSetControlMask(const char *package, unsigned int mask) {  // 0x537950
@@ -470,40 +763,33 @@ void FngSetControlMask(const char *package, unsigned int mask) {  // 0x537950
 unsigned int FngControlMask(int) { return 0; }  // 0x50d2d0
 
 bool FngScriptActive(const char *package, unsigned int object, const char *script) {  // 0x537cc0
+    return FngScriptRunning(package, object, FengHash(script));
+}
+
+// 0x537d40: the object's current script is `script` and has not finished.
+bool FngScriptRunning(const char *package, unsigned int object, unsigned int script) {
     NativeScreen *screen = FindScreen(package);
-    unsigned int hash = FengHash(script);
     for (size_t i = 0; i < scripts.size(); ++i) {
-        if (scripts[i].screen == screen && scripts[i].object->hash == object && scripts[i].script->hash == hash)
+        if (scripts[i].screen == screen && scripts[i].object->hash == object && scripts[i].script->hash == script)
             return true;
     }
     return false;
 }
 
-// 0x537c00. Only the script's package events are played (FORWARD -> EXIT_COMPLETE); its
-// animation tracks and object-directed events (FadeOut) are not.
-void FngSetScript(const char *package, unsigned int objectHash, const char *script, int restart) {
-    NativeScreen *screen = FindScreen(package);
-    FengObject *object = screen ? screen->package->Find(objectHash) : 0;
-    if (!object) return;
-    unsigned int hash = FengHash(script);
-    for (size_t i = 0; i < object->scripts.size(); ++i) {
-        if (object->scripts[i].hash != hash) continue;
-        for (size_t k = 0; k < scripts.size(); ++k) {
-            if (scripts[k].object == object) {
-                if (!restart && scripts[k].script == &object->scripts[i]) return;
-                scripts.erase(scripts.begin() + k);
-                break;
-            }
-        }
-        RunningScript running = {screen, object, &object->scripts[i], 0.0f, 0};
-        scripts.push_back(running);
-        return;
-    }
+void FngSetScript(const char *package, unsigned int object, const char *script, int restart) {  // 0x537c00
+    FngSetScriptHash(package, object, FengHash(script), restart);
 }
 
-void FngSendMessage(unsigned int message, const char *package) {  // 0x55dda0
+void FngSetScriptHash(const char *package, unsigned int objectHash, unsigned int script, int restart) {  // 0x537c60
     NativeScreen *screen = FindScreen(package);
-    if (screen) Queue(screen, message, 0);
+    FengObject *object = screen ? screen->package->Find(objectHash) : 0;
+    PlayScript(screen, object, script, restart != 0);
+}
+
+// 0x55dda0 -> 0x55b5c0: straight to the package's FNG object.
+void FngSendMessage(unsigned int message, const char *package) {
+    NativeScreen *screen = FindScreen(package);
+    if (screen) Post(screen, message, 0, kTargetGame);
 }
 
 void FngShowDialog(const char *package, const char *, int value8, unsigned int valueC, unsigned int value10,
@@ -514,6 +800,7 @@ void FngShowDialog(const char *package, const char *, int value8, unsigned int v
     }
     std::string error;
     if (!dialogScreen.Reset(&error)) NativeTrap("UI_InGameDialog.fng reload");
+    if (Debug()) fprintf(stderr, "pause: dialog prompt %08x\n", value20);
     dialog.shown = true;
     dialog.parent = FindScreen(package);
     dialog.results[0] = value10;
@@ -544,11 +831,11 @@ int FngFilterSlot0C(int, int) {  // 0x50d1d0
 
 // ---- Game flow and other seams ------------------------------------------------------------
 
-// 0x5f4240. Message meanings are not established; the demo maps the ones the menu queues.
+// 0x5f4240. Message meanings are not established; the demo maps the ones the menus queue.
 void GameFlow8900D8::Queue8(int value) {
-    if (getenv("UG2_DEBUG_PAUSE")) fprintf(stderr, "pause: game flow 0x5f4240(%d)\n", value);
+    if (Debug()) fprintf(stderr, "pause: game flow 0x5f4240(%d)\n", value);
     switch (value) {
-    case 1:  // PAD_BACK/START after EXIT_COMPLETE, and "Resume Race"
+    case 1:  // PAD_BACK/START after EXIT_COMPLETE, "Resume Race", options closed with START
     case 2:  // "Return to Free Run"
         request = kPauseRequestResume;
         break;
@@ -590,7 +877,7 @@ NativePause::NativePause() {
     memset(&nativeReplay, 0, sizeof(nativeReplay));
 }
 
-NativePause::~NativePause() { ClosePause(); }
+NativePause::~NativePause() { CloseAll(); }
 
 bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, const char *fontPath, char *error,
                        int errorSize) {
@@ -610,52 +897,45 @@ bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, con
         snprintf(error, errorSize, "%s", reason.c_str());
         return false;
     }
+    if (!LoadPlainPackage(bundle, &optionsMainScreen, &reason) || !LoadPlainPackage(bundle, &optionsScreen, &reason))
+        fprintf(stderr, "ug2demo: %s; pause options are not available\n", reason.c_str());
     ReadNativeFile(base + "/LANGUAGES/English.bin", &language);
     if (!font.Load(gameDirectory, cache, fontPath)) fprintf(stderr, "ug2demo: no font found; pause menu text is not drawn\n");
     // Objects behind the .bss pointers the recovered code dereferences.
     gameFlow8900D8 = &nativeFlow;
     pcHelpBar8384D8 = &nativeHelpBar;
     replay8650B8 = &nativeReplay;
+    NativePauseOptionsLoad(gameDirectory);
     return true;
 }
 
 bool NativePause::Loaded() const { return pauseScreen.loaded; }
 
-bool NativePause::Active() const { return pauseScreen.shown; }
+bool NativePause::Active() const { return ActiveScreen() != 0; }
 
 void NativePause::Open() {
-    if (!pauseScreen.loaded || pauseScreen.shown) return;
+    if (!pauseScreen.loaded || ActiveScreen()) return;
     request = kPauseRequestNone;
-    std::string error;
-    if (!pauseScreen.Reset(&error)) NativeTrap("UI_Pause.fng reload");
-    pauseScreen.shown = true;
-    pauseScreen.value10 = 0;
-    // FEng creation data: package name, three unidentified words, help-bar mask (+0x20).
-    static unsigned int data[5];
-    data[0] = (unsigned int)(size_t)pauseScreen.name;
-    pauseObject = CreatePauseFNGObject(data);
+    ShowScreen(&pauseScreen);
     Pump();
 }
 
 void NativePause::Key(NativePauseKey key) {
-    if (!pauseScreen.shown) return;
+    NativeScreen *screen = ActiveScreen();
+    if (!screen) return;
     if (dialog.shown) {
         if (key == kPauseKeyLeft || key == kPauseKeyRight) {
             dialog.selected = key == kPauseKeyLeft ? 0 : 1;
             DialogHighlight();
-        } else {
+        } else if (key == kPauseKeyAccept || key == kPauseKeyBack) {
             unsigned int result = key == kPauseKeyAccept ? dialog.results[dialog.selected] : dialog.backResult;
             NativeScreen *parent = dialog.parent;
             CloseDialog();
-            if (parent) Queue(parent, result, 0);
+            if (parent) Post(parent, result, 0, kTargetGame);
         }
     } else {
-        static const unsigned int messagesForKey[] = {kPadLeft, kPadRight, kAccept, kPadBack};
-        // FEng sends accept with the focused object, the selected icon's (0x52f680/0x52ce40).
-        int value8 = 0;
-        if (key == kPauseKeyAccept && pauseObject)
-            value8 = (int)(size_t)ScrollerOf(pauseObject)->SelectedObject();
-        Deliver(&pauseScreen, messagesForKey[key], value8);
+        static const unsigned int messagesForKey[] = {kPadLeft, kPadRight, kAccept, kPadBack, kPadUp, kPadDown, kPadStart};
+        Input(screen, messagesForKey[key]);
     }
     Pump();
 }
@@ -674,7 +954,8 @@ void NativePause::Update(float seconds) {
         running.milliseconds += seconds * 1000.0f;
         const std::vector<FengEvent> &events = running.script->events;
         while (running.nextEvent < events.size() && events[running.nextEvent].time <= running.milliseconds) {
-            if (events[running.nextEvent].target == 0xffffffff) Queue(running.screen, events[running.nextEvent].message, 0);
+            if (events[running.nextEvent].target == 0xffffffff)
+                Post(running.screen, events[running.nextEvent].message, 0, kTargetGame);
             ++running.nextEvent;
         }
         if (running.nextEvent >= events.size() && running.milliseconds >= running.script->duration)
@@ -682,17 +963,24 @@ void NativePause::Update(float seconds) {
         else
             ++i;
     }
+    for (size_t i = 0; i < kScreenCount; ++i) {
+        if (!screens[i]->shown) continue;
+        screens[i]->package->AdvanceScripts(seconds);
+        if (screens[i] != &dialogScreen) Post(screens[i], kFrontendTick, 0, kTargetGame);  // 0x5663b0
+    }
     Pump();
+    NativePauseOptionsUpdate();
 }
 
 void NativePause::Draw(int width, int height) {
-    if (pauseScreen.shown) pauseScreen.package->Draw(textures, &font, width, height);
-    if (dialogScreen.shown) dialogScreen.package->Draw(textures, &font, width, height);
+    for (size_t i = 0; i < kScreenCount; ++i) {
+        if (screens[i]->shown) screens[i]->package->Draw(textures, &font, width, height);
+    }
 }
 
 NativePauseRequest NativePause::TakeRequest() {
     NativePauseRequest pending = request;
     request = kPauseRequestNone;
-    if (pending != kPauseRequestNone) ClosePause();
+    if (pending != kPauseRequestNone) CloseAll();
     return pending;
 }

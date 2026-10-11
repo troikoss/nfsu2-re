@@ -4,8 +4,7 @@ Reference: UG2 PC v1.2 `speed2.exe`, SHA-256
 `f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7`.
 Ghidra decompilation was checked against x86 disassembly and original/rebuilt
 execution. This pass covers `UI_Pause.fng` and its option items. It **does not
-recover the IconScroller base, FEng, the in-game dialog, the options screens
-(`UI_PauseOptionsMain.fng`), or the game-flow states the menu queues**.
+recover the IconScroller base, FEng, the in-game dialog, or the game-flow states the menu queues**.
 
 ## Recovered source
 
@@ -113,8 +112,9 @@ pause routines read.
 
 ## Remaining work
 
-- Pause options screens: `0x4a7d60`, `0x4a7f70`, `0x4a8010`, constructors
-  `0x4eb580`/`0x4d93c0`, factories `0x4f47f0`/`0x4eb650`.
+- Pause options bases and backends: `0x4a7d60`, `0x4a7f70`, `0x4a8010`, constructors
+  `0x4eb580`/`0x4d93c0`, factories `0x4f47f0`/`0x4eb650`. These screens are now
+  recovered and integrated separately; see [settings evidence](pc-pause-options.md).
 - IconScroller base, in-game dialog `0x558790`, and the game-flow handling of the
   queued messages.
 - Recover the IconScroller base and FEng message/script dispatch that the native demo
