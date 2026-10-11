@@ -377,6 +377,14 @@ These original-source files contain no project-specific handling or control poli
 | Effective control `0x5942e0` | 27 | 27 | Nonmatching |
 | Adjustment advance `0x5a11e0` | 172 | 168 | Nonmatching |
 
+On 2026-10-12 curve lookup was corrected to truncate the unspilled position
+with `__ftol2`, as `0x5764d0` does (`fst` keeps it on the x87 stack); the
+binary32 copy is used only for later comparisons and the fraction. Finite
+samples did not distinguish the forms, but NaN samples in the tuning curve-peak
+scan did. The engine, body, wheel, drivetrain, timed-average, parameter,
+vehicle-mover and demo-driving verifiers all pass after the change; the native
+forward smoke maximum moved from 114.6 to 114.1 km/h.
+
 Equal length alone is not a byte match. The verifier compares bodies after
 explicit original-address relocation and records every fingerprint and relocation.
 No inline assembly or fixed registers are used to force matching.

@@ -271,36 +271,67 @@ from display, the value is converted back with `0x59b4a0` and passed to
 `0x59b5c0` unscaled. The unspilled ordering comparison is not distinguished
 by the current fixtures.
 
+Engine range limit `0x5ace80` (933 bytes) caps a sample's upper bound by the
+largest current setting, finds the settings' curve peak with `0x5ac980`
+over record +0x1f0..+0x1f8, and, when the bound's power at the sample speed
+`start + (end - start) * sample * 0.125` exceeds the peak, lowers it by the
+excess divided by `speed * 0.104712`. Both ends are clamped at zero.
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
-The verifier now covers these routines with the same manifest. On 2026-10-11
-**169,550 comparisons** were bit-identical: the 94,722 cases above plus
-13,764 offset stores (rounding/clamp boundaries, ±1e10 and NaN through
-original `__ftol2`), 1,536 active tests and 6,144 entry applications (every
-kind byte, signed priorities, gear counts, distinct and aliased pairs),
-47,520 conversions (four selection values, kinds -2..27, low-byte flags,
-specials and NaN), 4,914 gear values (selectors adjacent to both thresholds,
-NaN/infinity, zero divisors), 68 sign and 882 minimum/maximum cases. A
-further 13,733 cases cover the range helpers: 1,968 linked extremes (every
-kind and component, ties and NaN), 2,268 each for balance and pair ranges on
-46 retail rows with entries for kinds 1/5/19/20, 729 range widenings and
-4,500 clamped remaps (equal and inverted ranges). Range selection is checked
-for components 0/1 only, because larger components read adjacent stack
-slots. A further 16,560 range-builder cases (every kind -2..26 and 128, two
-depths, distinct and aliased outputs, random extra flags and entries on 46
-retail rows) and 480 curve-peak cases (counts 1..64, empty/inverted spans,
-NaN and null outputs, three precisions) and 16,560 display-range cases
-(entries with and without -99.99 overrides, three selection values) bring
-the total to **216,883** bit-identical comparisons. Value mapping adds 31,200
-cases (kinds 0..24, both directions, NaN and out-of-range values, 53/64-bit
-precision), for **248,083** in all. Recovered lookup `0x5764d0` executes on the rebuilt
-side. The
-lookup and minimum helper execute as recovered source on the rebuilt side;
-`__ftol2` is original runtime code on both sides. Mutations of the gear blend
-upper bound, offset-store clamps, a balance-range entry kind, the
-linked-extreme comparison, the peak comparison, one range-builder field
-offset and the display-range ordering test were each detected.
+`tools/verify_pc_physics_tuning_values.py` covers every routine above with
+the fingerprints in `physics-tuning-values.json`. On 2026-10-12 it reported
+**252,983** bit-identical comparisons:
+
+| Routine | Cases |
+| --- | ---: |
+| `0x59aee0` GetOffset | 56,832 |
+| `0x59b200` GetField | 594 |
+| `0x59b3c0` NormalizeEngine | 1,200 |
+| `0x5a7da0` GetValue | 36,096 |
+| `0x59af80` SetOffset | 13,764 |
+| `0x59b080` IsActive | 1,536 |
+| `0x59b160` ApplyEntry | 6,144 |
+| `0x59b4a0` ConvertUnits | 47,520 |
+| `0x59b5c0` GetGearValue | 4,914 |
+| `0x59b6c0` GetSign | 68 |
+| `0x401050` EngineMaximum | 441 |
+| `0x401070` EngineMinimum | 441 |
+| `0x5a79f0` GetLinkedExtreme | 1,968 |
+| `0x5a7b80` GetBalanceRange | 2,268 |
+| `0x5a7cb0` GetPairRange | 2,268 |
+| `0x591320` ExpandPhysicsTuningRange | 729 |
+| `0x401790` EngineRemapClamped | 4,500 |
+| `0x5aca50` GetRange | 16,560 |
+| `0x5ac980` FindPhysicsCurvePeak | 480 |
+| `0x5b09a0` GetDisplayRange | 16,560 |
+| `0x5b2800` MapValue | 31,200 |
+| `0x5ace80` LimitEngineRange | 6,900 |
+
+Fixtures use 46 retail CarTypeInfo rows as sources and perturbed records,
+random extra-flag masks, synthetic lookup tables with every entry kind,
+signed priorities and -99.99 overrides, nesting depths 0/1/2/3/-1, distinct
+and aliased outputs, rounding/clamp boundaries, signed zero, cancellation,
+infinities and NaN (except in value reads), and x87 precision control
+24/53/64-bit for the arithmetic helpers. Float returns are compared as
+80-bit stores; full guarded state, stack cleanup, x87 stack depth and
+preserved registers also match. Extra removal/application, lookup `0x59ae40`,
+minimum `0x401070` and curve lookup `0x5764d0` execute as recovered source on
+the rebuilt side; `__ftol2` is original runtime code on both sides. There are
+no controlled interfaces.
+
+Limitations: kinds outside 0..24 make `0x5a7da0` dereference null and are not
+exercised; range selection uses components 0/1 only, because larger
+components read adjacent stack slots; the unspilled ordering comparison in
+`0x5b2800` and the intermediate store in `0x5b09a0` are not distinguished by
+the fixtures. Byte matching is not established. Source mutations (sign of a
+source-relative difference, reapplication depth, gear blend bound, offset
+clamps, a balance-range entry kind, linked-extreme and peak comparisons, a
+range-builder field offset, display-range ordering and the value-mapping
+epsilon gate) were each detected. NaN curve samples exposed the lookup
+truncation difference described in `pc-vehicle-physics.md`. Results stay in
+`build/analysis/physics-tuning-values/`.
 
 ## Mode variants
 

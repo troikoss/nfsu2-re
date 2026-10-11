@@ -1,9 +1,11 @@
 #include "Engine.h"
 
 // Original PC v1.2 0x5764d0. Includes original endpoint and knot handling.
+// __ftol2 truncates the unspilled position; later tests use its binary32 copy.
 float EngineCurve::Lookup(float input) {
-    float position = (input - start) * inverseSpacing;
-    int index = (int)position;
+    double unspilled = ((double)input - start) * inverseSpacing;
+    float position = (float)unspilled;
+    int index = (int)unspilled;
     if (index < 0 || position < 0.0f) {
         return samples[0];
     }

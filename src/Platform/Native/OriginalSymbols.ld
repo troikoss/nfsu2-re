@@ -697,3 +697,5 @@ physicsTuningCurveStep = 0x785b80;
 physicsTuningGearLowInput = 0x7a1ad4;
 physicsTuningGearHighInput = 0x7a1ad0;
 physicsTuningKind16Maximum = 0x7a2380;
+physicsTuningSampleSpacing = 0x788164;
+physicsTuningTorqueScale = 0x7a2384;

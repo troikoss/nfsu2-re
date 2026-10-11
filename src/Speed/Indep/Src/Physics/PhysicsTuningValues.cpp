@@ -496,3 +496,34 @@ double PhysicsTuning::MapValue(int index, float value, bool toDisplay) {
     if (toDisplay) return EngineRemapClamped(value, minimum, maximum, displayMinimum, displayMaximum);
     return EngineRemapClamped(value, displayMinimum, displayMaximum, minimum, maximum);
 }
+
+extern float physicsTuningSampleSpacing;
+extern float physicsTuningTorqueScale;
+
+// 0x5ace80 limits an engine sample's upper bound. The bound is first capped
+// by the largest current setting (starting at zero); if the bound's power at
+// the sample's speed exceeds the curve peak of the settings, it is lowered by
+// the excess over speed * 0.104712. Both ends are finally clamped at zero.
+void PhysicsTuning::LimitEngineRange(int index, float *minimum, float *maximum, int sample) {
+    float samples[9];
+    float largest = 0.0f;
+    for (int i = 0; i < 9; ++i) {
+        float value = 0.0f;
+        if (index < 23) value = values40[index];
+        else if (index == 23) value = values9C[i];
+        else if (index == 24) value = valuesC0[i];
+        samples[i] = value;
+        if (value > largest) largest = value;
+    }
+    *maximum = largest < *maximum ? largest : *maximum;
+    float *record = reinterpret_cast<float *>(recordC);
+    float peak = FindPhysicsCurvePeak(samples, 9, record[0x1f0 / 4], record[0x1f8 / 4], 0);
+    double speed = ((((double)record[0x1f8 / 4] - record[0x1f0 / 4]) * sample) * physicsTuningSampleSpacing) + record[0x1f0 / 4];
+    double power = (((double)*maximum * physicsTuningThousand) * speed) * physicsTuningPowerScale;
+    if (power > peak) {
+        double adjusted = ((double)peak - power) / (speed * physicsTuningTorqueScale) + *maximum;
+        *maximum = (float)(0.0 > adjusted ? 0.0 : adjusted);
+    }
+    *minimum = 0.0f > *minimum ? 0.0f : *minimum;
+    if (0.0f > *maximum) *maximum = 0.0f;
+}
