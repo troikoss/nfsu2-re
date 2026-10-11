@@ -54,6 +54,7 @@ struct Network89CF48 {
 };
 // Object at *0x8650b8; only the fields read by the replay item are named.
 struct Replay8650B8 {
+    void Value578EF0(int type, int player, int value, bool record); // 0x578ef0
     char unidentified0[0xb8];
     int valueB8;
     char unidentifiedBC[0x50ec - 0xbc];
@@ -63,6 +64,7 @@ UG2_CHECK_OFFSET(Replay8650B8, valueB8, 0xb8);
 UG2_CHECK_OFFSET(Replay8650B8, value50EC, 0x50ec);
 // Entries of the two-pointer table at 0x8900ac.
 struct Player8900AC {
+    int Value5F2FA0(int step); // 0x5f2fa0
     char unidentified0[8];
     int player8;
     char unidentifiedC[0x44];
