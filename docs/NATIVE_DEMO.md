@@ -287,6 +287,9 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 - FEng (`0x537a10`, `0x50c900`, `0x50b8a0`/`0x50b8c0`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts only fire their package events (no animation tracks).
+- FEng sprite rendering: the object quaternion is projected onto the screen plane, so the
+  180-degree x/y turns UI_Pause uses to mirror frame corners and bar caps draw as mirrors; sprites
+  with UVs inside [0,1] sample with GL_CLAMP_TO_EDGE so linear filtering does not wrap edge texels.
 - In-game dialog `0x558790`: two-button form of `UI_InGameDialog.fng` with the caller's labels,
   text and result messages; value `0x1C` is read as the initially highlighted button (Cancel).
 - Game flow `0x5f4240`/`0x5f41e0`: messages 1/2 resume, 3 restarts like `R`, 6 (Quit to Main

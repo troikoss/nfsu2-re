@@ -307,7 +307,12 @@ void FengPackage::Hide(FengObject *object) { HudHideObject(object); }
 void FengPackage::Show(FengObject *object) { HudShowObject(object); }
 
 void FengPackage::SetRotation(FengObject *object, float degrees) {
-    if (object) object->angle = degrees;
+    if (!object) return;
+    object->angle = degrees;
+    float half = degrees * 3.14159265f / 360.0f;
+    object->rotation[0] = object->rotation[1] = 0;
+    object->rotation[2] = sinf(half);
+    object->rotation[3] = cosf(half);
 }
 
 void FengPackage::PlayScript(FengObject *object, const char *name, bool restart) {
@@ -387,19 +392,23 @@ void FengPackage::SetText(FengObject *object, const char *text) {
 void FengPackage::Gather(FengObject *object, const float *parent, float parentAlpha, std::vector<DrawItem> *items) {
     if (object->Hidden()) return;
     float a = parent[0], b = parent[1], c = parent[2], d = parent[3], tx = parent[4], ty = parent[5];
-    float rad = object->angle * 3.14159265f / 180.0f;
-    float cs = cosf(rad), sn = sinf(rad);
     // Rotate about the FEng pivot relative to the object's centre. The north
     // marker's (0, 72) pivot puts its rotation centre at the minimap centre.
-    // Positive angles rotate clockwise in the screen's y-down coordinates.
+    // Positive z angles rotate clockwise in the screen's y-down coordinates.
+    // The full quaternion is projected onto the screen plane: UI_Pause mirrors
+    // frame corners and bar caps with 180-degree turns about x or y, which a
+    // z-only angle drew as 180-degree spins (wrong corners).
+    float qx = object->rotation[0], qy = object->rotation[1], qz = object->rotation[2], qw = object->rotation[3];
+    float r00 = 1 - 2 * (qy * qy + qz * qz), r01 = 2 * (qx * qy - qz * qw);
+    float r10 = 2 * (qx * qy + qz * qw), r11 = 1 - 2 * (qx * qx + qz * qz);
     float pivotX = object->pivot[0], pivotY = object->pivot[1];
-    float px = object->position[0] + pivotX - cs * pivotX + sn * pivotY;
-    float py = object->position[1] + pivotY - sn * pivotX - cs * pivotY;
+    float px = object->position[0] + pivotX - r00 * pivotX - r01 * pivotY;
+    float py = object->position[1] + pivotY - r10 * pivotX - r11 * pivotY;
     float m[6];
-    m[0] = a * cs + c * sn;
-    m[1] = b * cs + d * sn;
-    m[2] = -a * sn + c * cs;
-    m[3] = -b * sn + d * cs;
+    m[0] = a * r00 + c * r10;
+    m[1] = b * r00 + d * r10;
+    m[2] = a * r01 + c * r11;
+    m[3] = b * r01 + d * r11;
     m[4] = a * px + c * py + tx;
     m[5] = b * px + d * py + ty;
     std::map<FengObject *, std::pair<float, float> >::const_iterator translation = modTranslations_.find(object);
@@ -482,8 +491,16 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
             else glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             bool alpha = false;
             GLuint tex = o->textureHash ? textures->Get(o->textureHash, &alpha) : 0;
-            if (tex) glBindTexture(GL_TEXTURE_2D, tex);
-            else {
+            // Native render seam: GL textures default to GL_REPEAT, so linear filtering at the
+            // edge of a sprite blended in texels from the opposite side (bright seams at the
+            // corners of the pause frame and icons). FEng sprites inside [0,1] are clamped.
+            bool clamp = o->uv[0] >= 0 && o->uv[1] >= 0 && o->uv[2] >= 0 && o->uv[3] >= 0 &&
+                         o->uv[0] <= 1 && o->uv[1] <= 1 && o->uv[2] <= 1 && o->uv[3] <= 1;
+            if (tex) {
+                glBindTexture(GL_TEXTURE_2D, tex);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, clamp ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, clamp ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+            } else {
                 glDisable(GL_TEXTURE_2D);
                 static bool warned[1] = {false};
                 if (o->textureHash && getenv("UG2_DEBUG_HUD") && !warned[0]) fprintf(stderr, "HUD: texture %08x of object %08x not loaded\n", o->textureHash, o->hash);
