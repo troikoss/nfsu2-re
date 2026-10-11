@@ -1,0 +1,37 @@
+NFSU2 RE attribution and third-party notices
+==========================================
+
+Need for Speed Underground 2
+---------------------------
+This is an unofficial reconstruction and verification project concerning the
+PC v1.2 game. Rights in the original game code, data, assets, and trademarks
+remain with their respective rights holders. The project's LICENSE does not
+grant rights to that material or represent rights-holder permission to
+redistribute recovered code. Users must supply their own lawfully obtained
+game installation. The project is not affiliated with or endorsed by
+Electronic Arts.
+
+Research provenance
+-------------------
+Pre-migration research used cobanov/nfsu2-decomp at commit
+8415642c08e580cda24b19102b95e33ce2448fcf. PROVENANCE.json records migration
+input fingerprints and states that the local recovered files were not present
+in that baseline. Preserve attribution and applicable terms for any imported
+tooling; migration or new Git history does not change ownership or licensing.
+This attribution is not a claim that all migrated files came from upstream,
+nor a license grant for upstream material.
+
+imstb_truetype.h
+---------------
+src/Platform/Native/third_party/imstb_truetype.h carries the stb_truetype
+copyright notice (c) 2017 Sean Barrett and offers MIT or public-domain terms.
+The full terms are preserved at the end of that file. Retain the embedded
+copyright and permission notices when using the MIT alternative. The project's
+LICENSE does not replace those terms.
+
+External dependencies
+---------------------
+SDL2, OpenGL implementations, analysis libraries, and separately installed
+compiler and verification tools remain subject to their respective licenses.
+This project does not grant rights to those dependencies or redistribute
+proprietary compiler binaries.
