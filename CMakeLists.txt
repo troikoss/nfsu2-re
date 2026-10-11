@@ -40,7 +40,7 @@ target_link_options(ug2sim PRIVATE ${UG2_LINK_FLAGS})
 
 add_executable(ug2demo src/Platform/Native/DemoMain.cpp src/Platform/Native/NativeAssets.cpp
     src/Platform/Native/NativeScene.cpp src/Platform/Native/NativeFng.cpp src/Platform/Native/NativeHud.cpp
-    src/Platform/Native/NativePause.cpp src/Platform/Native/NativePauseOptions.cpp)
+    src/Platform/Native/NativePause.cpp src/Platform/Native/NativePauseOptions.cpp src/Platform/Native/NativeControls.cpp)
 target_compile_options(ug2demo PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall -D_REENTRANT
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_include_directories(ug2demo BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/src/Platform/Native/include /usr/include/SDL2)

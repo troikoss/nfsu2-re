@@ -1,0 +1,55 @@
+#ifndef UG2_PC_CONTROLS_H
+#define UG2_PC_CONTROLS_H
+#include "PauseOptions.h"
+
+// Original binding backend object 0x874c40; BeginBinding at 0x5c2100.
+struct ControlDevice874C40 { void BeginBinding(int action, int slot); };
+extern ControlDevice874C40 controlDevice874C40;
+// Original 0x4acf40, including its fourth (unused) caller argument.
+void SetPCControlBindingLabel(void *object, int action, int slot, int value);
+
+#define DECLARE_PC_BINDING(Name) \
+class Name : public OptionButton { \
+public: \
+    Name(float *position, float *size) : OptionButton(position, size, 1) {} \
+    void React(const char *package, unsigned int message); \
+    void SetLabels(); \
+};
+DECLARE_PC_BINDING(PCControl7926A8)
+DECLARE_PC_BINDING(PCControl7926E8)
+DECLARE_PC_BINDING(PCControl792768)
+DECLARE_PC_BINDING(PCControl7927A8)
+DECLARE_PC_BINDING(PCControl792828)
+DECLARE_PC_BINDING(PCControl792868)
+DECLARE_PC_BINDING(PCControl7928E8)
+DECLARE_PC_BINDING(PCControl792928)
+DECLARE_PC_BINDING(PCControl7929A8)
+DECLARE_PC_BINDING(PCControl7929E8)
+DECLARE_PC_BINDING(PCControl792A28)
+DECLARE_PC_BINDING(PCControl792A68)
+DECLARE_PC_BINDING(PCControl792AA8)
+DECLARE_PC_BINDING(PCControl792AE8)
+DECLARE_PC_BINDING(PCControl792B28)
+DECLARE_PC_BINDING(PCControl792B68)
+DECLARE_PC_BINDING(PCControl792BA8)
+DECLARE_PC_BINDING(PCControl792BE8)
+DECLARE_PC_BINDING(PCControl792C28)
+DECLARE_PC_BINDING(PCControl792C68)
+DECLARE_PC_BINDING(PCControl792CA8)
+DECLARE_PC_BINDING(PCControl792CE8)
+DECLARE_PC_BINDING(PCControl792DA8)
+DECLARE_PC_BINDING(PCControl792DE8)
+DECLARE_PC_BINDING(PCControl792E28)
+DECLARE_PC_BINDING(PCControl792E68)
+DECLARE_PC_BINDING(PCControl792D28)
+DECLARE_PC_BINDING(PCControl792D68)
+DECLARE_PC_BINDING(PCControl792EA8)
+DECLARE_PC_BINDING(PCControl792EE8)
+DECLARE_PC_BINDING(PCControl792F28)
+DECLARE_PC_BINDING(PCControl792F68)
+DECLARE_PC_BINDING(PCControl792FA8)
+DECLARE_PC_BINDING(PCControl792FE8)
+DECLARE_PC_BINDING(PCControl793028)
+DECLARE_PC_BINDING(PCControl793068)
+#undef DECLARE_PC_BINDING
+#endif

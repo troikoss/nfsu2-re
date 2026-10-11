@@ -16,5 +16,8 @@ std::string NativeFrontendString(unsigned int hash);
 // Session-only settings initialization for the demo.
 void NativePauseOptionsLoad(const char *gameDirectory);
 void NativePauseOptionsUpdate();
+void NativeFrontendOpenControls();
+void NativeFrontendCloseControls();
+bool NativePauseOptionsPointer(void *owner, float x, float y, bool click);
 
 #endif

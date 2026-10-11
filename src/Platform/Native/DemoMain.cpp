@@ -12,6 +12,8 @@
 #include "../../Speed/Indep/Src/Camera/DriveCamera.h"
 
 #include <SDL2/SDL.h>
+#include "NativeUiInput.h"
+#include "NativeControls.h"
 #include <GL/gl.h>
 #include <math.h>
 #include <stdio.h>
@@ -319,7 +321,7 @@ int main(int argc, char **argv) {
 #endif
     int cameraOption = 3;       // profile drive camera option: 0 bumper, 1 hood, 2 close, 3 far, 4 super far
     int pauseAt = -1;           // scripted capture: open the pause menu at this frame
-    const char *pauseKeys = ""; // then press L/R/A/B/U/D/S (left, right, accept, back), one per 30 frames
+    const char *pauseKeys = ""; // scripted L/R/A/B/U/D/S, C=Controls, K=capture Z, M=mouse primary binding
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--game") && i + 1 < argc) game = argv[++i];
         else if (!strcmp(argv[i], "--car") && i + 1 < argc) car = argv[++i];
@@ -369,7 +371,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "ug2demo: %s\n", error);
         return 1;
     }
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
         fprintf(stderr, "ug2demo: %s\n", SDL_GetError());
         return 1;
     }
@@ -441,14 +443,18 @@ int main(int argc, char **argv) {
                           false, false, false);
     float steer = 0.0f;
     Uint64 previous = SDL_GetPerformanceCounter();
+    NativeUiInput uiInput;
     bool running = true;
     for (int frame = 0; running && (frames == 0 || frame < frames); ++frame) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
+            if (havePause && uiInput.Event(event, window, pause)) continue;
             if (event.type == SDL_KEYDOWN && havePause && pause.Active()) {
                 // Scaffold key mapping for the FEng pad messages while the menu is up.
+                if (pause.CaptureKey(event.key.keysym.scancode)) continue;
                 SDL_Keycode key = event.key.keysym.sym;
+                if (key == SDLK_F2) { pause.OpenControls(); continue; }
                 if (key == SDLK_LEFT || key == SDLK_a) pause.Key(kPauseKeyLeft);
                 else if (key == SDLK_RIGHT || key == SDLK_d) pause.Key(kPauseKeyRight);
                 else if (key == SDLK_UP || key == SDLK_w) pause.Key(kPauseKeyUp);
@@ -458,12 +464,12 @@ int main(int argc, char **argv) {
                 else if (key == SDLK_ESCAPE || key == SDLK_BACKSPACE) pause.Key(kPauseKeyBack);
                 continue;
             }
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
+            if (event.type == SDL_KEYDOWN && NativeControlKey(12, event.key.keysym.scancode) && !event.key.repeat) {
                 // JOY_EVENT_PAUSE seam: the game flow that pushes UI_Pause.fng is not recovered.
                 if (havePause) pause.Open();
                 else running = false;
             }
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
+            if (event.type == SDL_KEYDOWN && NativeControlKey(14, event.key.keysym.scancode) && !event.key.repeat) {
                 DestroyNativeVehicle(&vehicle);
                 if (!CreateNativeVehicle(&vehicle, game, car, spawn[0], spawn[1], spawn[2], spawn[3], error,
                                          sizeof(error))) {
@@ -476,13 +482,14 @@ int main(int argc, char **argv) {
                     if (haveHud) hud.Configure(&vehicle, hudSkin);
                 }
             }
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_c && !event.key.repeat) {
+            if (event.type == SDL_KEYDOWN && NativeControlKey(10, event.key.keysym.scancode) && !event.key.repeat) {
                 // JOY_EVENT_CAMERA_POV_CHANGE: far -> close -> hood -> bumper -> far.
                 cameraOption = (cameraOption + 3) % 4;
                 driveCamera.SetType(DriveCameraTypeForOption(cameraOption));
                 if (havePause) pause.SetViewSettings(metric, cameraOption);
             }
         }
+        if (havePause) uiInput.Update(pause);
         Uint64 now = SDL_GetPerformanceCounter();
         float duration = (float)(now - previous) / (float)SDL_GetPerformanceFrequency();
         previous = now;
@@ -501,6 +508,16 @@ int main(int argc, char **argv) {
                     else if (c == 'S') pause.Key(kPauseKeyStart);
                     else if (c == 'A') pause.Key(kPauseKeyAccept);
                     else if (c == 'B') pause.Key(kPauseKeyBack);
+                    else if (c == 'C') pause.OpenControls();
+                    else if (c == 'K') pause.CaptureKey(SDL_SCANCODE_Z);
+                    else if (c == 'M') {
+                        int w, h; SDL_GetWindowSize(window, &w, &h);
+                        SDL_Event pointer = {}; pointer.type = SDL_MOUSEBUTTONDOWN;
+                        pointer.button.button = SDL_BUTTON_LEFT;
+                        pointer.button.x = (int)(w * .5f - 30 * h / 480.0f);
+                        pointer.button.y = (int)(h * .5f - 90 * h / 480.0f);
+                        uiInput.Event(pointer, window, pause);
+                    }
                 }
             }
             pause.Update(duration);
@@ -529,12 +546,12 @@ int main(int argc, char **argv) {
         }
         bool paused = havePause && pause.Active();
         const Uint8 *keys = SDL_GetKeyboardState(0);
-        float throttle = (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) ? 1.0f : 0.0f;
-        float brake = (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) ? 1.0f : 0.0f;
-        float handbrake = keys[SDL_SCANCODE_SPACE] ? 1.0f : 0.0f;
+        float throttle = NativeControlPressed(1, keys) ? 1.0f : 0.0f;
+        float brake = NativeControlPressed(2, keys) ? 1.0f : 0.0f;
+        float handbrake = NativeControlPressed(5, keys) ? 1.0f : 0.0f;
         float target = 0.0f;
-        if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT]) target += 1.0f;
-        if (keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT]) target -= 1.0f;
+        if (NativeControlPressed(3, keys)) target += 1.0f;
+        if (NativeControlPressed(4, keys)) target -= 1.0f;
         if (scripted) {
             float t = frame / 60.0f;
             throttle = t > 0.5f && t < 9.0f ? 1.0f : 0.0f;
@@ -596,7 +613,7 @@ int main(int argc, char **argv) {
             forward[1] /= length;
         }
         {
-            bool wantLookBack = keys[SDL_SCANCODE_V] != 0;
+            bool wantLookBack = NativeControlPressed(9, keys);
             if (wantLookBack != lookBack) {
                 lookBack = wantLookBack;
                 driveCamera.SetLookBack(lookBack);
@@ -707,6 +724,7 @@ int main(int argc, char **argv) {
     DestroyNativeVehicle(&vehicle);
 #endif
     driveCamera.Destroy();
+    uiInput.Close();
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();

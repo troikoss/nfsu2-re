@@ -29,6 +29,7 @@ extern PlayerSettings83AA64 playerSettings83AA64[2];
 extern unsigned char hudDrift89E7D9;
 extern int hudDriftOverride890104;
 extern int trackNumber89E7A0;
+extern int value83AA04;
 
 namespace {
 const unsigned int kLeft = 0x9120409e, kRight = 0xb5971bf1;
@@ -424,11 +425,58 @@ void NativePauseOptionsLoad(const char *gameDirectory) {
     mirror83AA18 = 1; prompt844AD8 = 1; autosave844AD9 = 0;
 }
 
+// Native entry point: the original PC Controls page belongs to the frontend Options menu,
+// which the driving demo does not yet run. Keep this extra Player row outside recovered setup.
+namespace {
+class NativeControlsButton : public OptionButton {
+public:
+    NativeControlsButton(float *position, float *size) : OptionButton(position, size, 1) {}
+    void SetLabels() { FengPackage::SetText(Object(name2C), "Controls"); }
+    void React(const char *, unsigned int message) { if (message == kAccept) NativeFrontendOpenControls(); }
+};
+}
+
 // FEng stores the layout baseline separately from script deltas; this native adapter reapplies
 // list positions after NativeFng advances its animation state. Scroll animation is not modelled.
 void NativePauseOptionsUpdate() {
     for (std::map<OptionsScrollerFNGObject *, List>::iterator it = lists.begin(); it != lists.end(); ++it)
-        Layout(it->first);
+    {
+        OptionsScrollerFNGObject *owner = it->first;
+        if (value83AA04 == 3 && !strcmp(owner->package4, "UI_PauseOptions.fng")) {
+            bool added = false;
+            for (size_t i = 0; i < it->second.items.size(); ++i)
+                if (dynamic_cast<NativeControlsButton *>(it->second.items[i])) added = true;
+            if (!added) owner->AddButton(new NativeControlsButton(owner->value0FC, owner->value10C));
+        }
+        Layout(owner);
+    }
+}
+
+bool NativePauseOptionsPointer(void *object, float x, float y, bool click) {
+    OptionsScrollerFNGObject *owner = static_cast<OptionsScrollerFNGObject *>(object);
+    std::map<OptionsScrollerFNGObject *, List>::iterator found = lists.find(owner);
+    if (found == lists.end()) return false;
+    List &list = found->second;
+    FengPackage *package = NativeFrontendPackage(owner->package4);
+    int visible = owner->value134 > 0 ? owner->value134 : 7;
+    for (int i = list.top; i < (int)list.items.size() && i < list.top + visible; ++i) {
+        OptionItem *item = list.items[i];
+        Widget &w = widgets[item];
+        if (!item->enabled28 || !package) continue;
+        OptionToggle *toggle = dynamic_cast<OptionToggle *>(item);
+        OptionSlider *slider = dynamic_cast<OptionSlider *>(item);
+        void *left = slider ? slider->leftArrow4C : toggle ? toggle->leftArrow4C : 0;
+        void *right = slider ? slider->rightArrow50 : toggle ? toggle->rightArrow50 : 0;
+        bool hitLeft = package->Contains(Object(left), x, y);
+        bool hitRight = package->Contains(Object(right), x, y);
+        // Retail labels have glyph scale, so use the list's measured row geometry.
+        bool hitRow = x >= w.x && x <= w.dataX + w.dataWidth && y >= w.y && y < w.y + list.stepY;
+        if (!hitLeft && !hitRight && !hitRow) continue;
+        if (list.selected != i + 1) { owner->Select(i + 1); FngSetPackageValue10(owner->package4, i + 1); }
+        if (click) owner->MessageHandler(hitLeft ? kLeft : hitRight || toggle || slider ? kRight : kAccept, 0, 0, 0);
+        return true;
+    }
+    return false;
 }
 
 void NativePause::SetViewSettings(bool metric, int camera) {

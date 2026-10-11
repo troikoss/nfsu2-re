@@ -121,6 +121,8 @@ public:
     static void PlayScript(FengObject *object, const char *name, bool restart);
     static bool PlayScriptHash(FengObject *object, unsigned int hash, bool restart);  // 0x5178b0
     void AdvanceScripts(float seconds);
+    // Native pointer seam, using the same composed transforms as the renderer.
+    bool Contains(FengObject *object, float x, float y);
     static void SetText(FengObject *object, const char *text);     // 0x537be0
 
 private:

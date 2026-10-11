@@ -96,7 +96,7 @@ Ghidra reads of the original routines guided this adapter:
 
 Native list positions are reapplied after script advancement because the
 adapter lacks FEng's separate layout baseline. List scroll animation, the full
-scrollbar, mouse input, controller reassignment, menu audio, help-bar rendering,
+scrollbar, general FEng mouse dispatch, controller reassignment, menu audio, help-bar rendering,
 FEng object ownership and complete script lifecycle remain seams. Responses
 for unrecovered screen packages log their absence and resume the demo.
 
@@ -127,3 +127,7 @@ It writes screenshots and logs under ignored `build/analysis/native-options/`.
 These checks are integration evidence for the native adapter, separately from
 the original/rebuilt comparisons above. They do not establish D3D rendering
 parity or full FEng recovery.
+
+The native Player page now includes an extra Controls entry. See
+[Controls](pc-controls.md) for keyboard binding recovery and mouse/gamepad UI
+routing; the added entry is outside the original category setup.

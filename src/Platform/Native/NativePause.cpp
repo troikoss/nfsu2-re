@@ -6,6 +6,7 @@
 #include "NativePause.h"
 #include "NativeAssets.h"
 #include "NativeFrontend.h"
+#include "NativeControls.h"
 #include "NativeHud.h"
 #include "../../Speed/Indep/Src/Frontend/PauseOptions.h"
 #include "../../Speed/Indep/Libs/bWare/Compression.h"
@@ -66,6 +67,7 @@ struct NativeScreen {
     }
     void Deliver(unsigned int message, int value8, int valueC) {
         if (!object) return;
+        if (!strcmp(name, "UI_Options_PC_Controller.fng")) return;
         if (optionsList) static_cast<OptionsScrollerFNGObject *>(object)->MessageHandler(message, value8, valueC, 0);
         else static_cast<IconScrollerFNGObject *>(object)->MessageHandler(message, value8, valueC, 0);
     }
@@ -73,7 +75,8 @@ struct NativeScreen {
         if (!object) return;
         void *doomed = object;
         object = 0;
-        if (optionsList) delete static_cast<OptionsScrollerFNGObject *>(doomed);
+        if (!strcmp(name, "UI_Options_PC_Controller.fng")) DestroyNativeControls(doomed);
+        else if (optionsList) delete static_cast<OptionsScrollerFNGObject *>(doomed);
         else delete static_cast<IconScrollerFNGObject *>(doomed);
     }
     const char *name;
@@ -120,8 +123,9 @@ struct NativeDialog {
 NativeScreen pauseScreen("UI_Pause.fng", CreatePause, false);
 NativeScreen optionsMainScreen("UI_PauseOptionsMain.fng", CreateOptionsMain, false);
 NativeScreen optionsScreen("UI_PauseOptions.fng", CreateOptions, true);
+NativeScreen controlsScreen("UI_Options_PC_Controller.fng", CreateNativeControls, false);
 NativeScreen dialogScreen("UI_InGameDialog.fng", 0, false);
-NativeScreen *const screens[] = {&pauseScreen, &optionsMainScreen, &optionsScreen, &dialogScreen};
+NativeScreen *const screens[] = {&pauseScreen, &optionsMainScreen, &optionsScreen, &dialogScreen, &controlsScreen};
 const size_t kScreenCount = sizeof(screens) / sizeof(screens[0]);
 NativeDialog dialog;
 NativeTextureCache *textures = 0;
@@ -386,6 +390,7 @@ void CloseDialog() {
 }
 
 NativeScreen *ActiveScreen() {
+    if (controlsScreen.shown) return &controlsScreen;
     for (size_t i = 0; i < kScreenCount; ++i) {
         if (screens[i] != &dialogScreen && screens[i]->shown) return screens[i];
     }
@@ -516,6 +521,17 @@ public:
     }
 
     // 0x50d980: React only when the message names the selected icon's object.
+    bool Pointer(float x, float y) {
+        FengPackage *package = NativeFrontendPackage(owner_->package4);
+        for (size_t i = 0; package && i < entries_.size(); ++i) {
+            if (!entries_[i].icon->value20 && package->Contains(entries_[i].object, x, y)) {
+                if (selected_ != (int)i) { selected_ = (int)i; Layout(); owner_->SelectedIconChanged(); }
+                return true;
+            }
+        }
+        return false;
+    }
+
     void React(unsigned int message, int value8, int valueC, int value10) {
         IconScrollerIcon *icon = Selected();
         if (icon && value8 == (int)(size_t)entries_[selected_].object)
@@ -899,6 +915,10 @@ bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, con
     }
     if (!LoadPlainPackage(bundle, &optionsMainScreen, &reason) || !LoadPlainPackage(bundle, &optionsScreen, &reason))
         fprintf(stderr, "ug2demo: %s; pause options are not available\n", reason.c_str());
+    std::vector<unsigned char> frontend;
+    if (ReadNativeFile(base + "/FRONTEND/FrontB.lzc", &frontend))
+        LoadPlainPackage(frontend, &controlsScreen, &reason);
+    if (!controlsScreen.loaded) fprintf(stderr, "ug2demo: %s; controls screen unavailable\n", reason.c_str());
     ReadNativeFile(base + "/LANGUAGES/English.bin", &language);
     if (!font.Load(gameDirectory, cache, fontPath)) fprintf(stderr, "ug2demo: no font found; pause menu text is not drawn\n");
     // Objects behind the .bss pointers the recovered code dereferences.
@@ -920,9 +940,19 @@ void NativePause::Open() {
     Pump();
 }
 
+void NativeFrontendOpenControls() {
+    if (!dialog.shown && ActiveScreen() && !controlsScreen.shown) { ShowScreen(&controlsScreen); Pump(); }
+}
+void NativeFrontendCloseControls() { CloseScreen(&controlsScreen); }
+void NativePause::OpenControls() { NativeFrontendOpenControls(); }
+bool NativePause::CaptureKey(int scancode) {
+    return controlsScreen.shown && NativeControlsCapture(controlsScreen.object, (SDL_Scancode)scancode);
+}
+
 void NativePause::Key(NativePauseKey key) {
     NativeScreen *screen = ActiveScreen();
     if (!screen) return;
+    if (screen == &controlsScreen) { NativeControlsKey(screen->object, key); return; }
     if (dialog.shown) {
         if (key == kPauseKeyLeft || key == kPauseKeyRight) {
             dialog.selected = key == kPauseKeyLeft ? 0 : 1;
@@ -938,6 +968,30 @@ void NativePause::Key(NativePauseKey key) {
         Input(screen, messagesForKey[key]);
     }
     Pump();
+}
+
+void NativePause::Pointer(float x, float y, bool click) {
+    NativeScreen *screen = ActiveScreen();
+    if (!screen) return;
+    if (screen == &controlsScreen) { NativeControlsPointer(screen->object, x, y, click); return; }
+    if (dialog.shown) {
+        // Native text hit regions; dialog labels have glyph scales rather than image bounds.
+        const unsigned int labels[2] = {0xda473d2f, 0xda473d30};
+        for (int i = 0; i < 2; ++i) {
+            FengObject *label = DialogObject(labels[i]);
+            if (label && x >= label->position[0] - 55 && x <= label->position[0] + 55 &&
+                y >= label->position[1] - 12 && y <= label->position[1] + 18) {
+                dialog.selected = i; DialogHighlight();
+                if (click) Key(kPauseKeyAccept);
+                return;
+            }
+        }
+    } else if (screen->optionsList) {
+        NativePauseOptionsPointer(screen->object, x, y, click);
+        Pump();
+    } else if (click && screen->object && ScrollerOf(static_cast<IconScrollerFNGObject *>(screen->object))->Pointer(x, y)) {
+        if (click) Key(kPauseKeyAccept);
+    }
 }
 
 void NativePause::Update(float seconds) {
@@ -970,9 +1024,11 @@ void NativePause::Update(float seconds) {
     }
     Pump();
     NativePauseOptionsUpdate();
+    if (controlsScreen.shown) NativeControlsUpdate(controlsScreen.object);
 }
 
 void NativePause::Draw(int width, int height) {
+    if (controlsScreen.shown) { controlsScreen.package->Draw(textures, &font, width, height); return; }
     for (size_t i = 0; i < kScreenCount; ++i) {
         if (screens[i]->shown) screens[i]->package->Draw(textures, &font, width, height);
     }

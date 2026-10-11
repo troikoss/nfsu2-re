@@ -441,3 +441,10 @@ retail `UI_Options.fng`; the pause package otherwise uses a white track. Arrows
 appear on the selected slider. These visual choices are native presentation
 seams; see `docs/pc-pause-options.md` for the original-code verification and
 rendered slider checks.
+
+The native pause/settings UI also accepts SDL gamepad and mouse input.
+Start pauses, D-pad/left stick navigate, A accepts, B returns, and Y opens
+Controls. Mouse clicks activate icons/rows, the wheel moves rows, and
+right-click returns. Player → Controls (or F2 while paused) opens the retail
+PC keyboard binding package. Bindings are session-only; gamepad driving is
+not implemented. See [controls evidence and seams](pc-controls.md).

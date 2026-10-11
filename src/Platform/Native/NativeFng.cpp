@@ -515,6 +515,26 @@ static bool DepthFar(const std::pair<float, int> &a, const std::pair<float, int>
     return a.first > b.first;
 }
 
+bool FengPackage::Contains(FengObject *object, float x, float y) {
+    if (!object) return false;
+    std::vector<DrawItem> items;
+    const float identity[6] = {1, 0, 0, 1, 0, 0};
+    for (size_t i = 0; i < roots_.size(); ++i) Gather(roots_[i], identity, 1, &items);
+    for (size_t i = 0; i < items.size(); ++i) {
+        const DrawItem &item = items[i];
+        if (item.object != object) continue;
+        const float *m = item.matrix;
+        float det = m[0] * m[3] - m[1] * m[2];
+        if (fabsf(det) < 0.00001f) return false;
+        float dx = x - m[4], dy = y - m[5];
+        float px = (m[3] * dx - m[2] * dy) / det;
+        float py = (m[0] * dy - m[1] * dx) / det;
+        return fabsf(px) <= fabsf(object->size[0]) * 0.5f &&
+               fabsf(py) <= fabsf(object->size[1]) * 0.5f;
+    }
+    return false;
+}
+
 void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width, int height) {
     std::vector<DrawItem> items;
     const float identity[6] = {1, 0, 0, 1, 0, 0};

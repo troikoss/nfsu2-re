@@ -31,7 +31,11 @@ public:
     bool Active() const;
     // JOY_EVENT_PAUSE seam: constructs the screen through FNGINIT_UI_Pause.fng (0x4f4790).
     void Open();
+    void OpenControls();
+    bool CaptureKey(int scancode);
     void Key(NativePauseKey key);
+    // Coordinates in the centred 640x480 FEng space. Hover selects; click edits.
+    void Pointer(float x, float y, bool click);
     // Advances the real-time clock 0x8651ac, script events and queued FEng messages.
     void Update(float seconds);
     void Draw(int width, int height);

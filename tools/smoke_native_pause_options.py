@@ -22,7 +22,7 @@ CASES = {
     'display_dialog': ('RARADDDAB', ('pause: dialog prompt 2bbcca6b', '<- 34dc1bcf')),
     'return_and_resume': ('RAABLBS', ('pause: showing UI_Pause.fng', 'pause: game flow 0x5f4240(1)')),
     'reopen_category': ('RAALBAL', ('name=Master Volume data= slider=0.95', 'name=Master Volume data= slider=0.90')),
-    'player_scroll': ('RARRRA' + 'D' * 10 + 'RUR', ('edit row=10 name=Score data=Off', 'edit row=9 name=Leaderboard data=Off')),
+    'player_scroll': ('RARRRA' + 'D' * 8 + 'RUR', ('edit row=10 name=Score data=Off', 'edit row=9 name=Leaderboard data=Off')),
     'slider_full': ('RAAR', ('name=Master Volume data= slider=1.00',)),
     'slider_half': ('RAA' + 'L' * 10, ('name=Master Volume data= slider=0.50',)),
     'slider_empty': ('RAA' + 'L' * 20, ('name=Master Volume data= slider=0.00',)),
