@@ -77,19 +77,6 @@ extern float angleDegreesToRadians;
 
 unsigned int bGetTicker();
 
-// Original 0x5eb8f0/0x5eb900/0x5eb910: direct control setters.
-void MoverInput::SetBrake(float value) {
-    brake214 = value;
-}
-
-void MoverInput::SetHandbrake(float value) {
-    handbrake210 = value;
-}
-
-void MoverInput::SetThrottle(float value) {
-    throttle20C = value;
-}
-
 // Original 0x591d90: velocity heading relative to the stored body heading.
 float DrivetrainAuxiliary::GetSlipAngle() {
     unsigned short heading = WheelAngle(velocity30.x, velocity30.y);

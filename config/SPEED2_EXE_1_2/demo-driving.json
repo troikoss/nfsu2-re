@@ -1,0 +1,103 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 4217632,
+      "size": 7,
+      "sha256": "90cab353dad15ba5653b1b22448c57ab8ef08a339436587802efecbfc9a1170d",
+      "method": "ReadGearRequest",
+      "kind": "function"
+    },
+    {
+      "address": 4217648,
+      "size": 7,
+      "sha256": "7d56de4f8316f6f0da7a99ceb06e117cb0b8209bf050f3b748f84b62b0dcfa24",
+      "method": "ReadDirectGear",
+      "kind": "function"
+    },
+    {
+      "address": 4217664,
+      "size": 13,
+      "sha256": "dea6fa74a3895eb70c2bcdfd39d2c5a49c425edf6daf6057377984b8b9ce9cf8",
+      "method": "StoreGearRequest",
+      "kind": "function"
+    },
+    {
+      "address": 4217680,
+      "size": 13,
+      "sha256": "c4db92caf2f97ba06b464a1ae8c313467d2e0280c4f38f39a65948147f47fa79",
+      "method": "StoreDirectGear",
+      "kind": "function"
+    },
+    {
+      "address": 4223760,
+      "size": 90,
+      "sha256": "1de6da584e82a650fc126c713a598d4c0f73fb3b83c99733e1e47dd9098576f0",
+      "method": "SelectForward",
+      "kind": "function"
+    },
+    {
+      "address": 4225584,
+      "size": 1137,
+      "sha256": "5e833a76a4a43e8adcf2f96ed40c36f4384f6c1df4d2ee46514a160eab1c520a",
+      "method": "UpdatePedals",
+      "kind": "function"
+    },
+    {
+      "address": 6226160,
+      "size": 34,
+      "sha256": "8548f348f0eafc4d3a1e8af3a2ae92c1bbfcd20c41a03812aaf5ad1fc0b9c60e",
+      "method": "QueryState5F00F0",
+      "kind": "function"
+    },
+    {
+      "address": 6274016,
+      "size": 118,
+      "sha256": "0c5ea02bcc1ab2d7f8188a64b936c33211f994067b68b2af73aaba88bc6ab787",
+      "method": "SnapshotFrameKinematics",
+      "kind": "prefix"
+    },
+    {
+      "address": 6309696,
+      "size": 234,
+      "sha256": "68075cb606d570ad154edec6f13e2e5662c4123d6483a9013e26114885a9d30f",
+      "method": "UpdateFrameAcceleration",
+      "kind": "prefix"
+    },
+    {
+      "address": 5731088,
+      "size": 76,
+      "sha256": "ccd47527a271ebe5374645bc69f94a8b41b6132e2450422952a1c6fe17b9eb48",
+      "method": "AdvanceDriverTimer",
+      "kind": "dependency"
+    },
+    {
+      "method": "dependencyEngineCurve",
+      "address": 5727440,
+      "size": 138,
+      "sha256": "0b2593774ad52b8e54ebad8bb77708fa9e7b72f5c1805b7614866eea8bece4c7",
+      "kind": "dependency"
+    },
+    {
+      "method": "dependencySetBrake",
+      "address": 6207728,
+      "size": 13,
+      "sha256": "d472dc06d1f88882edfea0aae32d3d255161735dea74acdb65b9b752ce6c35db",
+      "kind": "dependency"
+    },
+    {
+      "method": "dependencySetHandbrake",
+      "address": 6207744,
+      "size": 13,
+      "sha256": "f1b06b66de51f86444012f33d058ecf4978de8a1a44aa49bd44513568d5e2f2a",
+      "kind": "dependency"
+    },
+    {
+      "method": "dependencySetThrottle",
+      "address": 6207760,
+      "size": 13,
+      "sha256": "4f847850d8d16b491141d6fdc54a32037154b06b1b6bba85f64392cce6dd5768",
+      "kind": "dependency"
+    }
+  ]
+}

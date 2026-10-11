@@ -234,7 +234,9 @@ public:
     virtual unsigned short GetGuideHeading() = 0;
     char unidentified4[0x1dc];
     unsigned short steering1E0;
-    char unidentified1E2[0xa];
+    char unidentified1E2[2];
+    int gearRequest1E4;
+    int directGear1E8;
     float wheelInputs1EC[4];
     float wheelTargets1FC[4];
     float throttle20C;
@@ -248,6 +250,8 @@ public:
 UG2_CHECK_OFFSET(MoverAero, force20, 0x20);
 UG2_CHECK_OFFSET(MoverAero, value34, 0x34);
 UG2_CHECK_OFFSET(MoverInput, steering1E0, 0x1e0);
+UG2_CHECK_OFFSET(MoverInput, gearRequest1E4, 0x1e4);
+UG2_CHECK_OFFSET(MoverInput, directGear1E8, 0x1e8);
 UG2_CHECK_OFFSET(MoverInput, wheelInputs1EC, 0x1ec);
 UG2_CHECK_OFFSET(MoverInput, throttle20C, 0x20c);
 
@@ -347,7 +351,13 @@ struct MoverModeOwner {
     float value4DC;
     char unidentified4E0[4];
     float value4E4;
-    char unidentified4E8[0x68];
+    char unidentified4E8[0x28];
+    WheelVector previousPosition510;
+    char unidentified51C[4];
+    WheelVector previousVelocity520;
+    char unidentified52C[4];
+    WheelVector previousAngular530;
+    char unidentified53C[0x14];
     unsigned char effectsEnabled550;
     char unidentified551[0x7b];
     int colliderPack5CC;
@@ -374,7 +384,13 @@ struct MoverModeOwner {
     float GetEventCurveValue();
     float GetDraftValue();
     bool HasWheelEffects();
+    // Recovered prefixes only: remaining bodies of 0x5fbbe0/0x604740 are unresolved.
+    void SnapshotFrameKinematics(float duration);
+    void UpdateFrameAcceleration(float duration);
 };
+UG2_CHECK_OFFSET(MoverModeOwner, previousPosition510, 0x510);
+UG2_CHECK_OFFSET(MoverModeOwner, previousVelocity520, 0x520);
+UG2_CHECK_OFFSET(MoverModeOwner, previousAngular530, 0x530);
 UG2_CHECK_OFFSET(PhysicsInfo, record30, 0x30);
 UG2_CHECK_OFFSET(MoverModeOwner, participant2C, 0x2c);
 UG2_CHECK_OFFSET(MoverModeOwner, mode424, 0x424);
@@ -483,9 +499,12 @@ public:
 // Replay/ghost recorder object at 0x89cf48; only two queried methods are observed.
 class ReplayRecorder {
 public:
+    char unidentified0[0x21];
+    unsigned char flag21;
     bool QueryState5EFE70();
     bool QueryState5F00F0();
 };
+UG2_CHECK_OFFSET(ReplayRecorder, flag21, 0x21);
 extern int *raceState890118;
 unsigned short WheelAngle(float x, float y);
 float ComputeTractionFactor(float slip, float handbrake, float speed, float base, float extra,

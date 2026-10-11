@@ -127,7 +127,7 @@ public:
         if (!e->custom) Capture(e->vehicle, &e->state);
         Ug2Controls controls = {e->vehicle->controls->throttle20C, e->vehicle->controls->brake214,
                                e->vehicle->controls->handbrake210, e->vehicle->controls->steering1E0,
-                               e->vehicle->controls->requestedGear};
+                               e->vehicle->controls->GetGearRequest()};
         Ug2VehicleState next = e->state;
         int result = runtime->Step(e->handle, duration, controls, e->state, &next);
         if (result == UG2_ERROR) return;

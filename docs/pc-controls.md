@@ -59,6 +59,11 @@ world-map, race/shop entry, SMS, career statistics and hydraulics still lack
 native gameplay consumers. The demo's existing steering smoothing remains
 platform scaffolding; complete original car input processing is not recovered.
 
+Original human pedal processing `0x407a30`, forward selection `0x407310`, gear
+accessors, timer advancement and replay predicate now run in the demo after SDL
+action capture. See [the driving recovery audit](demo-substitute-audit.md) for
+addresses, verification and remaining steering/construction dependencies.
+
 Open Controls from the added **Player → Controls** row, or press **F2** while
 paused. This extra row/shortcut is a native entry seam because the original
 frontend Options menu is unavailable in the driving demo. Arrows select rows

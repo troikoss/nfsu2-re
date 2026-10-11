@@ -7,8 +7,8 @@
 // Layouts are partial and offset-based; UG2_CHECK_* pin what was observed in the original.
 // Platform seams (not recovered, named where they are used): the world collision pushes
 // 0x444530/0x44b040, camera shake 0x452ed0/0x572a50, Camera object finalisation 0x447280, the
-// cockpit blocked test 0x445fc0/0x5d39f0 and the producer of the car acceleration vector at
-// car +0x80.
+// cockpit blocked test 0x445fc0/0x5d39f0. The car +0x80 acceleration producer is
+// recovered as the guarded prefix of 0x604740 (Physics/CarFrameKinematics.cpp).
 
 #include "../Physics/Ug2Layout.h"
 #include "../Physics/WheelMath.h"

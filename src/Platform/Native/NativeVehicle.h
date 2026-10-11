@@ -3,15 +3,13 @@
 
 #include "../../Speed/Indep/Src/Physics/VehicleMover.h"
 #include "../../Speed/Indep/Src/Physics/Engine.h"
+#include "../../Speed/Indep/Src/Physics/HumanDriverInput.h"
 #include "../../Speed/Indep/Src/Camera/DriveCamera.h"
 
 // Platform scaffolding: driver controls. The original control filtering that fills
 // these fields (speed-sensitive steering, input smoothing) is not yet recovered.
-class NativeControls : public MoverInput {
+class NativeControls : public HumanDriverInput {
 public:
-    int selectedGear;
-    int currentGear;
-    int requestedGear;
     void UnknownSlot00();
     void UnknownSlot04();
     void UnknownSlot08();
@@ -40,11 +38,8 @@ struct NativeVehicle {
     PhysicsInfo *info;
     MoverCarInfo *carInfo;
     char carName[32];
-    // Platform scaffolding: CarTypeInfo +0x720 camera table, and the previous velocity used to
-    // produce the acceleration vector (car +0x80) whose original producer is not recovered.
+    // Platform asset seam: CarTypeInfo +0x720 camera table.
     CameraSettingsTable cameraSettings;
-    float previousVelocity[3];
-    bool haveVelocity;
 };
 
 struct NativeSkidSegment {

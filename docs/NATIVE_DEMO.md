@@ -355,8 +355,10 @@ observations, not equivalence evidence.
 - Paint, vinyls, damage textures and headlight/brakelight switching are not applied.
 - Every collision pack is loaded at start-up
   instead of the original streaming, and the spawn point is chosen heuristically.
-- Steering input scaling (±30° road-wheel angle), reverse engagement (hold brake at rest)
-  and the controls object are scaffold; the original input filtering is unrecovered.
+- Steering input scaling (±30° road-wheel angle), steering smoothing, device capture
+  and partial controls construction are scaffold. Original pedal/reverse processing
+  `0x407a30` and forward selection `0x407310` now run after native action capture;
+  see [the substitute audit](demo-substitute-audit.md) for verification and remaining work.
 - Native GCC x87 code is not bit-exact with MSVC; FPU control word is set to 0x027f.
 - Free-drive race phase 0 is used; race-phase-dependent branches are untested.
 
@@ -367,8 +369,9 @@ observations, not equivalence evidence.
 - Recover car-vs-car/world-object paths (`0x5b31f0`, `0x5ae000`, slot 0x8c),
   cylinders (`0x5a23d0`, `0x5a2780`), and collision effects/sounds (`0x5a9620`, `0x59fb70`).
 - Recover the enclosing car update `0x6012b0` and the original world-clock call site.
-- Recover camera collision pushes/shake, the acceleration producer at car +0x80,
-  remaining HUD inputs/features, and full FEng script playback/rendering. Additional HUD
+- Recover camera collision pushes/shake, the remaining car pre/post-update logic
+  beyond the verified acceleration prefixes, remaining HUD inputs/features, and full
+  FEng script playback/rendering. Additional HUD
   source recovery requires separate verification and integration evidence.
 - A free/aerial camera remains useful for wider scenery checks.
 

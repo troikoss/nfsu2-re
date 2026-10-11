@@ -252,6 +252,9 @@ struct DrivetrainAuxiliary {
 struct DrivetrainContext {
     char unidentified0[0xa0];
     DrivetrainContextEntry *entryA0;
+
+    // Original 0x578e90; dispatch implementation remains a platform seam.
+    void ControlEvent(float value, const char *name);
 };
 
 struct DrivetrainRandom {

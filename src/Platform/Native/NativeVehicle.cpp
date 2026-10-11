@@ -181,7 +181,6 @@ unsigned int bGetTicker() {
 void PhysicsInfo::Compose(int, char, char) { NativeTrap("car record composer 0x5b4dc0"); }
 void PhysicsInfo::Refresh(int, int, char) { NativeTrap("car record refresh 0x5b4fc0"); }
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
-bool ReplayRecorder::QueryState5F00F0() { NativeTrap("replay recorder 0x5f00f0"); return false; }
 // Skid-mark trail methods belong to the skid-mark renderer (0x5e6e70/0x5d3230).
 // Scaffold: record segments for the demo renderer instead of the original effect.
 NativeSkidSegment nativeSkidSegments[NATIVE_SKID_CAPACITY];
@@ -216,12 +215,13 @@ void NativeControls::UnknownSlot10() { NativeTrap("controls slot 0x10"); }
 void NativeControls::UnknownSlot14() { NativeTrap("controls slot 0x14"); }
 void NativeControls::UnknownSlot18() { NativeTrap("controls slot 0x18"); }
 void NativeControls::UnknownSlot1C() { NativeTrap("controls slot 0x1c"); }
-int NativeControls::GetGearRequest() { return requestedGear; }
-int NativeControls::GetDirectGear() { return 0; }
-void NativeControls::SetSelectedGear(int gear) { selectedGear = gear; }
-void NativeControls::SetCurrentGear(int gear) { currentGear = gear; }
+int NativeControls::GetGearRequest() { return ReadGearRequest(); }
+int NativeControls::GetDirectGear() { return ReadDirectGear(); }
+void NativeControls::SetSelectedGear(int gear) { StoreGearRequest(gear); }
+void NativeControls::SetCurrentGear(int gear) { StoreDirectGear(gear); }
+void NativeControls::UnknownSlot30() { SelectForward(); }
 #define NATIVE_TRAP_SLOT(name) void NativeControls::name() { NativeTrap("controls " #name); }
-NATIVE_TRAP_SLOT(UnknownSlot30) NATIVE_TRAP_SLOT(UnknownSlot34) NATIVE_TRAP_SLOT(UnknownSlot38)
+NATIVE_TRAP_SLOT(UnknownSlot34) NATIVE_TRAP_SLOT(UnknownSlot38)
 NATIVE_TRAP_SLOT(UnknownSlot3C) NATIVE_TRAP_SLOT(UnknownSlot40) NATIVE_TRAP_SLOT(UnknownSlot44)
 NATIVE_TRAP_SLOT(UnknownSlot48) NATIVE_TRAP_SLOT(UnknownSlot4C) NATIVE_TRAP_SLOT(UnknownSlot50)
 NATIVE_TRAP_SLOT(UnknownSlot54) NATIVE_TRAP_SLOT(UnknownSlot58) NATIVE_TRAP_SLOT(UnknownSlot5C)
@@ -229,6 +229,10 @@ NATIVE_TRAP_SLOT(UnknownSlot60) NATIVE_TRAP_SLOT(UnknownSlot64) NATIVE_TRAP_SLOT
 NATIVE_TRAP_SLOT(UnknownSlot6C) NATIVE_TRAP_SLOT(UnknownSlot70) NATIVE_TRAP_SLOT(UnknownSlot74)
 NATIVE_TRAP_SLOT(UnknownSlot78) NATIVE_TRAP_SLOT(UnknownSlot7C) NATIVE_TRAP_SLOT(UnknownSlot80)
 unsigned short NativeControls::GetGuideHeading() { return 0; }
+
+// 0x578e90 event dispatch remains unrecovered. Native intentionally drops the
+// event; the recovered caller retains its original receiver and arguments.
+void DrivetrainContext::ControlEvent(float, const char *) {}
 
 // ---------------------------------------------------------------------------
 // Runtime and vehicle assembly.
@@ -391,7 +395,16 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     owner->moverType28 = 1;
     NativeControls *controls = static_cast<NativeControls *>(calloc(1, sizeof(NativeControls)));
     new (controls) NativeControls;
-    controls->requestedGear = -1;
+    // Partial constructor seam. These fields are observed in 0x423330/0x425fc0;
+    // device capture and the steering subobject constructor remain unrecovered.
+    controls->gearRequest1E4 = 1;
+    controls->directGear1E8 = 1;
+    controls->car2A8 = owner;
+    controls->device2AC = -1;
+    // Native free-drive entry seam: the original session entry is unresolved.
+    // Select drive through the recovered human slot rather than leaving the
+    // constructor's neutral request active throughout this standalone demo.
+    controls->SelectForward();
     owner->input30 = controls;
     // Car object defaults from its constructor 0x604260 that the mover reads.
     owner->gear434 = 1;
@@ -447,22 +460,10 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
 
 void SetNativeControls(NativeVehicle *vehicle, float throttle, float brake, float handbrake, float steer) {
     NativeControls *controls = vehicle->controls;
-    // Scaffold reverse: holding brake at rest requests explicit gear 0 (ratio index 0),
-    // and the pedals swap while reversing; throttle at rest returns to automatic.
-    float speed = vehicle->owner->State()->value3EC;
-    if (controls->requestedGear != 0 && brake > 0.5f && throttle < 0.5f && speed < 0.5f && speed > -0.5f) {
-        controls->requestedGear = 0;
-    } else if (controls->requestedGear == 0 && throttle > 0.5f && speed > -0.5f) {
-        controls->requestedGear = -1;
-    }
-    if (controls->requestedGear == 0) {
-        float swap = throttle;
-        throttle = brake;
-        brake = swap;
-    }
-    controls->throttle20C = throttle;
-    controls->brake214 = brake;
-    controls->handbrake210 = handbrake;
+    // SDL/profile capture seam supplies original human-input action fields.
+    controls->throttle2D4 = throttle;
+    controls->brake2DC = brake;
+    controls->handbrake2EC = handbrake;
     // Scaffold: +/-30 degree road-wheel angle in 16-bit angle units.
     int units = (int)(steer * (30.0f / 360.0f) * 65536.0f);
     controls->steering1E0 = (unsigned short)units;
@@ -473,6 +474,8 @@ float StepNativeVehicle(NativeVehicle *vehicle, float duration) {
     // Advance runs the car update, i.e. the mover step) and then resolve collisions
     // (0x5ffa50). Scaffold: the world clock (0x57a0e0) is advanced after the step so the
     // mover keeps reading a zero frame duration as before.
+    vehicle->controls->UpdatePedals(duration);
+    vehicle->owner->SnapshotFrameKinematics(duration);
 #ifdef UG2_ENABLE_MODDING
     NativeModsBeforeStep(vehicle, duration);
     if (NativeModsFailed()) return 0.0f;
@@ -482,24 +485,12 @@ float StepNativeVehicle(NativeVehicle *vehicle, float duration) {
     if (NativeModsFailed()) return 0.0f;
 #endif
     UpdateCollisionWorld(collisionEventOwner890080, duration);
+    vehicle->owner->UpdateFrameAcceleration(duration);
     frameDuration865154 = duration;
     AdvanceWorldClock();
 #ifdef UG2_ENABLE_MODDING
     NativeModsAfterStep(vehicle, duration);
 #endif
     float result = 0.0f;
-    // Scaffold producer for the acceleration vector at car +0x80 (state value40). The drive camera
-    // averages it (0x453570) and 0x5ec3a0 dots it with the forward axis; its original writer is
-    // not recovered, so it is taken as the change of the exported velocity per second.
-    DrivetrainAuxiliary *state = vehicle->owner->State();
-    if (vehicle->haveVelocity && duration > 0.0f) {
-        state->value40.x = (state->velocity30.x - vehicle->previousVelocity[0]) / duration;
-        state->value40.y = (state->velocity30.y - vehicle->previousVelocity[1]) / duration;
-        state->value40.z = (state->velocity30.z - vehicle->previousVelocity[2]) / duration;
-    }
-    vehicle->previousVelocity[0] = state->velocity30.x;
-    vehicle->previousVelocity[1] = state->velocity30.y;
-    vehicle->previousVelocity[2] = state->velocity30.z;
-    vehicle->haveVelocity = true;
     return result;
 }
