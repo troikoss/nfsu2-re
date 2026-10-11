@@ -40,6 +40,30 @@ All 50 physics sources compile with MSVC 7.1 (`/Ox /Ob0`), and every partial lay
 carries compile-time offset checks (`Ug2Layout.h`). No routine in this list is counted
 as byte-matching.
 
+## Track collision (second pass)
+
+The demo now drives on UG2's L4RA streets using recovered world-collision code in
+`src/Speed/Indep/Src/World/WCollision.cpp`:
+
+- Collision manager `0x88f768` (constructor `0x5e81d0`), chunk handler `0x5e78a0` for
+  per-section packs `0x80034130` and barrier groups `0x3412f`, pack fixup `0x5d8140`,
+  registration `0x5e6980`, section index `0x5d3c10`, lookup `0x591380`.
+- Face cache `0x5d8350`, expansion `0x5d7f10`/`0x5d2cc0`, fetch `0x5e0c90`, eviction
+  `0x5dcad0`/`0x5dca70`/`0x5d82c0`, edge test `0x5d3330`.
+- Per-car collider (car `+0x5c4`): constructor `0x5e0b40`, release/area `0x5dc9c0`/
+  `0x5d80a0`/`0x5e5890`, pack switching `0x5e6890`/`0x5e68d0`, and the ground query
+  `0x5e72e0` (cached faces, 32 m cells, 8 m sub-cell masks, fixed-point bounds).
+- Section topology `0x883e70` (chunk `0x80034150`, loader `0x5e9c10`), tracker
+  `0x5dfeb0`, section search `0x5db850`/`0x5db770`, polygon tests `0x5d6dd0`,
+  `0x5d7090`, `0x5d7270`, `0x5d70d0`.
+- Skid-mark emitter `0x59dbb0` with rotation helper `0x59db50`.
+
+The skid-mark trail methods (`0x5e6e70`, `0x5d3230`) are a renderer seam: the demo
+records segments to draw them. The collider area fill `0x5e0d30`, used by barrier
+collision, is trapped. Barrier (car-versus-wall) collision `0x5ae930` is not recovered,
+so the demo respawns the car at its last grounded position after it leaves the
+collision coverage; this respawn is scaffolding.
+
 ## Platform scaffolding (not original code)
 
 `src/Platform/Native` contains everything that is not recovered UG2 code:
@@ -62,7 +86,8 @@ Requires i386 SDL2/GL runtime libraries and a multilib GCC.
 
 ```sh
 cmake -S . -B build/native && cmake --build build/native
-build/native/ug2sim "Need for Speed Underground 2" SKYLINE 960   # headless check
+build/native/ug2sim "Need for Speed Underground 2" SKYLINE 960   # headless check on L4RA
+build/native/ug2probe -579.8 533.2                                 # collision coverage probe
 build/native/ug2demo --car SKYLINE                                 # W/S/A/D, Space, R, Esc
 ```
 
@@ -72,7 +97,9 @@ throughout. These are plausibility observations, not equivalence evidence.
 
 ## Known limitations
 
-- Flat ground replaces UG2 world collision; no track or car model is loaded yet.
+- The world is drawn from collision polygons, not UG2's render geometry; the car is a box.
+- No barrier collision yet (see above); every collision pack is loaded at start-up
+  instead of the original streaming, and the spawn point is chosen heuristically.
 - Steering input scaling (±30° road-wheel angle) and the controls object are scaffold;
   the original input filtering is unrecovered.
 - Native GCC x87 code is not bit-exact with MSVC; FPU control word is set to 0x027f.

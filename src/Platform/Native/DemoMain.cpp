@@ -2,6 +2,7 @@
 // scaffolding: window, input, camera and placeholder rendering. Vehicle behaviour comes
 // from the recovered UG2 sources through NativeVehicle.
 #include "NativeVehicle.h"
+#include "NativeWorld.h"
 
 #include <SDL2/SDL.h>
 #include <GL/gl.h>
@@ -64,6 +65,79 @@ void DrawGround(float centreX, float centreY) {
         glVertex3f(baseX + extent, y, 0.01f);
     }
     glEnd();
+}
+
+// Placeholder world view: the recovered collision polygons, shaded by surface and slope.
+GLuint BuildWorldList() {
+    GLuint list = glGenLists(1);
+    glNewList(list, GL_COMPILE);
+    glBegin(GL_TRIANGLES);
+    for (WCollisionLink *link = collisionManager.packs0.next; link != &collisionManager.packs0;
+         link = link->next) {
+        WCollisionPack *pack = reinterpret_cast<WCollisionPack *>(link);
+        for (int i = 0; i < pack->polygonCountC; ++i) {
+            WCollisionPolygon *polygon = &pack->polygons8[i];
+            float v[4][4];
+            polygon->Decode(v[0]);
+            int count = (polygon->flags3 & 0x10) ? 4 : 3;
+            if (polygon->flags3 & 4) {
+                // Barrier: vertical wall along the polygon's first edge.
+                float base = v[0][2];
+                glColor3f(0.55f, 0.5f, 0.45f);
+                glVertex3f(v[0][0], v[0][1], base);
+                glVertex3f(v[1][0], v[1][1], base);
+                glVertex3f(v[1][0], v[1][1], base + 2.0f);
+                glVertex3f(v[0][0], v[0][1], base);
+                glVertex3f(v[1][0], v[1][1], base + 2.0f);
+                glVertex3f(v[0][0], v[0][1], base + 2.0f);
+                continue;
+            }
+            float ax = v[1][0] - v[0][0], ay = v[1][1] - v[0][1], az = v[1][2] - v[0][2];
+            float bx = v[2][0] - v[0][0], by = v[2][1] - v[0][1], bz = v[2][2] - v[0][2];
+            float nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+            float length = sqrtf(nx * nx + ny * ny + nz * nz);
+            float light = length > 0 ? 0.55f + 0.45f * fabsf(nz / length * 0.8f + nx / length * 0.2f) : 0.6f;
+            float r = 0.36f, g = 0.36f, b = 0.38f;
+            switch (polygon->surface2) {
+            case 1: case 2: case 3: case 7: r = 0.30f; g = 0.30f; b = 0.32f; break;
+            case 8: case 9: r = 0.45f; g = 0.38f; b = 0.26f; break;
+            default: r = 0.5f; g = 0.5f; b = 0.47f; break;
+            }
+            if (polygon->surface2 > 11) {
+                r = 0.32f; g = 0.42f; b = 0.28f;
+            }
+            glColor3f(r * light, g * light, b * light);
+            glVertex3fv(v[0]); glVertex3fv(v[1]); glVertex3fv(v[2]);
+            if (count == 4) {
+                glVertex3fv(v[0]); glVertex3fv(v[2]); glVertex3fv(v[3]);
+            }
+        }
+    }
+    glEnd();
+    glEndList();
+    return list;
+}
+
+void DrawSkidMarks() {
+    int count = nativeSkidCount < NATIVE_SKID_CAPACITY ? nativeSkidCount : NATIVE_SKID_CAPACITY;
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBegin(GL_QUADS);
+    for (int i = 1; i < count; ++i) {
+        int index = (nativeSkidCount - count + i) % NATIVE_SKID_CAPACITY;
+        NativeSkidSegment *segment = &nativeSkidSegments[index];
+        NativeSkidSegment *previous = &nativeSkidSegments[(index + NATIVE_SKID_CAPACITY - 1) % NATIVE_SKID_CAPACITY];
+        if (!segment->connected) continue;
+        float dx = segment->centre.x - previous->centre.x, dy = segment->centre.y - previous->centre.y;
+        if (dx * dx + dy * dy > 9.0f) continue;
+        glColor4f(0.05f, 0.05f, 0.05f, 0.55f * segment->intensity);
+        glVertex3f(previous->centre.x - previous->across.x, previous->centre.y - previous->across.y, previous->centre.z + 0.03f);
+        glVertex3f(previous->centre.x + previous->across.x, previous->centre.y + previous->across.y, previous->centre.z + 0.03f);
+        glVertex3f(segment->centre.x + segment->across.x, segment->centre.y + segment->across.y, segment->centre.z + 0.03f);
+        glVertex3f(segment->centre.x - segment->across.x, segment->centre.y - segment->across.y, segment->centre.z + 0.03f);
+    }
+    glEnd();
+    glDisable(GL_BLEND);
 }
 
 void Box(float x0, float x1, float y0, float y1, float z0, float z1) {
@@ -172,8 +246,14 @@ int main(int argc, char **argv) {
         fprintf(stderr, "ug2demo: %s\n", error);
         return 1;
     }
+    NativeTrack track;
+    if (!LoadNativeTrack(game, "L4RA", &track, error, sizeof(error))) {
+        fprintf(stderr, "ug2demo: %s\n", error);
+        return 1;
+    }
+    float spawn[4] = {track.spawn[0], track.spawn[1], track.spawn[2] + 0.45f, track.heading};
     NativeVehicle vehicle;
-    if (!CreateNativeVehicle(&vehicle, game, car, 0.0f, 0.0f, 0.45f, error, sizeof(error))) {
+    if (!CreateNativeVehicle(&vehicle, game, car, spawn[0], spawn[1], spawn[2], spawn[3], error, sizeof(error))) {
         fprintf(stderr, "ug2demo: %s\n", error);
         return 1;
     }
@@ -193,6 +273,9 @@ int main(int argc, char **argv) {
     SDL_GLContext context = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1);
     glEnable(GL_DEPTH_TEST);
+    GLuint worldList = BuildWorldList();
+    float lastGood[4] = {spawn[0], spawn[1], spawn[2], spawn[3]};
+    int airborneFrames = 0;
     Camera camera = {{-8.0f, 0.0f, 3.0f}, {0.0f, 0.0f, 0.5f}};
     float steer = 0.0f;
     Uint64 previous = SDL_GetPerformanceCounter();
@@ -203,7 +286,8 @@ int main(int argc, char **argv) {
             if (event.type == SDL_QUIT) running = false;
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) running = false;
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
-                if (!CreateNativeVehicle(&vehicle, game, car, 0.0f, 0.0f, 0.45f, error, sizeof(error))) {
+                if (!CreateNativeVehicle(&vehicle, game, car, spawn[0], spawn[1], spawn[2], spawn[3], error,
+                                         sizeof(error))) {
                     fprintf(stderr, "ug2demo: %s\n", error);
                     running = false;
                 }
@@ -231,6 +315,28 @@ int main(int argc, char **argv) {
         steer += (target - steer) > rate ? rate : ((target - steer) < -rate ? -rate : target - steer);
         SetNativeControls(&vehicle, throttle, brake, handbrake, steer);
         StepNativeVehicle(&vehicle, duration);
+        {
+            // Scaffold respawn: barrier collision is not recovered yet, so a car that leaves
+            // the collision coverage is put back where it last had all four wheels down.
+            DrivetrainAuxiliary *state = vehicle.owner->State();
+            MoverBody *b = vehicle.mover->body20;
+            if (state->value3E4 == 4 && state->value3F0 > 2.0f) {
+                if (frame % 30 == 0) {
+                    lastGood[0] = b->position20.x;
+                    lastGood[1] = b->position20.y;
+                    lastGood[2] = b->position20.z + 0.3f;
+                    lastGood[3] = atan2f(b->matrix30.elements[1], b->matrix30.elements[0]);
+                }
+                airborneFrames = 0;
+            } else if (state->value3E4 == 0) {
+                ++airborneFrames;
+            }
+            if (airborneFrames > 150) {
+                CreateNativeVehicle(&vehicle, game, car, lastGood[0], lastGood[1], lastGood[2], lastGood[3], error,
+                                    sizeof(error));
+                airborneFrames = 0;
+            }
+        }
 
         MoverBody *body = vehicle.mover->body20;
         float *m = body->matrixD0.elements;
@@ -252,12 +358,13 @@ int main(int argc, char **argv) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        Perspective(60.0f, (float)width / height, 0.2f, 1000.0f);
+        Perspective(60.0f, (float)width / height, 0.3f, 3000.0f);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         float up[3] = {0.0f, 0.0f, 1.0f};
         LookAt(camera.position, camera.target, up);
-        DrawGround(m[12], m[13]);
+        glCallList(worldList);
+        DrawSkidMarks();
         DrawBody(&vehicle);
         for (int i = 0; i < 4; ++i) DrawWheel(vehicle.mover->wheels38[i]);
 

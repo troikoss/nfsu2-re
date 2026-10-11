@@ -36,7 +36,7 @@ int DrivetrainAuxiliary::IsWheelDriven(int wheel) {
 
 // Original 0x5f67f0.
 bool MoverModeOwner::HasWheelEffects() {
-    return context14->value4 != 3 && !effectsSuppressed998 && effectsEnabled550 && effectsObject5CC;
+    return context14->value4 != 3 && !effectsSuppressed998 && effectsEnabled550 && colliderPack5CC;
 }
 
 // Original 0x6134e0: periodic ambient factor; also stored at 0x89f048.

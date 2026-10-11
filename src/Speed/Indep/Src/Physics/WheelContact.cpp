@@ -1,6 +1,7 @@
 #include "VehicleMover.h"
 #include "Engine.h"
 #include "../../Libs/bWare/Strings.h"
+#include "../World/WCollision.h"
 
 extern float engineSubstepDuration;
 extern float engineHalfPi;

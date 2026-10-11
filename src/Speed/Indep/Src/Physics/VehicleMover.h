@@ -365,7 +365,7 @@ struct MoverModeOwner {
     char unidentified4E8[0x68];
     unsigned char effectsEnabled550;
     char unidentified551[0x7b];
-    int effectsObject5CC;
+    int colliderPack5CC;
     char unidentified5D0[0x38c];
     unsigned char mask95C;
     char unidentified95D[0xf];
@@ -400,7 +400,7 @@ UG2_CHECK_OFFSET(MoverModeOwner, value4E4, 0x4e4);
 UG2_CHECK_OFFSET(MoverModeOwner, mask95C, 0x95c);
 UG2_CHECK_OFFSET(MoverModeOwner, resetTick974, 0x974);
 UG2_CHECK_OFFSET(MoverModeOwner, effectsEnabled550, 0x550);
-UG2_CHECK_OFFSET(MoverModeOwner, effectsObject5CC, 0x5cc);
+UG2_CHECK_OFFSET(MoverModeOwner, colliderPack5CC, 0x5cc);
 UG2_CHECK_OFFSET(MoverModeOwner, effectsSuppressed998, 0x998);
 UG2_CHECK_OFFSET(MoverModeOwner, input30, 0x30);
 UG2_CHECK_OFFSET(MoverOwnerObject, link1E0, 0x1e0);

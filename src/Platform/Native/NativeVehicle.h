@@ -41,10 +41,22 @@ struct NativeVehicle {
     char carName[32];
 };
 
+struct NativeSkidSegment {
+    WheelVector centre;
+    WheelVector across;
+    float intensity;
+    int surface;
+    bool connected;
+};
+enum { NATIVE_SKID_CAPACITY = 8192 };
+extern NativeSkidSegment nativeSkidSegments[NATIVE_SKID_CAPACITY];
+extern int nativeSkidCount;
+
 void NativeTrap(const char *what);
 bool InitialiseNativeRuntime(const char *gameDirectory, char *error, int errorSize);
 bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, const char *carName,
-                         float startX, float startY, float startZ, char *error, int errorSize);
+                         float startX, float startY, float startZ, float heading, char *error,
+                         int errorSize);
 void SetNativeControls(NativeVehicle *vehicle, float throttle, float brake, float handbrake, float steer);
 float StepNativeVehicle(NativeVehicle *vehicle, float duration);
 

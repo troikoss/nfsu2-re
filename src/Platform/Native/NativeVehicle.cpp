@@ -2,7 +2,9 @@
 #include "OriginalImage.h"
 #include "../../Speed/Indep/Src/Physics/VehicleIntegrator.h"
 #include "../../Speed/Indep/Src/Physics/VehicleAllocation.h"
+#include "../../Speed/Indep/Src/World/WCollision.h"
 
+#include <math.h>
 #include <new>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,9 +95,6 @@ void *AllocateBlock(size_t size) {
     return memory;
 }
 
-// Platform scaffolding standing in for the world collision subsystem (0x5e72e0):
-// a flat road plane at z = 0 using road surface 1 ("ROAD").
-VehicleCollider flatGround;
 int raceStatusScaffold[0x400];
 // Scaffolds for objects created by race setup (0x60a6d4 / 0x5ff537): a context without
 // an entry at +0xa0 (variations enabled) and a random source with a fixed seed.
@@ -149,15 +148,6 @@ MoverAero *NewMoverAero(MoverAeroSpec *spec, MoverBody *body) {
     return aero;
 }
 
-float VehicleCollider::QueryGround(WheelVector *point, int *surface, WheelVector *normal, char *found) {
-    (void)point;
-    normal->x = 0.0f;
-    normal->y = 0.0f;
-    normal->z = 1.0f;
-    *surface = 1;
-    *found = 1;
-    return 0.0f;
-}
 
 // D3DX runtime library (statically linked in the original, dispatched via 0x803e74).
 // Row-vector product: output = left * right; operands may alias the output.
@@ -190,7 +180,26 @@ bool MoverContactBody::IsTouching() { NativeTrap("contact body query 0x5a01b0");
 MoverContactBody *MoverMode::GetBody(int) { NativeTrap("contact body lookup 0x5a0820"); return 0; }
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
 bool ReplayRecorder::QueryState5F00F0() { NativeTrap("replay recorder 0x5f00f0"); return false; }
-void DrivetrainWheel::UpdateEffects(float, MoverModeOwner *) { NativeTrap("wheel effects 0x59dbb0"); }
+// Skid-mark trail methods belong to the skid-mark renderer (0x5e6e70/0x5d3230).
+// Scaffold: record segments for the demo renderer instead of the original effect.
+NativeSkidSegment nativeSkidSegments[NATIVE_SKID_CAPACITY];
+int nativeSkidCount;
+
+void SkidMarkTrail::AddSegment(MoverModeOwner *, WheelVector *centre, WheelVector *across, int surface,
+                               float intensity) {
+    NativeSkidSegment *segment = &nativeSkidSegments[nativeSkidCount % NATIVE_SKID_CAPACITY];
+    segment->centre = *centre;
+    segment->across = *across;
+    segment->intensity = intensity;
+    segment->surface = surface;
+    segment->connected = trail != 0;
+    trail = this;
+    ++nativeSkidCount;
+}
+
+void SkidMarkTrail::End() {
+    trail = 0;
+}
 void DraftTracker::Update(float, float) { NativeTrap("draft tracker 0x5fa540"); }
 
 
@@ -298,7 +307,8 @@ bool InitialiseNativeRuntime(const char *gameDirectory, char *error, int errorSi
 }
 
 bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, const char *carName,
-                         float startX, float startY, float startZ, char *error, int errorSize) {
+                         float startX, float startY, float startZ, float heading, char *error,
+                         int errorSize) {
     memset(vehicle, 0, sizeof(*vehicle));
     PhysicsInfo *info = static_cast<PhysicsInfo *>(calloc(1, 0x400));
     int carIndex = 0;
@@ -323,11 +333,20 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     owner->resetDuration978 = resetDurationDefault;
     DrivetrainAuxiliary *state = owner->State();
     state->record0 = &info->record30;
-    state->collider4 = &flatGround;
+    // Car constructor 0x604260 builds the collider at +0x5c4; state +4 refers to it.
+    WCollider *collider = reinterpret_cast<WCollider *>(reinterpret_cast<char *>(owner) + 0x5c4);
+    collider->Construct();
+    state->collider4 = collider;
     state->Reset();
     state->position20.x = startX;
     state->position20.y = startY;
     state->position20.z = startZ;
+    // Scaffold placement: yaw about +Z (rows are the body axes in world space).
+    float c = cosf(heading), s = sinf(heading);
+    state->matrix50.elements[0] = c;
+    state->matrix50.elements[1] = s;
+    state->matrix50.elements[4] = -s;
+    state->matrix50.elements[5] = c;
     WheelIdentity(&state->matrix90);
     MoverCarInfo *carInfo = static_cast<MoverCarInfo *>(calloc(1, 0x100));
     VehicleMover *mover = static_cast<VehicleMover *>(calloc(1, sizeof(VehicleMover)));

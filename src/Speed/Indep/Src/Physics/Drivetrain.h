@@ -21,7 +21,7 @@ struct DrivetrainWheelSpec {
     WheelVector position0;
     char unidentifiedC[4];
     float value10;
-    char unidentified14[4];
+    float value14;
     int value18;
     char unidentified1C[0x14];
 };
@@ -138,16 +138,13 @@ struct DrivetrainContextEntry {
 
 struct CarPhysicsRecord;
 
-// World-side ground query object referenced by vehicle state +4. Its original
-// implementation (0x5e72e0) belongs to the world collision subsystem.
-class VehicleCollider {
-public:
-    float QueryGround(WheelVector *point, int *surface, WheelVector *normal, char *found);
-};
+// Per-car track collider at car +0x5c4 (World/WCollision.h); state +4 points to it.
+struct WCollider;
 
 // Road surface records at 0x800ee0, stride 0x98.
 struct RoadSurface {
-    char unidentified0[0x18];
+    char unidentified0[0x14];
+    float skidWidth14;
     float bumpFrequency18;
     float bumpAmplitude1C;
     char unidentified20[4];
@@ -161,10 +158,22 @@ extern RoadSurface roadSurfaces[];
 extern float roadNoiseTable[16];
 float RoadSurfaceBump(float *position, int surface);
 
+struct MoverModeOwner;
+
+// Skid-mark trail handle at wheel +0x198; methods 0x5e6e70 (add segment) and
+// 0x5d3230 (end) belong to the skid-mark renderer.
+class SkidMarkTrail {
+public:
+    void *trail;
+    void AddSegment(MoverModeOwner *owner, WheelVector *centre, WheelVector *across, int surface,
+                    float intensity);
+    void End();
+};
+
 // Vehicle state shared with gameplay; it starts at owner +0x40 (see MoverModeOwner).
 struct DrivetrainAuxiliary {
     CarPhysicsRecord *record0;
-    VehicleCollider *collider4;
+    WCollider *collider4;
     char unidentified8[8];
     WheelVector origin10;
     char unidentified1C[4];
