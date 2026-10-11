@@ -9,6 +9,18 @@
 #include "../../Speed/Indep/Src/Hud/HudFreeroam.h"
 #include "../../Speed/Indep/Src/Hud/HudController.h"
 
+// Native storage for the player record published at 0x8900ac. Recovered HUD code reads the
+// first 8 bytes and the pause menu reads +0x8 (player number) and +0x50; zero in this demo.
+struct NativePlayerRecord {
+    HudPlayerSlot slot;
+    int player8;
+    char unidentifiedC[0x44];
+    int value50;
+};
+
+// English.bin lookup by string hash (chunk 0x39000, sorted (hash, offset) table).
+std::string LookupNativeString(const std::vector<unsigned char> &language, unsigned int hash);
+
 class NativeHud {
 public:
     NativeHud();
@@ -49,7 +61,7 @@ private:
     HudFeatureObjectNode mapVisibilityNodes_[7];
     HudMinimapIndicator playerIndicator_;
     HudIndicatorSlot playerSlot_;
-    HudPlayerSlot player_;
+    NativePlayerRecord player_;
     std::vector<unsigned char> trackInfo_;
     bool minimapReady_;
     std::vector<unsigned char> language_;

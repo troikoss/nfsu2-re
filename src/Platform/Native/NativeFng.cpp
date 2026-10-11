@@ -217,6 +217,11 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         tracks.push_back(track);
                                     } else if (tag == 0x6f54 && !tracks.empty()) {  // 'To'
                                         tracks.back().offset = (int)Rd32(pl);
+                                    } else if (tag == 0x5645) {  // 'EV'
+                                        for (unsigned int k = 0; k + 12 <= len; k += 12) {
+                                            FengEvent event = {Rd32(pl + k), Rd32(pl + k + 4), (int)Rd32(pl + k + 8)};
+                                            script.events.push_back(event);
+                                        }
                                     } else if (tag == 0x644b && !tracks.empty()) {  // 'Kd'
                                         FengTrack &track = tracks.back();
                                         unsigned int stride = track.size + 4;
@@ -621,8 +626,10 @@ void NativeFont::Draw(const std::string &text, float x, float y, float scale, in
     float unit = scale * 32.0f / bakedSize_;
     float width = Measure(text) * unit;
     float left = x;
-    if (justification == 2) left = x - width * 0.5f;
-    else if (justification == 1) left = x - width;
+    // 'Sj' flags, read from retail string data: bit 0 centres, bit 1 right-aligns (bits 2/3
+    // are the vertical equivalents; the baseline below approximates them).
+    if (justification & 1) left = x - width * 0.5f;
+    else if (justification & 2) left = x - width;
     glBindTexture(GL_TEXTURE_2D, texture_);
     glBegin(GL_QUADS);
     float pen = left;

@@ -577,3 +577,23 @@ hudRewardDelay8364AC = 0x8364ac;
 hudDrift89E7D9 = 0x89e7d9;
 hudDriftOverride890104 = 0x890104;
 hudRaceType89E7B0 = 0x89e7b0;
+
+/* Pause menu (UI_Pause.fng, Frontend/PauseMenu.cpp). All in .bss: the native pause seam
+ * installs the game-flow, help-bar and replay objects behind the pointers. */
+gameFlow8900D8 = 0x8900d8;
+realTimer8651AC = 0x8651ac;
+gameMode850078 = 0x850078;
+raceType89E7B0 = 0x89e7b0;
+value83AA04 = 0x83aa04;
+pcHelpBar8384D8 = 0x8384d8;
+career85AD40 = 0x85ad40;
+profileData83A9D0 = 0x83a9d0;
+network89CF48 = 0x89cf48;
+replay8650B8 = 0x8650b8;
+value88F1A8 = 0x88f1a8;
+replayPackage8363E4 = 0x8363e4;
+value850098 = 0x850098;
+value8635A8 = 0x8635a8;
+value85BA67 = 0x85ba67;
+value8500D0 = 0x8500d0;
+players8900AC = 0x8900ac;

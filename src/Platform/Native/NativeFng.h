@@ -23,10 +23,18 @@ struct FengTrack {
     int type, size, interpolation, cycle, duration, offset;
     std::vector<std::pair<int, std::vector<unsigned char> > > keys;
 };
+// Script event ('EV' records of 12 bytes): message hash, target and time in milliseconds.
+// Target 0xffffffff is read as the owning package (EXIT_COMPLETE in UI_Pause.fng).
+struct FengEvent {
+    unsigned int message;
+    unsigned int target;
+    int time;
+};
 struct FengScript {
     unsigned int hash;
     int duration;
     std::vector<FengTrack> tracks;
+    std::vector<FengEvent> events;
 };
 
 struct FengObject : HudVisibilityObject {
@@ -116,8 +124,8 @@ public:
     bool Ready() const { return texture_ != 0; }
     // Width of `text` in pixels at font size 1.0 (the baked size).
     float Measure(const std::string &text) const;
-    // Draws `text` with the baseline origin centred/left/right (justification 0/1/2 = left,
-    // right, centre as read from 'Sj') at (x, y) in the current matrix, scaled by `scale`.
+    // Draws `text` at (x, y) in the current matrix, scaled by `scale`; 'Sj' bit 0 centres and
+    // bit 1 right-aligns horizontally, otherwise the origin is the left edge.
     void Draw(const std::string &text, float x, float y, float scale, int justification);
     float LineHeight() const { return bakedSize_; }
 

@@ -52,8 +52,18 @@ are descriptive; unidentified fields and globals keep offset names. The
 `QuitTo*` names follow the return packages they set; game-flow message meanings
 (1, 2, 3, 4, 6, 0xb) are not established.
 
-The source is not part of the native demo build (no CMake glob), so no
-`OriginalSymbols.ld` entries were added.
+The native demo compiles this source unchanged (CMake glob `Src/Frontend`); its globals are
+bound in `OriginalSymbols.ld` and the unrecovered interfaces are native seams, described in
+[native demo: pause menu](NATIVE_DEMO.md#pause-menu-sixth-pass).
+
+## Retail data
+
+`UI_Pause.fng` (`0x32124083`) and `UI_InGameDialog.fng` (`0xaa469286`) are JDLZ-compressed
+`0x30210` chunks in `GLOBAL/InGameCommon.bun`. The pause package has eight `option_N` icon
+objects, a hidden `OPTION_MASTER` anchor, `ICON_TITLE`, `Header_text`, and the event handler
+`0x47ff4e7c`, whose `Forward` script sends `EXIT_COMPLETE` at 320 ms. Labels resolve in
+`English.bin`: the header is "Pause", items read Return to Free Run/Explore Mode/World Map, Resume
+Race, Restart, Jump to Garage?, Options, Replay and the Quit variants.
 
 ## Reproduction and evidence
 
@@ -107,5 +117,5 @@ pause routines read.
   `0x4eb580`/`0x4d93c0`, factories `0x4f47f0`/`0x4eb650`.
 - IconScroller base, in-game dialog `0x558790`, and the game-flow handling of the
   queued messages.
-- Native integration requires FEng package/script scaffolding that the demo
-  does not have yet.
+- Recover the IconScroller base and FEng message/script dispatch that the native demo
+  currently supplies as seams (`NativePause.cpp`).

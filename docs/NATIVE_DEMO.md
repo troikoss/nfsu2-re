@@ -259,6 +259,52 @@ camera shake (`0x452ed0`, `0x572a50`), Camera object finalisation (`0x447280`), 
 tests (`0x445fc0`, `0x5d39f0`), the chase heading follower (`0x445c20`, only read by a subclass), the
 replay RPM source and HUDINDEX option.
 
+## Pause menu (sixth pass)
+
+`Esc` opens UG2's pause menu over the frozen game. The menu logic is the recovered
+`PauseFNGObject` (`src/Speed/Indep/Src/Frontend/PauseMenu.cpp`, constructor `0x4eb410`, handler
+`0x4c2170`, option lists `0x4c2900`/`0x4c2bd0`, item `React` handlers), verified separately in
+[pause menu evidence](pc-pause-menu.md). In the demo's free drive (`0x89e7b0` = 0, game mode
+`0x850078` = 0, both untouched .bss) it builds Return to Free Run, Options, Replay (disabled: no
+replay data, so navigation skips it) and Quit to Main Menu. Left/right (or A/D) move, Enter/Space
+selects, Esc/Backspace goes back.
+
+Data: `UI_Pause.fng` and `UI_InGameDialog.fng` are not plain `0x30203` packages; they are
+`0x30210` chunks in `GLOBAL/InGameCommon.bun` holding the package-name hash (`0x505450`) and a JDLZ
+block, unpacked with the recovered decompressor. Textures come from `InGameCommon.bun` (icons) and
+`GLOBALB.BUN` (menu frames). Script `EV` records (12 bytes: message, target, milliseconds) are now
+read; `UI_Pause.fng`'s `FORWARD` script sends `EXIT_COMPLETE` (`0xe1fde1d1`) to the package at
+320 ms, which completes back, resume and the non-dialog items.
+
+Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, not verified):
+
+- IconScroller base (`0x552330`, `0x543d40`, `0x50dab0`/`0x543c10`, `0x50da50`, `0x52fbf0`,
+  `0x50da20`, scroller slots `0x538940`/`0x538a30`): icons fill `option_1..n` 40 units apart,
+  anchored on the hidden `OPTION_MASTER`; unselected icons are drawn at 0.8 and bottom aligned
+  (`0x52f8c0`), shown inside a 480-unit window (`0x50d9c0`); moves skip disabled icons without
+  wrapping (`0x51f9f0`); accept reacts immediately for dialog items (`+0x45`) and after
+  `EXIT_COMPLETE` otherwise, only for the focused icon object (`0x50d980`). Scroll animation,
+  sounds and Dim/UNDIM scripts are not modelled.
+- FEng (`0x537a10`, `0x50c900`, `0x50b8a0`/`0x50b8c0`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
+  packages are reloaded on every showing; messages are queued and delivered to the screen's object;
+  scripts only fire their package events (no animation tracks).
+- In-game dialog `0x558790`: two-button form of `UI_InGameDialog.fng` with the caller's labels,
+  text and result messages; value `0x1C` is read as the initially highlighted button (Cancel).
+- Game flow `0x5f4240`/`0x5f41e0`: messages 1/2 resume, 3 restarts like `R`, 6 (Quit to Main
+  Menu) exits the demo, others resume with a log line. `UI_PauseOptionsMain.fng` and the replay
+  screen are not available and resume the game. The PC help bar (`0x54e6a0`/`0x54e6e0`) is tracked,
+  not drawn. Real clock `0x8651ac` advances at an assumed 4 kHz so `AcceptsInput` (`0x4a7bc0`)
+  opens input one frame after the screen.
+- The player record at `0x8900ac` is now 0x54 bytes of native storage (player 0, `+0x50` = 0) so
+  `0x4a7bf0` offers Options.
+
+Text justification (`Sj`) is read as flags from retail strings: bit 0 centres and bit 1
+right-aligns (dialog button labels sit at their button centres with `Sj` 1; HUD speed digits
+use 2). This corrected the native HUD's swapped centre/right handling.
+
+`--pause-at N` opens the menu at frame N and `--pause-keys LRAB` presses left/right/accept/back
+every 30 frames afterwards; `UG2_DEBUG_PAUSE=1` prints delivered messages and game-flow requests.
+
 ## Platform scaffolding (not original code)
 
 `src/Platform/Native` contains everything that is not recovered UG2 code:
@@ -271,7 +317,8 @@ replay RPM source and HUDINDEX option.
   scaffold race-status/context/random
   objects, keyboard controls, and stock car records copied from GLOBALB.BUN CarTypeInfo
   `+0x110` (upgrade composition `0x5ac4f0`/`0x5997e0` not yet recovered).
-- `DemoMain.cpp`: SDL2/OpenGL window and input; `NativeFng.cpp`/`NativeHud.cpp`: FNG HUD; `NativeAssets.cpp`/
+- `DemoMain.cpp`: SDL2/OpenGL window and input; `NativeFng.cpp`/`NativeHud.cpp`: FNG HUD;
+  `NativePause.cpp`: pause menu seams (see above); `NativeAssets.cpp`/
   `NativeScene.cpp` read and draw the original car and scenery assets (see above).
   `--placeholder` restores the box car and collision-polygon world.
 - Unrecovered routines the demo state should never reach stop the program with a
@@ -285,8 +332,9 @@ Requires i386 SDL2/GL runtime libraries and a multilib GCC.
 cmake -S . -B build/native && cmake --build build/native
 build/native/ug2sim "Need for Speed Underground 2" SKYLINE 960   # headless check on L4RA
 build/native/ug2probe -579.8 533.2                                 # collision coverage probe
-build/native/ug2demo --car SKYLINE                                 # W/S/A/D, Space, R, Esc
+build/native/ug2demo --car SKYLINE                                 # W/S/A/D, Space, R, Esc pause
 build/native/ug2demo --frames 60 --orbit 30 --screenshot car.ppm   # scripted capture
+build/native/ug2demo --frames 125 --pause-at 20 --pause-keys RRA --screenshot quit.ppm  # quit dialog
 ```
 
 The headless Skyline run accelerates through automatic shifts near 7,800 rpm and reaches

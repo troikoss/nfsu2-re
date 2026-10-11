@@ -271,10 +271,10 @@ bool NativeHud::Load(const char *gameDirectory, NativeTextureCache *textures, co
 
 // English.bin: chunk 0x39000; header dwords at +8: count at +4, hash table offset at +8 and
 // string base at +0xc (relative to +8). Entries are (hash, offset) sorted by hash.
-std::string NativeHud::Localised(unsigned int hash) const {
-    if (language_.size() < 24) return "";
-    const unsigned char *d = &language_[0];
-    size_t size = language_.size();
+std::string LookupNativeString(const std::vector<unsigned char> &language, unsigned int hash) {
+    if (language.size() < 24) return "";
+    const unsigned char *d = &language[0];
+    size_t size = language.size();
     unsigned int count = Rd32(d + 12);
     size_t table = 8 + Rd32(d + 16);
     size_t strings = 8 + Rd32(d + 20);
@@ -292,6 +292,8 @@ std::string NativeHud::Localised(unsigned int hash) const {
     }
     return "";
 }
+
+std::string NativeHud::Localised(unsigned int hash) const { return LookupNativeString(language_, hash); }
 
 void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     if (!loaded_) return;
@@ -359,7 +361,7 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     RegisterFeature(&package_, &reward_, rewardNodes_, rewardNames, 1, 0, 0x80);
     reward_.reward20 = package_.Find(rewardNames[0]);
     FengPackage::SetText(static_cast<FengObject *>(reward_.reward20), "");
-    player_.car4 = vehicle->owner;
+    player_.slot.car4 = vehicle->owner;
     // Original caller decides nitrous visibility from the car's capacity tick.
     // Until the full player mask producer is recovered, native setup supplies
     // this bit only for a present, positive recovered capacity.
@@ -405,8 +407,8 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     playerIndicator_.next0 = playerIndicator_.previous4 = end;
     playerIndicator_.id8 = 0;
     playerIndicator_.slot1C = &playerSlot_;
-    player_.car4 = vehicle->owner;
-    hudPlayerSlots8900AC[0] = &player_;
+    player_.slot.car4 = vehicle->owner;
+    hudPlayerSlots8900AC[0] = &player_.slot;
     trackNumber89E7A0 = 4000;
     exploreMapMode83AA1C = 2;
     // Core-map membership and required masks from constructor 0x4f73e0.
@@ -448,11 +450,11 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     gauge_.Update(vehicle->owner, engine, metric, units.c_str());
     HudUpdateShiftLight(vehicle->owner, vehicle->mover->drivetrain4C->indexF0,
                         vehicle->owner->engineValue440, static_cast<FengObject *>(gauge_.objects.shiftLight78));
-    turbo_.Update(&player_);
-    nitrous_.Update(&player_);
+    turbo_.Update(&player_.slot);
+    nitrous_.Update(&player_.slot);
     region_.Update(&regionPlayer_);
-    cash_.Update(&player_);
-    reward_.Update(&player_);
+    cash_.Update(&player_.slot);
+    reward_.Update(&player_.slot);
     package_.AdvanceScripts(seconds);
     if (minimapReady_) minimap_.Update();
 }

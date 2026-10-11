@@ -5,6 +5,7 @@
 #include "NativeWorld.h"
 #include "NativeScene.h"
 #include "NativeHud.h"
+#include "NativePause.h"
 #ifdef UG2_ENABLE_MODDING
 #include "NativeModBridge.h"
 #endif
@@ -317,6 +318,8 @@ int main(int argc, char **argv) {
     bool noMods = false;
 #endif
     int cameraOption = 3;       // profile drive camera option: 0 bumper, 1 hood, 2 close, 3 far, 4 super far
+    int pauseAt = -1;           // scripted capture: open the pause menu at this frame
+    const char *pauseKeys = ""; // then press L/R/A/B (left, right, accept, back), one per 30 frames
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--game") && i + 1 < argc) game = argv[++i];
         else if (!strcmp(argv[i], "--car") && i + 1 < argc) car = argv[++i];
@@ -336,6 +339,8 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--no-mods")) noMods = true;
 #endif
         else if (!strcmp(argv[i], "--camera") && i + 1 < argc) cameraOption = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--pause-at") && i + 1 < argc) pauseAt = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--pause-keys") && i + 1 < argc) pauseKeys = argv[++i];
     }
     if (width < 320 || height < 240 || width > 8192 || height > 8192) {
         fprintf(stderr, "ug2demo: invalid resolution (320x240 through 8192x8192)\n"); return 1;
@@ -415,6 +420,12 @@ int main(int argc, char **argv) {
         if (haveHud && getenv("UG2_DEBUG_HUD")) hud.Describe();
         if (haveHud) hud.Configure(&vehicle, hudSkin);
     }
+    NativePause pause;
+    bool havePause = false;
+    if (!placeholder) {
+        havePause = pause.Load(game, &textures, hudFont, error, sizeof(error));
+        if (!havePause) fprintf(stderr, "ug2demo: %s; pause menu disabled, Esc quits\n", error);
+    }
     float lastGood[4] = {spawn[0], spawn[1], spawn[2], spawn[3]};
     int airborneFrames = 0;
     Camera camera = {{-8.0f, 0.0f, 3.0f}, {0.0f, 0.0f, 0.5f}};
@@ -434,7 +445,20 @@ int main(int argc, char **argv) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) running = false;
+            if (event.type == SDL_KEYDOWN && havePause && pause.Active()) {
+                // Scaffold key mapping for the FEng pad messages while the menu is up.
+                SDL_Keycode key = event.key.keysym.sym;
+                if (key == SDLK_LEFT || key == SDLK_a) pause.Key(kPauseKeyLeft);
+                else if (key == SDLK_RIGHT || key == SDLK_d) pause.Key(kPauseKeyRight);
+                else if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_SPACE) pause.Key(kPauseKeyAccept);
+                else if (key == SDLK_ESCAPE || key == SDLK_BACKSPACE) pause.Key(kPauseKeyBack);
+                continue;
+            }
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
+                // JOY_EVENT_PAUSE seam: the game flow that pushes UI_Pause.fng is not recovered.
+                if (havePause) pause.Open();
+                else running = false;
+            }
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
                 DestroyNativeVehicle(&vehicle);
                 if (!CreateNativeVehicle(&vehicle, game, car, spawn[0], spawn[1], spawn[2], spawn[3], error,
@@ -459,6 +483,38 @@ int main(int argc, char **argv) {
         previous = now;
         if (frames || scripted) duration = 1.0f / 60.0f;
         if (duration > 0.05f) duration = 0.05f;
+        if (havePause) {
+            if (frame == pauseAt) pause.Open();
+            if (pauseAt >= 0 && frame > pauseAt && (frame - pauseAt) % 30 == 0) {
+                size_t index = (frame - pauseAt) / 30 - 1;
+                if (index < strlen(pauseKeys)) {
+                    char c = pauseKeys[index];
+                    if (c == 'L') pause.Key(kPauseKeyLeft);
+                    else if (c == 'R') pause.Key(kPauseKeyRight);
+                    else if (c == 'A') pause.Key(kPauseKeyAccept);
+                    else if (c == 'B') pause.Key(kPauseKeyBack);
+                }
+            }
+            pause.Update(duration);
+            NativePauseRequest request = pause.TakeRequest();
+            if (request == kPauseRequestQuit) {
+                running = false;
+            } else if (request == kPauseRequestRestart) {
+                DestroyNativeVehicle(&vehicle);
+                if (!CreateNativeVehicle(&vehicle, game, car, spawn[0], spawn[1], spawn[2], spawn[3], error,
+                                         sizeof(error))) {
+                    fprintf(stderr, "ug2demo: %s\n", error);
+                    running = false;
+                } else {
+                    driveCamera.Destroy();
+                    driveCamera.Construct(vehicle.owner, &vehicle.cameraSettings, 1,
+                                          DriveCameraTypeForOption(cameraOption), false, lookBack, false);
+                    if (haveHud) hud.Configure(&vehicle, hudSkin);
+                }
+            }
+            if (!running) break;
+        }
+        bool paused = havePause && pause.Active();
         const Uint8 *keys = SDL_GetKeyboardState(0);
         float throttle = (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) ? 1.0f : 0.0f;
         float brake = (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) ? 1.0f : 0.0f;
@@ -478,8 +534,10 @@ int main(int argc, char **argv) {
         }
         float rate = 2.5f * duration;
         steer += (target - steer) > rate ? rate : ((target - steer) < -rate ? -rate : target - steer);
-        SetNativeControls(&vehicle, throttle, brake, handbrake, steer);
-        StepNativeVehicle(&vehicle, duration);
+        if (!paused) {
+            SetNativeControls(&vehicle, throttle, brake, handbrake, steer);
+            StepNativeVehicle(&vehicle, duration);
+        }
 #ifdef UG2_ENABLE_MODDING
         if (NativeModsFailed()) break;
 #endif
@@ -500,7 +558,7 @@ int main(int argc, char **argv) {
             } else if (state->value3E4 == 0) {
                 ++airborneFrames;
             }
-            if (airborneFrames > 150) {
+            if (airborneFrames > 150 && !paused) {
                 DestroyNativeVehicle(&vehicle);
                 CreateNativeVehicle(&vehicle, game, car, lastGood[0], lastGood[1], lastGood[2], lastGood[3], error,
                                     sizeof(error));
@@ -531,7 +589,7 @@ int main(int argc, char **argv) {
                 driveCamera.SetLookBack(lookBack);
             }
         }
-        driveCamera.Update(duration, drivetrainClock, &cameraView);
+        if (!paused) driveCamera.Update(duration, drivetrainClock, &cameraView);
         if (getenv("UG2_DEBUG_CAMERA") && frame % 30 == 0) {
             DrivetrainAuxiliary *cs = vehicle.owner->State();
             fprintf(stderr, "cam f%d speed %.1f accel %.2f %.2f %.2f eyeLocal %.2f %.2f %.2f fov %u\n", frame,
@@ -600,9 +658,10 @@ int main(int argc, char **argv) {
                  gear == 0 ? "R" : (gear == 1 ? "N" : (char[]){(char)('0' + gear - 1), 0}));
         SDL_SetWindowTitle(window, title);
         if (haveHud) {
-            hud.Update(&vehicle, metric, duration);
+            hud.Update(&vehicle, metric, paused ? 0.0f : duration);
             hud.Draw(width, height);
         }
+        if (havePause) pause.Draw(width, height);
 #ifdef UG2_ENABLE_MODDING
         NativeModsEvent(UG2_POST_HUD_DRAW, duration, width, height);
         if (NativeModsFailed()) break;
