@@ -15,7 +15,8 @@ the historical upstream baseline did not contain these local recovered files.
 Recovery is incomplete. Some functions byte-match; others have bounded original /
 rebuilt execution comparisons and remain nonmatching. Partial 32-bit layouts and
 an unrebuilt conversion helper in emulation prevent claiming a full native game.
-See docs/pc-vehicle-physics.md and docs/pc-racing.md for evidence and limitations.
+Start with the [documentation index](docs/README.md) for recovery evidence,
+verification limits, and demo instructions.
 Do not infer verification status merely because a source file is present.
 
 ## Native driving demo

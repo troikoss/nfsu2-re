@@ -4,6 +4,11 @@ The driving prototype's physics are not established as retail-equivalent.
 This research uses UG2 first; existing UG2 mechanics must not be substituted
 with another game's solver or guessed formulas.
 
+This document follows the historical recovery sequence. Later sections supersede
+earlier leads; dated-stage references to missing callbacks are not a current
+coverage inventory. See [wheel/body verification](pc-wheel-physics.md) and
+[the native demo](NATIVE_DEMO.md) for subsequent recovery and integration.
+
 ## Locating consumers
 
 `tools/find_pc_vehicle_consumers.py` fingerprints the local executable and all
@@ -332,7 +337,7 @@ files can collide when multiple compiler jobs run at once.
 
 Project-specific input, FFB, optional handling and map changes remain outside
 these original-source files. See the root
-[source boundary rules](../../../docs/SOURCE_BOUNDARIES.md).
+[repository guidelines](../AGENTS.md).
 
 ## Engine block now identified
 
@@ -554,7 +559,7 @@ Report: ignored `build/analysis/racing/engine-post-update-verification.json`.
 ## Wheel coupling traced for the next recovery step
 
 For the latest preparation/correction and full coupling recovery, see
-[WHEEL_RECOVERY_STATUS.md](WHEEL_RECOVERY_STATUS.md). The investigation below
+[wheel and body verification evidence](pc-wheel-physics.md). The investigation below
 records the earlier state of the recovery.
 
 The controller's final callback `0x5b0520` calls mover routine `0x5abdf0`.

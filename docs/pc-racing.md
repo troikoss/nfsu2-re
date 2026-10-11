@@ -63,10 +63,10 @@ result helper and is outside this probe; the source slice is not standalone yet.
 
 ## Playable demo boundary
 
-The existing OpenUG2 driving demo remains a provisional native reimplementation.
-These routines have not been inserted into it: its derived checkpoints and result
-data are not proven to correspond to UG2's race-result objects. Connecting them
-now would invent the conversion that the fidelity instruction asks us to recover.
+The [native driving demo](NATIVE_DEMO.md) runs recovered vehicle code with
+documented platform seams. These racing routines are not included in its CMake
+targets. Original race-result construction and caller composition remain
+unverified; connecting synthetic result data would invent an unsupported conversion.
 
 Remaining requirements for a faithful source-built race demo include original
 vehicle handling/update rules, event route/checkpoint semantics, start/countdown/

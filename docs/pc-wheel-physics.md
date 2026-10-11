@@ -1,4 +1,12 @@
-# Latest wheel recovery — 2026-10-11
+# PC wheel and body verification evidence
+
+This record preserves isolated original/rebuilt comparisons from the recovery
+sequence. Later sections supersede earlier recovery leads. Statements about
+unrecovered construction or the absence of a native demo describe that stage,
+not current repository status. See [the native demo guide](NATIVE_DEMO.md) for
+integration status; these comparisons do not prove native equivalence.
+
+## Vector math and correction scaling
 
 Wheel identity, transpose, transform, scale-add, normalization and cross product
 pass 12,288 original/rebuilt whole-state comparisons, including aliases and
@@ -15,7 +23,9 @@ wheel update and the vehicle mover still require recovery before
 native driving integration. No application gameplay was changed.
 
 
-Quantized angle recovery: WheelAngle at 0x43c570 (218 original / 224 rebuilt
+## Quantized angle
+
+WheelAngle at 0x43c570 (218 original / 224 rebuilt
 bytes) passes 16,432 exact low-16-bit comparisons across all quadrants, signed
 zero/axes, lookup-bin neighbors and varied finite magnitudes, in two x87 precision
 modes. The compiled body remains nonmatching. It preserves UG2's byte-table
@@ -32,7 +42,9 @@ build/analysis/racing/wheel-angle-verification.json. Full wheel preparation/upda
 and native runtime adaptation remain outstanding.
 
 
-Full wheel force correction: `DrivetrainWheel::CorrectForces` at 0x59d600
+## Wheel force correction
+
+`DrivetrainWheel::CorrectForces` at 0x59d600
 (1,258 original / 1,195 rebuilt bytes) passes 7,504 exact full-state comparisons
 in 24-bit and 53-bit x87 precision. The machine code remains nonmatching.
 The verifier links rebuilt correction scaling, matrix/vector helpers, quantized
@@ -64,7 +76,9 @@ Wheel preparation at 0x5a8280 and its two missing helpers are now recovered
 unrecovered.
 
 
-Wheel preparation: `PrepareForces` at 0x5a8280 (1,078 original / 1,085 rebuilt
+## Wheel preparation
+
+`PrepareForces` at 0x5a8280 (1,078 original / 1,085 rebuilt
 bytes) passes 4,576 exact whole-state comparisons. Preparation followed by force
 correction passes another 4,576 comparisons. Helpers `UpdateLockState` at
 0x59d400 (133 original / 142 rebuilt bytes) and `EvaluateLateralForce` at
@@ -108,7 +122,9 @@ remain to be recovered and verified. Direct-call coverage is not proof that its
 whole transitive dependency graph or the playable demo is complete.
 
 
-Mover coupling: `VehicleMover::CorrectWheelCoupling` reconstructs 0x5abdf0
+## Mover coupling
+
+`VehicleMover::CorrectWheelCoupling` reconstructs 0x5abdf0
 (1,136 original / 625 rebuilt bytes) and passes 3,072 exact full-state
 comparisons with the recovered real drivetrain, wheel and math callees.
 It remains nonmatching. Inputs cover both selected body matrices, signed
@@ -141,7 +157,9 @@ That method and its real callees are now recovered (see below).
 Actual car-parameter loading and a source-built runnable demo remain incomplete.
 
 
-Post-coupling body force: `ApplyOpposingBodyForce` at 0x5a5b60 (188 original /
+## Post-coupling body force
+
+`ApplyOpposingBodyForce` at 0x5a5b60 (188 original /
 191 rebuilt bytes) passes 3,072 exact full-state comparisons. It retains the
 original state-1/state-2 exclusions, signed mode gate, vector length addition
 order, below-threshold test, curve lookup and coefficient-scaled force addition.
@@ -173,7 +191,9 @@ advance position/orientation or create road contacts; the playable source-built
 demo remains incomplete.
 
 
-Body derivative recovery: `MoverBody::WriteDerivative` at 0x59c1e0 (1,033
+## Body derivative
+
+`MoverBody::WriteDerivative` at 0x59c1e0 (1,033
 original / 1,021 rebuilt bytes) passes 2,048 exact whole-state/output comparisons.
 The 186-byte matrix derivative at 0x59c120 passes 4,096 comparisons including
 output aliases with its matrix/vector inputs and partial overlap. Neither body
@@ -212,7 +232,9 @@ Original body/integrator composition and a playable native runtime are not yet
 verified. These finite comparisons do not establish completion of the demo.
 
 
-Body post-update: `MoverBody::PostUpdate` at 0x59c5f0 (903 original / 795
+## Body post-update
+
+`MoverBody::PostUpdate` at 0x59c5f0 (903 original / 795
 rebuilt bytes) passes 2,048 exact whole-state comparisons. Its point-force
 helper 0x59bb00 (274/308) passes 4,096, including force/point/accumulator
 aliases. Matrix copy 0x4012b0, product 0x4013f0 and the multiply wrapper

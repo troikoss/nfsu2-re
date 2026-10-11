@@ -1,10 +1,13 @@
-# Native vehicle demo — 2026-10-11
+# Native vehicle demo
 
 A 32-bit native Linux build now drives a UG2 car using the recovered vehicle
-sources end to end. This is an intermediate milestone toward the playable demo,
+sources end to end. This playable demo is an intermediate milestone,
 not completion of the decompilation. Recovered routines in this pass are
 reconstructed from disassembly but are **not yet behaviour-verified** against the
-original by differential execution, unless listed in an earlier status document.
+original by differential execution, except for the isolated comparisons in
+[vehicle recovery](pc-vehicle-physics.md), [wheel/body verification](pc-wheel-physics.md),
+and the compression evidence below. Recovery-pass labels describe implementation
+history, not independent verification levels.
 
 ## What runs as recovered UG2 code
 
@@ -257,8 +260,8 @@ shift light, replay RPM source and HUDINDEX option.
   original addresses after a SHA-256 check; `OriginalSymbols.ld` binds recovered
   `extern` globals to those addresses. No original instruction executes.
 - `NativeVehicle.cpp`: vtable shims forwarding each original slot to the recovered
-  method, the `New...` allocation factories, the D3DX matrix multiply, a flat road plane
-  standing in for world collision `0x5e72e0`, scaffold race-status/context/random
+  method, the `New...` allocation factories, the D3DX matrix multiply,
+  scaffold race-status/context/random
   objects, keyboard controls, and stock car records copied from GLOBALB.BUN CarTypeInfo
   `+0x110` (upgrade composition `0x5ac4f0`/`0x5997e0` not yet recovered).
 - `DemoMain.cpp`: SDL2/OpenGL window and input; `NativeFng.cpp`/`NativeHud.cpp`: FNG HUD; `NativeAssets.cpp`/
@@ -286,8 +289,12 @@ observations, not equivalence evidence.
 
 ## Known limitations
 
-- All scenery instances are drawn regardless of their unidentified flags, so some LOD or
-  variant pieces overlap; streaming, visibility and the original shaders are not recovered.
+- Visible-section selection and the player-view flag test are applied (see
+  [scenery visibility](#scenery-visibility-fourth-pass)). Pixel-size LOD `0x5d64d0`,
+  the nearest-boundary fallback `0x5db770`, and view flags 0x02/0x01 remain unresolved.
+  Blended draws are not depth-sorted; streaming, original shaders, and time-of-day
+  colour selection remain unrecovered. Missing textures include 18 TRN_SH parts
+  (`0x9c3ce745`) and four XS signs, as recorded in the scenery investigation.
 - Paint, vinyls, damage textures and headlight/brakelight switching are not applied.
 - Every collision pack is loaded at start-up
   instead of the original streaming, and the spawn point is chosen heuristically.
@@ -295,3 +302,21 @@ observations, not equivalence evidence.
   and the controls object are scaffold; the original input filtering is unrecovered.
 - Native GCC x87 code is not bit-exact with MSVC; FPU control word is set to 0x027f.
 - Free-drive race phase 0 is used; race-phase-dependent branches are untested.
+
+## Outstanding recovery checks
+
+- Extend collision verification to GJK `0x5b3390` and impulse resolution `0x5af0e0`;
+  resolve the 42 degenerate simplex tie differences in `0x595040`.
+- Recover car-vs-car/world-object paths (`0x5b31f0`, `0x5ae000`, slot 0x8c),
+  cylinders (`0x5a23d0`, `0x5a2780`), and collision effects/sounds (`0x5a9620`, `0x59fb70`).
+- Recover the enclosing car update `0x6012b0` and the original world-clock call site.
+- Recover camera collision pushes/shake, the acceleration producer at car +0x80,
+  remaining HUD features, and FEng script playback beyond INIT. Additional HUD
+  source recovery requires separate verification and integration evidence.
+- A free/aerial camera remains useful for wider scenery checks.
+
+For reproducible wall checks, run:
+
+```sh
+UG2_STEER=-0.4 UG2_DEBUG_COLLISION=1 build/native/ug2sim "Need for Speed Underground 2" SKYLINE 900
+```

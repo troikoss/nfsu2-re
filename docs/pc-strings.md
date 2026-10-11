@@ -1,6 +1,6 @@
 # First PC v1.2 decompilation slice
 
-This local continuation starts from `cobanov/nfsu2-decomp` commit
+The pre-migration research started from `cobanov/nfsu2-decomp` commit
 `8415642c08e580cda24b19102b95e33ce2448fcf`. It reconstructs nine routines in
 `src/Speed/Indep/Libs/bWare/Strings.cpp`. The path is provisional; without GameCube symbols,
 the original translation unit and original function names remain unconfirmed.
@@ -47,13 +47,13 @@ user-provided executable. Alternatively supply `--exe /path/to/speed2.exe`.
 ```sh
 python3 -m venv build/venv
 build/venv/bin/pip install -r requirements-pc-strings.txt
-mkdir -p build/tools
-python3 tools/download_tool.py compilers build/compilers --tag 20260903
-python3 tools/download_tool.py wibo build/tools/wibo --tag 1.2.0
-python3 tools/download_tool.py delink build/tools/delink --tag v0.16.4
-python3 tools/download_tool.py objdiff-cli build/tools/objdiff-cli --tag v3.7.0
 build/venv/bin/python tools/verify_pc_strings.py
 ```
+
+Provision local `build/compilers/Win32/7.1/cl.exe`, `build/tools/wibo`,
+`build/tools/delink` (v0.16.4), and `build/tools/objdiff-cli` (v3.7.0) before running.
+The migrated checkout reuses ignored local tools; it has no `download_tool.py`.
+Run MSVC/wibo verification jobs sequentially.
 
 The verifier checks the PE layout and function fingerprints, creates a selected-function export
 in delink's IDA interchange format, splits the original routines into an object, and compiles
@@ -101,10 +101,9 @@ sizes and SHA-256 fingerprints. Outputs include:
 
 This verifies nine selected routines against the local PC v1.2 executable. It does not rebuild,
 launch or port the whole game, verify PC v1.0 or GameCube, or validate replacement hooks in a
-running game. The main `configure.py` flow remains incomplete because its full-game
-`symbols.json` and `splits.json` have not been created. The selected export intentionally contains
-only the nine verified functions and cannot replace those full-game files. No objects have been
-marked `Matching` in the full-game build configuration.
+running game. This repository has no complete executable split/relink build.
+The selected export contains only nine verified functions and cannot serve as a
+full-game symbol map or split specification.
 
 Next, reconstruct the bounded case-insensitive comparator at `0x43DD10` and two-source copy at
 `0x43DDA0`, verify their memory behavior, and recover the enclosing translation unit. Build the full
@@ -116,5 +115,5 @@ The community IDC export has since been indexed by `tools/recover_pc_index.py`: 
 function-boundary seeds, 3,252 named entries, 3,469,275 bytes, and no rejected boundaries under
 its executable-section and overlap checks. All nine verified functions agree with that index.
 The output is `build/analysis/function-index.json`; it is a starting map, not a verified
-full-game split or compilable source. A separate native driving demo using OpenUG2 is described
-in the workspace's `DEMO.md`.
+full-game split or compilable source. The recovered-source native driving demo
+is documented in [NATIVE_DEMO.md](NATIVE_DEMO.md).
