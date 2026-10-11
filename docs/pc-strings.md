@@ -1,7 +1,6 @@
 # First PC v1.2 decompilation slice
 
-The pre-migration research started from `cobanov/nfsu2-decomp` commit
-`8415642c08e580cda24b19102b95e33ce2448fcf`. It reconstructs nine routines in
+This research reconstructs nine routines in
 `src/Speed/Indep/Libs/bWare/Strings.cpp`. The path is provisional; without GameCube symbols,
 the original translation unit and original function names remain unconfirmed.
 

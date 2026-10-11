@@ -205,11 +205,6 @@ Third-party components retain their own terms. See [NOTICE](NOTICE) and the
 notices embedded in individual files. Preserve those notices when distributing
 applicable material.
 
-This independent repository was created on 2026-10-11 with new Git history.
-Research previously used the `cobanov/nfsu2-decomp` checkout; migration input
-fingerprints and the baseline are recorded in [PROVENANCE.json](PROVENANCE.json).
-That provenance does not establish ownership or grant licensing rights.
-
 This project is not affiliated with, sponsored by, or endorsed by Electronic
 Arts. Need for Speed and other game names and marks belong to their respective
 owners and are used here to identify the subject of the research.

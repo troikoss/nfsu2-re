@@ -11,16 +11,6 @@ redistribute recovered code. Users must supply their own lawfully obtained
 game installation. The project is not affiliated with or endorsed by
 Electronic Arts.
 
-Research provenance
--------------------
-Pre-migration research used cobanov/nfsu2-decomp at commit
-8415642c08e580cda24b19102b95e33ce2448fcf. PROVENANCE.json records migration
-input fingerprints and states that the local recovered files were not present
-in that baseline. Preserve attribution and applicable terms for any imported
-tooling; migration or new Git history does not change ownership or licensing.
-This attribution is not a claim that all migrated files came from upstream,
-nor a license grant for upstream material.
-
 imstb_truetype.h
 ---------------
 src/Platform/Native/third_party/imstb_truetype.h carries the stb_truetype
