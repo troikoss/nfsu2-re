@@ -300,3 +300,134 @@ void PhysicsTuning::GetPairRange(int index, int component, bool average, float *
         *maximum = maxima[component + pair * 2];
     }
 }
+
+extern float physicsTuningPowerScale;
+extern float physicsTuningCurveStep;
+
+// 0x5ac980 scans a sample curve in 50-unit steps for the largest unspilled
+// Lookup * 1000 * x * 0.000104712 product and returns it with its position.
+float FindPhysicsCurvePeak(float *samples, int count, float start, float end, float *peakAt) {
+    EngineCurve curve;
+    curve.count = count;
+    curve.start = start;
+    curve.end = end;
+    curve.inverseSpacing = (float)((double)(count - 1) / ((double)end - start));
+    curve.samples = samples;
+    float peak = 0.0f;
+    float position = 0.0f;
+    for (float x = start; x < end; x = (float)((double)x + physicsTuningCurveStep)) {
+        double value = (((double)curve.Lookup(x) * physicsTuningThousand) * x) * physicsTuningPowerScale;
+        if (value > peak) {
+            peak = (float)value;
+            position = x;
+        }
+    }
+    if (peakAt) *peakAt = position;
+    return peak;
+}
+
+extern float physicsTuningGearLowInput;
+extern float physicsTuningGearHighInput;
+extern float physicsTuningKind16Maximum;
+
+// 0x5aca50 builds a kind's [minimum, maximum] from stock CarTypeInfo bounds,
+// with extras removed at nesting depth zero. Most kinds widen +-100000 with
+// 0x591320 and then apply the selected entry; kinds 1/5, 10..16 and 19/20
+// bypass the entry, and engine kinds 23/24 clamp both ends at zero.
+void PhysicsTuning::GetRange(int index, float *minimum, float *maximum, int component, bool average) {
+    if (valueE4 == 0) {
+        PhysicsUpgradeSource *removal = reinterpret_cast<PhysicsUpgradeSource *>(carTypeInfoTable + value0 * 0x890 + 0x110);
+        removal->RemoveExtra(recordC, selection8);
+    }
+    ++valueE4;
+    float *source = reinterpret_cast<float *>(carTypeInfoTable + value0 * 0x890 + 0x110);
+    float range[2];
+    range[0] = 100000.0f;
+    range[1] = -100000.0f;
+    bool apply = true;
+    switch (index) {
+    case 0: case 4:
+        ExpandPhysicsTuningRange(range, source[0x174 / 4]);
+        ExpandPhysicsTuningRange(range, source[0x194 / 4]);
+        ExpandPhysicsTuningRange(range, source[0x5c4 / 4]);
+        ExpandPhysicsTuningRange(range, source[0x5e4 / 4]);
+        break;
+    case 1: case 5:
+        GetPairRange(index, component, average, &range[0], &range[1]);
+        apply = false;
+        break;
+    case 2: case 6:
+        ExpandPhysicsTuningRange(range, source[0x180 / 4]);
+        ExpandPhysicsTuningRange(range, source[0x1a0 / 4]);
+        ExpandPhysicsTuningRange(range, source[0x5d0 / 4]);
+        ExpandPhysicsTuningRange(range, source[0x5f0 / 4]);
+        break;
+    case 3: case 7:
+        ExpandPhysicsTuningRange(range, -source[0x604 / 4]);
+        ExpandPhysicsTuningRange(range, -source[0x608 / 4]);
+        ExpandPhysicsTuningRange(range, 0.0f);
+        break;
+    case 8:
+        ExpandPhysicsTuningRange(range, source[0x270 / 4]);
+        ExpandPhysicsTuningRange(range, source[0x5bc / 4]);
+        break;
+    case 9:
+        ExpandPhysicsTuningRange(range, source[0x1b8 / 4]);
+        ExpandPhysicsTuningRange(range, source[0x3d8 / 4]);
+        break;
+    case 10: case 11: case 12: case 13: case 14: case 15:
+        range[0] = GetGearValue(physicsTuningGearLowInput, false);
+        range[1] = GetGearValue(physicsTuningGearHighInput, false);
+        apply = false;
+        break;
+    case 16:
+        range[0] = 1.0f;
+        range[1] = physicsTuningKind16Maximum;
+        apply = false;
+        break;
+    case 17:
+        range[0] = 0.1f;
+        range[1] = 0.9f;
+        break;
+    case 18:
+        range[0] = 0.0f;
+        range[1] = 1.0f;
+        break;
+    case 19: case 20:
+        GetBalanceRange(index, component, average, &range[0], &range[1]);
+        apply = false;
+        break;
+    case 21: case 22:
+        ExpandPhysicsTuningRange(range, source[0x264 / 4]);
+        ExpandPhysicsTuningRange(range, (float)(((double)source[0x5a0 / 4] + source[0x590 / 4]) + source[0x264 / 4]));
+        ExpandPhysicsTuningRange(range, source[0x268 / 4]);
+        ExpandPhysicsTuningRange(range, (float)(((double)source[0x5a4 / 4] + source[0x594 / 4]) + source[0x268 / 4]));
+        break;
+    case 23: case 24:
+        for (int i = 0; i < 9; ++i) {
+            float low;
+            float high;
+            if (index == 23) {
+                low = source[0x200 / 4 + i];
+                high = (float)(((double)source[0x4e0 / 4 + i] + source[0x420 / 4 + i]) + low);
+            } else {
+                low = source[0x224 / 4 + i];
+                high = source[0x510 / 4 + i];
+            }
+            ExpandPhysicsTuningRange(range, low);
+            ExpandPhysicsTuningRange(range, high);
+        }
+        ApplyEntry(index, &range[0], &range[1]);
+        range[0] = 0.0f > range[0] ? 0.0f : range[0];
+        range[1] = 0.0f > range[1] ? 0.0f : range[1];
+        apply = false;
+        break;
+    }
+    if (apply) ApplyEntry(index, &range[0], &range[1]);
+    *minimum = range[0];
+    *maximum = range[1];
+    if (--valueE4 == 0) {
+        PhysicsUpgradeSource *application = reinterpret_cast<PhysicsUpgradeSource *>(carTypeInfoTable + value0 * 0x890 + 0x110);
+        application->ApplyExtra(recordC, selection8);
+    }
+}

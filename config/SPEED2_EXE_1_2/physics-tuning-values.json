@@ -1,6 +1,6 @@
 {
   "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
-  "note": "GetField, GetValue, ConvertUnits and GetLinkedExtreme sizes include their trailing jump tables.",
+  "note": "GetField, GetValue, ConvertUnits, GetLinkedExtreme and GetRange sizes include their trailing jump tables.",
   "functions": [
     {
       "address": 5877472,
@@ -103,6 +103,24 @@
       "size": 73,
       "sha256": "1974914d384552f5518b573f5bee951ac4c2f874a278552c126f222adaa8a7b7",
       "method": "EngineRemapClamped"
+    },
+    {
+      "address": 5950032,
+      "size": 1057,
+      "sha256": "9f1e6f47bb222a5bb25144c51fd67f951cb70c55de73264e49e7fb0e4639fee7",
+      "method": "GetRange"
+    },
+    {
+      "address": 5949824,
+      "size": 200,
+      "sha256": "206dd952f9f3b45520c7540c8d7e1b45d101aecc79c179a22bf3ee12381c9bec",
+      "method": "FindPhysicsCurvePeak"
+    },
+    {
+      "address": 5727440,
+      "size": 138,
+      "sha256": "0b2593774ad52b8e54ebad8bb77708fa9e7b72f5c1805b7614866eea8bece4c7",
+      "method": "Lookup"
     }
   ],
   "dependencies": [

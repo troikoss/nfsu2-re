@@ -298,6 +298,7 @@ struct PhysicsTuning {
     double GetGearValue(float value, bool inverse); // 0x59b5c0
     float GetSign(int index); // 0x59b6c0
     float GetLinkedExtreme(int index, int component); // 0x5a79f0
+    void GetRange(int index, float *minimum, float *maximum, int component, bool average); // 0x5aca50
     void GetBalanceRange(int index, int component, bool average, float *minimum, float *maximum); // 0x5a7b80
     void GetPairRange(int index, int component, bool average, float *minimum, float *maximum); // 0x5a7cb0
     void NormalizeEngine(float total); // 0x59b3c0
@@ -305,6 +306,7 @@ struct PhysicsTuning {
 };
 UG2_CHECK_SIZE(PhysicsTuning, 0xe8);
 void ExpandPhysicsTuningRange(float *range, float value); // 0x591320
+float FindPhysicsCurvePeak(float *samples, int count, float start, float end, float *peakAt); // 0x5ac980
 
 // Original 0x5ac6e0/0x5b4dc0/0x5b5930 operate on PhysicsInfo +0x10.
 // Keep this subobject explicit: its record +0x30 is outer object +0x40.

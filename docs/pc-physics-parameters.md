@@ -240,6 +240,20 @@ Range and limit helpers used by the tuning bounds code are also recovered:
 - Range widening `0x591320` (53 bytes) and the shared clamped linear remap
   `0x401790` (73 bytes, `EngineMath.cpp`, also used outside tuning).
 
+The per-kind range builder `0x5aca50` (978 bytes plus jump tables) is
+recovered as `PhysicsTuning::GetRange`. Like the value reader it removes
+extras at nesting depth zero and reapplies them afterwards. Most kinds start
+from [100000, -100000], widen with `0x591320` over stock CarTypeInfo fields
+and their upper-bound copies, then apply the selected entry. Kinds 1/5 and
+19/20 use the pair/balance ranges; 10..15 evaluate `0x59b5c0` at constants
+`0x7a1ad4`/`0x7a1ad0`; 16 is [1, 11]; 17 and 18 start at [0.1, 0.9] and
+[0, 1]; 3/7 widen with negated +0x604/+0x608 and zero; engine kinds 23/24
+widen over nine samples, apply the entry and clamp both ends at zero. Curve
+peak `0x5ac980` (200 bytes) scans a sample curve with recovered lookup
+`0x5764d0` in 50-unit steps for the largest `lookup * 1000 * x * 0.000104712`
+product and its position. MSVC 7.1 `/Op` leaves `float` returns unspilled,
+so `EngineCurve::Lookup` keeps its float signature.
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
@@ -256,11 +270,17 @@ kind and component, ties and NaN), 2,268 each for balance and pair ranges on
 46 retail rows with entries for kinds 1/5/19/20, 729 range widenings and
 4,500 clamped remaps (equal and inverted ranges). Range selection is checked
 for components 0/1 only, because larger components read adjacent stack
-slots. The total is **183,283** bit-identical comparisons. The
+slots. A further 16,560 range-builder cases (every kind -2..26 and 128, two
+depths, distinct and aliased outputs, random extra flags and entries on 46
+retail rows) and 480 curve-peak cases (counts 1..64, empty/inverted spans,
+NaN and null outputs, three precisions) bring the total to **200,323**
+bit-identical comparisons. Recovered lookup `0x5764d0` executes on the rebuilt
+side. The
 lookup and minimum helper execute as recovered source on the rebuilt side;
 `__ftol2` is original runtime code on both sides. Mutations of the gear blend
-upper bound, offset-store clamps, a balance-range entry kind and the
-linked-extreme comparison were each detected.
+upper bound, offset-store clamps, a balance-range entry kind, the
+linked-extreme comparison, the peak comparison and one range-builder field
+offset were each detected.
 
 ## Mode variants
 

@@ -21,11 +21,12 @@ SAVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 
 
 FLOATING = ('GetOffset', 'GetValue', 'ConvertUnits', 'GetGearValue', 'GetSign', 'EngineMaximum', 'EngineMinimum',
-            'GetLinkedExtreme', 'EngineRemapClamped')
+            'GetLinkedExtreme', 'EngineRemapClamped', 'FindPhysicsCurvePeak')
 # Bytes of stack arguments removed by the callee.
 CLEANUP = dict(GetOffset=8, GetField=12, NormalizeEngine=4, GetValue=8, SetOffset=12, IsActive=4, ApplyEntry=12,
                ConvertUnits=12, GetGearValue=8, GetSign=4, EngineMaximum=0, EngineMinimum=0, GetLinkedExtreme=8,
-               GetBalanceRange=20, GetPairRange=20, ExpandPhysicsTuningRange=0, EngineRemapClamped=0)
+               GetBalanceRange=20, GetPairRange=20, ExpandPhysicsTuningRange=0, EngineRemapClamped=0,
+               GetRange=20, FindPhysicsCurvePeak=0)
 
 
 def original_symbols():
@@ -66,7 +67,7 @@ def main():
     BUILD.mkdir(parents=True, exist_ok=True)
     source = BUILD / 'tuning-values-analysis.cpp'
     source.write_text(''.join('#include "' + str(ROOT / 'src/Speed/Indep/Src/Physics' / (unit + '.cpp')) + '"\n'
-                              for unit in ('PhysicsRecordExtra', 'PhysicsTuningSelection', 'EngineMath', 'PhysicsTuningValues')))
+                              for unit in ('PhysicsRecordExtra', 'PhysicsTuningSelection', 'EngineMath', 'EngineCurve', 'PhysicsTuningValues')))
     obj = BUILD / 'tuning-values-analysis.obj'
     subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo',
                     '/c', '/Ox', '/Op', '/Ob0', '/Z7', '/EHsc', '/Fo' + str(obj.relative_to(ROOT)),
@@ -343,6 +344,44 @@ def main():
                         for control in (CONTROLS if trial < 4 else CONTROLS[:1]):
                             compare(method, state, (index, component, average, OUT - 0x100, OUT - 0xfc), TUNING, control,
                                     table=ROWS + 0x1800 + 0x890, count=12 if trial % 5 else 0)
+
+    # Curve peak: 50-unit scan, empty and inverted spans, count 1, NaN and null output.
+    rng = random.Random(0x5ac980)
+    for control in CONTROLS:
+        for trial in range(160):
+            state = bytearray(0x8000)
+            count = (1, 2, 9, 16, 64)[trial % 5]
+            for i in range(64):
+                struct.pack_into('<f', state, ROWS - BASE + 4 * i, rng.choice(specials[:8]) if trial % 9 == 0 else rng.uniform(-50, 500))
+            start = (0.0, 1000.0, rng.uniform(0, 2000), 5000.0, nan, -100.0)[trial % 6]
+            end = (9500.0, 1000.0, rng.uniform(0, 9000), 4000.0, 7000.0, 25.0)[(trial // 6) % 6]
+            output = (OUT - 0x100, 0)[trial % 4 == 3]
+            compare('FindPhysicsCurvePeak', state, (ROWS, count, bits(start), bits(end), output), 0, control)
+
+    # Range construction: every kind on retail rows, entries, depths and aliasing.
+    rng = random.Random(0x5aca50)
+    for trial, row in enumerate(rows):
+        state = bytearray(b'\xa5' * 0x8000)
+        state[ROWS - BASE + 0x890 + 0x110:ROWS - BASE + 0x890 + 0x890] = row
+        state[RECORD - BASE:RECORD - BASE + 0x2b0] = rows[(trial + 1) % len(rows)][:0x2b0]
+        state[SELECTION - BASE:SELECTION - BASE + 0x94] = bytes(0x94)
+        mask = rng.randrange(256)
+        for bit, flag in enumerate(flags):
+            struct.pack_into('<I', state, SELECTION - BASE + 0x28 + 4 * flag, 1 if mask & (1 << bit) else 0)
+        for i in range(68):
+            state[SELECTION - BASE + 0x50 + i] = rng.randrange(2)
+        for i in range(30):
+            struct.pack_into('<ibbBBff', state, ROWS - BASE + 0x2200 + i * 0x18, i % 68, rng.randrange(-2, 3), i % 25,
+                             rng.choice((0, 1, 2, 3, 4, 7)), 0xa5,
+                             rng.choice(specials[:8] + [rng.uniform(-1, 1)]), rng.choice(specials[:8] + [rng.uniform(-1, 1)]))
+        for depth in (0, 2):
+            struct.pack_into('<iiII', state, TUNING - BASE, 1, rng.choice((0, 1)), SELECTION, RECORD)
+            struct.pack_into('<i', state, TUNING - BASE + 0xe4, depth)
+            for index in list(range(-2, 27)) + [128]:
+                for component, average in ((0, 0), (1, 0), (0, 1)):
+                    for pair in ((OUT - 0x100, OUT - 0xfc), (OUT - 0x100, OUT - 0x100)):
+                        compare('GetRange', state, (index, pair[0], pair[1], component, average), TUNING,
+                                table=ROWS + 0x2200, count=30 if trial % 7 else 0)
 
     report = dict(executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,
                   byte_matching='not established', controlled_interfaces=[],
