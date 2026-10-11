@@ -127,6 +127,12 @@
       "size": 554,
       "sha256": "3368521dea0d6e218e1b428176cc08393b76b43e55701263c81e428d4882b3c0",
       "method": "GetDisplayRange"
+    },
+    {
+      "address": 5974016,
+      "size": 373,
+      "sha256": "0c13ff6929113e7ae3076ec1047cfe0f2f51b26d80ffb50533a5a7a69834337d",
+      "method": "MapValue"
     }
   ],
   "dependencies": [

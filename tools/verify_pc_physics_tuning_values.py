@@ -21,12 +21,12 @@ SAVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 
 
 FLOATING = ('GetOffset', 'GetValue', 'ConvertUnits', 'GetGearValue', 'GetSign', 'EngineMaximum', 'EngineMinimum',
-            'GetLinkedExtreme', 'EngineRemapClamped', 'FindPhysicsCurvePeak')
+            'GetLinkedExtreme', 'EngineRemapClamped', 'FindPhysicsCurvePeak', 'MapValue')
 # Bytes of stack arguments removed by the callee.
 CLEANUP = dict(GetOffset=8, GetField=12, NormalizeEngine=4, GetValue=8, SetOffset=12, IsActive=4, ApplyEntry=12,
                ConvertUnits=12, GetGearValue=8, GetSign=4, EngineMaximum=0, EngineMinimum=0, GetLinkedExtreme=8,
                GetBalanceRange=20, GetPairRange=20, ExpandPhysicsTuningRange=0, EngineRemapClamped=0,
-               GetRange=20, FindPhysicsCurvePeak=0, GetDisplayRange=20)
+               GetRange=20, FindPhysicsCurvePeak=0, GetDisplayRange=20, MapValue=12)
 
 
 def original_symbols():
@@ -386,6 +386,12 @@ def main():
                                 table=ROWS + 0x2200, count=30 if trial % 7 else 0)
                         compare('GetDisplayRange', state, (index, pair[0], pair[1], component, average), TUNING,
                                 table=ROWS + 0x2200, count=30 if trial % 7 else 0)
+                if 0 <= index <= 24:
+                    for value in (0.0, 0.5, -1.0, rng.uniform(-50, 50), rng.uniform(0, 9000), nan):
+                        for toDisplay in (0, 1):
+                            for control in ((0x027f, 0x037f) if trial < 6 else (0x027f,)):
+                                compare('MapValue', state, (index, bits(value), toDisplay), TUNING, control,
+                                        table=ROWS + 0x2200, count=30 if trial % 7 else 0)
 
     report = dict(executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,
                   byte_matching='not established', controlled_interfaces=[],

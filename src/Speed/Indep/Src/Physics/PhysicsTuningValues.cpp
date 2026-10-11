@@ -464,3 +464,35 @@ void PhysicsTuning::GetDisplayRange(int index, float *minimum, float *maximum, i
     }
     if (*minimum == *maximum) *maximum = (float)((double)*maximum + physicsTuningHundredth);
 }
+
+// 0x5b2800 maps a kind's value to its display scale or back through the
+// clamped linear remap 0x401790. Gear kinds map through 0x59b5c0 instead;
+// their upper bound stays unspilled for the ordering comparison.
+double PhysicsTuning::MapValue(int index, float value, bool toDisplay) {
+    float minimum;
+    float maximum;
+    GetRange(index, &minimum, &maximum, 0, true);
+    if (FindPhysicsTuningEntry(index, selection8) != 0 && minimum == maximum)
+        maximum = (float)((double)maximum + physicsTuningHundredth);
+    float displayMinimum;
+    float displayMaximum;
+    GetDisplayRange(index, &displayMinimum, &displayMaximum, 0, true);
+    if (index >= 10 && index <= 15) {
+        if (toDisplay) {
+            float gear = (float)GetGearValue(value, toDisplay);
+            float lower = (float)GetGearValue(minimum, toDisplay);
+            minimum = lower;
+            double upper = GetGearValue(maximum, toDisplay);
+            maximum = (float)upper;
+            if (lower > upper) {
+                minimum = (float)upper;
+                maximum = lower;
+            }
+            return EngineRemapClamped(gear, minimum, maximum, displayMinimum, displayMaximum);
+        }
+        value = (float)ConvertUnits(index, value, false);
+        return GetGearValue(value, false);
+    }
+    if (toDisplay) return EngineRemapClamped(value, minimum, maximum, displayMinimum, displayMaximum);
+    return EngineRemapClamped(value, displayMinimum, displayMaximum, minimum, maximum);
+}

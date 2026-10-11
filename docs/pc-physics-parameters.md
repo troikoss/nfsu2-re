@@ -262,6 +262,15 @@ recovered source calls `ConvertUnits` there. Ends are ordered, and equal ends
 always separate by 0.01. Its unconverted intermediate store is kept but is
 only observable if an output aliases tuning +4.
 
+Value mapping `0x5b2800` (373 bytes) converts between a kind's internal range
+(averaged `0x5aca50`, separated by 0.01 when an entry makes it empty) and
+its display range (`0x5b09a0`) with `0x401790` in either direction. Gear
+kinds instead map through `0x59b5c0`: to display, the value and both bounds
+are converted and ordered, comparing against the unspilled upper result;
+from display, the value is converted back with `0x59b4a0` and passed to
+`0x59b5c0` unscaled. The unspilled ordering comparison is not distinguished
+by the current fixtures.
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
@@ -283,7 +292,9 @@ depths, distinct and aliased outputs, random extra flags and entries on 46
 retail rows) and 480 curve-peak cases (counts 1..64, empty/inverted spans,
 NaN and null outputs, three precisions) and 16,560 display-range cases
 (entries with and without -99.99 overrides, three selection values) bring
-the total to **216,883** bit-identical comparisons. Recovered lookup `0x5764d0` executes on the rebuilt
+the total to **216,883** bit-identical comparisons. Value mapping adds 31,200
+cases (kinds 0..24, both directions, NaN and out-of-range values, 53/64-bit
+precision), for **248,083** in all. Recovered lookup `0x5764d0` executes on the rebuilt
 side. The
 lookup and minimum helper execute as recovered source on the rebuilt side;
 `__ftol2` is original runtime code on both sides. Mutations of the gear blend
