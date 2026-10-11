@@ -1,0 +1,59 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 5949152,
+      "size": 227,
+      "sha256": "ddac614090449bed9e1f3208f7185071225d80f0cc868a3f0964f24beb34844d",
+      "symbol_prefix": "?Construct@PhysicsParameters"
+    },
+    {
+      "address": 5929328,
+      "size": 127,
+      "sha256": "86731945c85afc1973f360a0fa1ed5ff8725221e52f6af3a0eecf732ae6c70e5",
+      "symbol_prefix": "?Construct@PhysicsTuning"
+    },
+    {
+      "address": 5923616,
+      "size": 221,
+      "sha256": "da4e1d0f19753f25fe45db0dada2dd43b75318a7044ddc5cc92850ca7bb38aea",
+      "symbol_prefix": "?SetItem@PhysicsUpgradeSelection"
+    },
+    {
+      "address": 5871232,
+      "size": 48,
+      "sha256": "00a1e32bfccf405477d27ff8113fdb5c3c1bb3cc7630966e75f624d42a178800",
+      "symbol_prefix": "?SetIndex@PhysicsUpgradeSelection"
+    },
+    {
+      "address": 5923840,
+      "size": 72,
+      "sha256": "02d06fa1cfec682ed3aeb4f7f7273f276e55e42587e340213f74f23feda29c4b",
+      "symbol_prefix": "?SetGroup@PhysicsUpgradeSelection"
+    },
+    {
+      "address": 5923920,
+      "size": 76,
+      "sha256": "26a6fd9f488d4ec379c72a4db5d33797871fd3042f4051778a137bf7168ab5b6",
+      "symbol_prefix": "?ClearGroups@PhysicsUpgradeSelection"
+    },
+    {
+      "address": 5242992,
+      "size": 6,
+      "sha256": "b3e5fbbf3218a443b5915f45b90c8d73bece4a0733a14be6bbdb392aff8db8a7",
+      "symbol_prefix": "?GetPhysicsUpgradeGroupCount@@"
+    },
+    {
+      "address": 5243008,
+      "size": 19,
+      "sha256": "0f41197c3383e90f3480466fbcc10e3539428bad233fc4ef3c0c7e7164495748",
+      "symbol_prefix": "?GetPhysicsUpgradeGroup@@"
+    },
+    {
+      "address": 5243216,
+      "size": 12,
+      "sha256": "5151f60499a1abf8ca1db69b019fd981e9b96a6fd041393d5210e2edd99cd2e2",
+      "symbol_prefix": "?GetPhysicsUpgradeItem@@"
+    }
+  ]
+}

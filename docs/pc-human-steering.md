@@ -74,6 +74,6 @@ Maximum-angle helper `0x405dc0` additionally uses physics speed helper `0x5b5930
 car-body signed angle `0x59fa10`, clock-sensitive feedback and several curves.
 The [physics helper and drive curve](pc-physics-parameters.md) are now recovered
 and verified. Native uses the corrected +0x10 parameter subobject and 0x580-byte
-allocation. Refresh `0x5b4fc0`, composition `0x5b4dc0` and construction remain
-unresolved. Recover and populate that original composition before integrating
+allocation. The parameter constructor is recovered and integrated. Refresh `0x5b4fc0`,
+composition `0x5b4dc0` and tuning application remain unresolved. Recover and populate that original composition before integrating
 the full steering chain.

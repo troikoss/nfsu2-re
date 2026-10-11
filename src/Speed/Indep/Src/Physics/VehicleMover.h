@@ -4,6 +4,7 @@
 #include "Collision/Collision.h"
 #include "Drivetrain.h"
 #include "Engine.h"
+#include "PhysicsUpgrades.h"
 #include "Ug2Layout.h"
 
 struct Engine;
@@ -13,7 +14,9 @@ class VehicleIntegrator;
 // Body record at car record +0x110: mass, inertia matrix and inertia Z scale.
 struct MoverBodySpec {
     float mass0;
-    char unidentified4[0xc];
+    float value4;
+    float value8;
+    float valueC;
     WheelMatrix inertia10;
     float inertiaScale50;
     char unidentified54[0xc];
@@ -272,6 +275,23 @@ struct MoverOwnerObject {
     bool IsRunning();
 };
 
+// Original 0x5a7970; tuning fields remain offset-based until identified.
+struct PhysicsTuning {
+    int value0;
+    int value4;
+    PhysicsUpgradeSelection *selection8;
+    CarPhysicsRecord *recordC;
+    int value10;
+    unsigned char values14[41];
+    char unidentified3D[3];
+    float values40[23];
+    float values9C[9];
+    float valuesC0[9];
+    int valueE4;
+    PhysicsTuning *Construct();
+};
+UG2_CHECK_SIZE(PhysicsTuning, 0xe8);
+
 // Original 0x5ac6e0/0x5b4dc0/0x5b5930 operate on PhysicsInfo +0x10.
 // Keep this subobject explicit: its record +0x30 is outer object +0x40.
 struct PhysicsParameters {
@@ -281,18 +301,24 @@ struct PhysicsParameters {
     float value8;
     char unidentifiedC[4];
     float value10;
-    char unidentified14[0x1c];
+    float value14;
+    float value18;
+    float value1C;
+    float value20;
+    char unidentified24[0xc];
     CarPhysicsRecord record30;
-    float upgrades2E0[10];
-    char unidentified308[0x154];
+    PhysicsUpgradeSelection selection2E0;
+    PhysicsTuning tuning374;
     float curveSamples45C[64];
     EngineCurve driveCurve55C;
+    PhysicsParameters *Construct(); // 0x5ac6e0
     void Compose(int mode, char refresh, char flag);
     void Refresh(int refresh, int flag, char select);
     float GetPhysicsSpeed(); // 0x5b5930
 };
 UG2_CHECK_OFFSET(PhysicsParameters, record30, 0x30);
-UG2_CHECK_OFFSET(PhysicsParameters, upgrades2E0, 0x2e0);
+UG2_CHECK_OFFSET(PhysicsParameters, selection2E0, 0x2e0);
+UG2_CHECK_OFFSET(PhysicsParameters, tuning374, 0x374);
 UG2_CHECK_OFFSET(PhysicsParameters, driveCurve55C, 0x55c);
 UG2_CHECK_SIZE(PhysicsParameters, 0x570);
 

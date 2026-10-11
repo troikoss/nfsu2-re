@@ -385,6 +385,7 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
                          int errorSize) {
     memset(vehicle, 0, sizeof(*vehicle));
     PhysicsInfo *info = static_cast<PhysicsInfo *>(calloc(1, sizeof(PhysicsInfo)));
+    info->parameters10.Construct();
     int carIndex = 0;
     char carTypeName[32];
     if (!LoadStockRecord(gameDirectory, carName, &info->parameters10.record30, &vehicle->cameraSettings, &carIndex, carTypeName,
@@ -392,7 +393,11 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
         return false;
     }
     info->parameters10.value0 = carIndex;
+    // Native stock-record entry seam: full 0x5b4dc0 upgrade/tuning composition
+    // and its computed class index remain unresolved. Keep the recovered
+    // constructor and drive-curve builder instead of inventing their fields.
     info->parameters10.index4 = 0;
+    BuildPhysicsDriveCurve(&info->parameters10.driveCurve55C, &info->parameters10);
     MoverModeOwner *owner = static_cast<MoverModeOwner *>(calloc(1, 0xa00));
     owner->physicsInfo10 = info;
     owner->context14 = static_cast<MoverContext *>(calloc(1, 0x910));

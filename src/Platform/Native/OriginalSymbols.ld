@@ -652,3 +652,6 @@ resolution870D1C = 0x870d1c;
 resolutions86E880 = 0x86e880;
 levelOfDetail87099C = 0x87099c;
 displayChanged8709D1 = 0x8709d1;
+physicsUpgradeGroupCount8383FC = 0x8383fc;
+physicsUpgradeGroups8383F8 = 0x8383f8;
+physicsUpgradeItems837B90 = 0x837b90;

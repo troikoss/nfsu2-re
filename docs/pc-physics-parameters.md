@@ -31,21 +31,41 @@ subobject addresses to mover, HUD and parameter methods. Unknown fields remain
 offset-based.
 
 `VehicleStateExport` retains the original read at outer +0x2f4 (`0x5a5968`):
-this is inner `upgrades2E0[1]`, rather than the previous mislocated array's
+this is inner `selection2E0.values0[1]`, rather than the previous mislocated array's
 index 5. This correction preserves the absolute access address.
 
-The drive-curve and speed methods are compiled into the demo but are **not yet
-called by its partial vehicle construction or steering**. Original construction
-`0x5ac6e0`, record/upgrade composition `0x5b4dc0`, refresh `0x5b4fc0`, tuning and
-mode variants remain unresolved. Native still loads a stock record and assigns
-index zero as a documented construction seam. The allocation correction does
-not make that composition complete. Native traps retain unresolved method
-boundaries; no missing fields are synthesized to force the steering chain to run.
+## Constructor and upgrade selection
+
+`PhysicsParameters.cpp` recovers the parameter constructor `0x5ac6e0` (227 bytes)
+and tuning constructor `0x5a7970` (127 bytes). It preserves partial initialization:
+unknown bytes and padding are not cleared by the recovered methods. The original
+64-sample curve starts with 63 values of four and a final zero, with exact immediate
+endpoint/inverse-spacing values. Tuning defaults retain the original 100-valued
+bytes, zero float blocks, pointers and sentinel values.
+
+`PhysicsUpgrades.cpp` recovers selection `0x5a6320`, index selection `0x599680`,
+group selection `0x5a6400`, group clearing `0x5a6450`, and accessors `0x500070`,
+`0x500080`, `0x500150`. Chunk 0x34a15 has 0x17c-byte groups containing four
+0x5c-byte items. Selection preserves the already-selected early return,
+prerequisite recursion, exclusion order, changed-count arithmetic and low-byte
+boolean arguments. It retains direct indexing rather than inventing validation.
+Unknown descriptor fields remain offset-based. The 0x94-byte selection object
+belongs at parameter +0x2e0, and the 0xe8-byte tuning object at +0x374.
+
+Native construction now calls the recovered constructor before loading its stock
+record, then the recovered drive-curve builder. The physics speed method is not
+yet called by steering. Record/upgrade composition `0x5b4dc0`, refresh `0x5b4fc0`,
+tuning application and mode variants remain unresolved. Native still copies a
+stock record and assigns index zero as a documented construction seam; its GLOBAL
+loader does not yet install upgrade descriptors. The constructor recovery does
+not establish full original record composition. Native traps retain the unresolved
+method boundaries.
 
 ## Verification
 
 ```sh
 build/venv/bin/python tools/verify_pc_physics_parameters.py
+build/venv/bin/python tools/verify_pc_physics_construction.py
 cmake --build build/native -j2
 python tools/smoke_native_driving.py
 ```
@@ -65,7 +85,19 @@ invalid-index fixtures; they do not mutate the object, and their caller register
 are clobbered. Their mechanics are not verified by this test. Generated results
 stay under `build/analysis/physics-parameters/`.
 
-Native build and forward/reverse driving smoke checks pass with the corrected
-layout. Finite stock fixtures do not cover arbitrary upgrade combinations,
+The constructor/upgrade verifier pins nine original function bodies in
+`physics-construction.json`. On 2026-10-11, **12,928 comparisons** were bit-identical:
+128 cases each for parameter/tuning constructors and three accessors, and 3,072
+cases each for four selection methods. Both sides execute their complete covered
+callee chains. No controlled interfaces are used. Fixtures cover four synthetic
+groups, null item lookups, filtered/all-group clearing, partial initial byte
+patterns, stateful enabling/disabling, acyclic prerequisites, exclusions and
+low-byte argument behavior. It compares full guarded state and descriptor/table
+buffers, integer/pointer returns, stack cleanup and preserved registers. Reports
+remain under `build/analysis/physics-construction/`. Cyclic prerequisites,
+malformed indices/counts and chunk loading are excluded.
+
+Native build and forward/reverse driving smoke checks pass with the recovered
+constructor and curve builder integrated. Finite stock fixtures do not cover arbitrary upgrade combinations,
 malformed curves, alternate floating precision or full steering composition.
 **Byte matching is not established.**
