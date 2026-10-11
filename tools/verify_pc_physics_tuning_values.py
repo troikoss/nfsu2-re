@@ -21,14 +21,15 @@ SAVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 
 
 FLOATING = ('GetOffset', 'GetValue', 'ConvertUnits', 'GetGearValue', 'GetSign', 'EngineMaximum', 'EngineMinimum',
-            'GetLinkedExtreme', 'EngineRemapClamped', 'FindPhysicsCurvePeak', 'MapValue', 'SetValue', 'SetGearRatio')
+            'GetLinkedExtreme', 'EngineRemapClamped', 'FindPhysicsCurvePeak', 'MapValue', 'SetValue', 'SetGearRatio',
+            'GetSetting')
 # Bytes of stack arguments removed by the callee.
 CLEANUP = dict(GetOffset=8, GetField=12, NormalizeEngine=4, GetValue=8, SetOffset=12, IsActive=4, ApplyEntry=12,
                ConvertUnits=12, GetGearValue=8, GetSign=4, EngineMaximum=0, EngineMinimum=0, GetLinkedExtreme=8,
                GetBalanceRange=20, GetPairRange=20, ExpandPhysicsTuningRange=0, EngineRemapClamped=0,
                GetRange=20, FindPhysicsCurvePeak=0, GetDisplayRange=20, MapValue=12,
                LimitEngineRange=16, GetEntryLimits=20, SetValue=12, SetGearRatio=12, SetGearRatios=8,
-               SetLinkedValue=8)
+               SetLinkedValue=8, GetSetting=12, SetEngineSample=16)
 
 
 def original_symbols():
@@ -54,7 +55,7 @@ def main():
     assert hashlib.sha256(raw).hexdigest() == manifest['exe_sha256']
     image = pefile.PE(data=raw).get_memory_mapped_image()
     callees = [f for f in extra['functions'] if f['method'] in ('ApplyExtra', 'RemoveExtra', 'FindPhysicsTuningEntry')]
-    for f in manifest['functions'] + manifest['dependencies'] + callees:
+    for f in manifest['functions'] + manifest['dependencies'] + manifest['data'] + callees:
         body = image[f['address'] - 0x400000:f['address'] - 0x400000 + f['size']]
         assert hashlib.sha256(body).hexdigest() == f['sha256'], f.get('method', f.get('name'))
     constants = {0x784258: 100.0, 0x78425c: 0.009999999776482582, 0x7842a0: -1.0, 0x784250: 1.0,
@@ -76,7 +77,7 @@ def main():
                     str(source.relative_to(ROOT))], cwd=ROOT, check=True)
     externals = original_symbols()
     externals.update({'?carTypeInfoTable@@3PAEA': TABLE_POINTER, '?physicsTuningEntries@@3PAUPhysicsTuningEntry@@A': 0x86b340,
-                      '?physicsTuningEntryCount@@3HA': 0x86b344, '__ftol2': 0x75bed4, '__fltused': BASE + 0x9000})
+                      '?physicsTuningEntryCount@@3HA': 0x86b344, '?physicsTuningSpreadWeights@@3PAMA': 0x7fc674, '__ftol2': 0x75bed4, '__fltused': BASE + 0x9000})
     linked = link_objects([obj], externals)
     entries = {}
     for f in manifest['functions']:
@@ -135,7 +136,7 @@ def main():
             uc.reg_write(UC_X86_REG_EAX, 0x5a5a5a5a)
             for reg in SAVED:
                 uc.reg_write(reg, 0x12345678)
-            uc.emu_start(start, STOP, count=200000)
+            uc.emu_start(start, STOP, count=5000000)
             assert uc.reg_read(UC_X86_REG_EIP) == STOP
             assert uc.reg_read(UC_X86_REG_ESP) == expected, (method, side)
             assert all(uc.reg_read(reg) == 0x12345678 for reg in SAVED)
@@ -456,6 +457,16 @@ def main():
         for index in (16, 17, 18):
             for value in (0.0, 0.5, 1.0, rng.uniform(-2, 2), nan):
                 compare('SetLinkedValue', state, (bits(value), index), TUNING, table=ROWS + 0x2200, count=25)
+        for index in range(25):
+            for component in (range(9) if index in (23, 24) else (0,)):
+                for display in (0, 1):
+                    compare('GetSetting', state, (index, component, display), TUNING, table=ROWS + 0x2200, count=25)
+        for index in (23, 24, 0):
+            for component in (0, 1, 4, 8):
+                for value in (0.0, rng.uniform(-50, 50), rng.uniform(100, 400), rng.uniform(-0.01, 0.01), nan):
+                    for spread in (0, 1, 0x100):
+                        compare('SetEngineSample', state, (bits(value), index, component, spread), TUNING,
+                                table=ROWS + 0x2200, count=25)
 
     report = dict(executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,
                   byte_matching='not established', controlled_interfaces=[],

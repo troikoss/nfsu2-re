@@ -700,3 +700,5 @@ physicsTuningKind16Maximum = 0x7a2380;
 physicsTuningSampleSpacing = 0x788164;
 physicsTuningTorqueScale = 0x7a2384;
 physicsTuningGearGap = 0x7a1acc;
+physicsTuningSpreadWeights = 0x7fc674;
+physicsTuningSpreadThreshold = 0x7a0354;

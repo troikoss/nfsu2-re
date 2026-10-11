@@ -296,12 +296,26 @@ opposite direction. Without a selected entry the limit outputs keep the
 caller's reused argument slots; the recovered setters leave those locals
 uninitialized, and the fixtures only exercise kinds with entries there.
 
+Setting getter `0x5b3e40` (150 bytes) scales the stored offset by the entry
+limit span, adds the current setting and optionally maps it for display.
+Engine sample setter `0x5b2c00` (717 bytes) reads the nine samples of kind
+23 or 24 through `0x5a7da0`, clamps the requested sample to its limits and,
+when spreading, walks neighbours at offsets +1, -1, +2, -2, ... using the
+nine weights at `.data` `0x7fc674` (0.25, 0.25, then -0.25 six times and
+0). Each step is the weighted request limited by the remaining change (the
+comparison uses the unspilled product) and the neighbour's limits; only
+in-range neighbours advance the weight, after nine of them the remainder is
+applied whole, and the walk stops once the remainder is within 1e-7. Kind
+23 stores `+0x200 = sample + +0x224`; kind 24 keeps `+0x200 - +0x224`
+(an inlined `0x5a7da0` read; the recovered source calls it) and stores the
+samples at +0x224. Other kinds compute but write nothing.
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
 `tools/verify_pc_physics_tuning_values.py` covers every routine above with
 the fingerprints in `physics-tuning-values.json`. On 2026-10-12 it reported
-**292,553** bit-identical comparisons:
+**304,605** bit-identical comparisons:
 
 | Routine | Cases |
 | --- | ---: |
@@ -332,6 +346,8 @@ the fingerprints in `physics-tuning-values.json`. On 2026-10-12 it reported
 | `0x5b2ed0` SetGearRatio | 1,932 |
 | `0x5b3060` SetGearRatios | 1,932 |
 | `0x5b3100` SetLinkedValue | 690 |
+| `0x5b3e40` GetSetting | 3,772 |
+| `0x5b2c00` SetEngineSample | 8,280 |
 
 Fixtures use 46 retail CarTypeInfo rows as sources and perturbed records,
 random extra-flag masks, synthetic lookup tables with every entry kind,
@@ -354,7 +370,8 @@ selected entries. Byte matching is not established. Source mutations (sign of a
 source-relative difference, reapplication depth, gear blend bound, offset
 clamps, a balance-range entry kind, linked-extreme and peak comparisons, a
 range-builder field offset, display-range ordering, the value-mapping
-epsilon gate, gear-excess carry and linked-value direction) were each
+epsilon gate, gear-excess carry, linked-value direction and spread-weight
+advance) were each
 detected. The guard runs per translated block, requiring each block to lie
 inside a permitted range. NaN curve samples exposed the lookup
 truncation difference described in `pc-vehicle-physics.md`. Results stay in

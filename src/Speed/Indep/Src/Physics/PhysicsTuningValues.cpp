@@ -1,6 +1,9 @@
 #include "VehicleMover.h"
 #include "PhysicsUpgradeSource.h"
 
+extern "C" double __cdecl fabs(double);
+#pragma intrinsic(fabs)
+
 extern float physicsTuningCentre;
 extern float physicsTuningScale;
 extern float physicsTuningMinimum;
@@ -677,4 +680,83 @@ void PhysicsTuning::SetLinkedValue(float value, int index) {
     else if (other == 24) otherCurrent = valuesC0[0];
     *GetField(recordC, index, 0) = value;
     *GetField(recordC, other, 0) = (float)((double)otherCurrent - ((double)otherUpper - otherLower) * fraction);
+}
+
+// 0x5b3e40 reads a setting: its stored offset scaled by the entry-limit span
+// plus the current setting, optionally mapped for display through 0x5b2800.
+double PhysicsTuning::GetSetting(int index, int component, bool display) {
+    float current = 0.0f;
+    if (index < 23) current = values40[index];
+    else if (index == 23) current = values9C[component];
+    else if (index == 24) current = valuesC0[component];
+    float lower;
+    float upper;
+    GetEntryLimits(index, &lower, &upper, component, false);
+    float value = (float)(values14.GetOffset(index, component) * ((double)upper - lower) + current);
+    if (display) return MapValue(index, value, true);
+    return value;
+}
+
+// Original .data 0x7fc674: nine spread weights; the following words up to
+// 0x7fc6c4 only bound the walk and are not read.
+extern float physicsTuningSpreadWeights[20];
+extern float physicsTuningSpreadThreshold;
+
+// 0x5b2c00 sets engine sample `component` of kind 23 or 24 within its limits.
+// When spreading, the requested change is distributed over samples at
+// offsets +1, -1, +2, -2, ... with weights 0.25, 0.25, -0.25..., each step
+// limited by the remaining change and the neighbour's limits; after nine
+// in-range steps the remainder is applied whole. Kind 23 stores samples as
+// +0x200 = sample + +0x224; kind 24 keeps +0x200 - +0x224 (read through
+// 0x5a7da0, inlined in the original) and stores samples at +0x224.
+void PhysicsTuning::SetEngineSample(float value, int index, int component, bool spread) {
+    float samples[9];
+    for (int i = 0; i < 9; ++i) samples[i] = (float)GetValue(index, i);
+    float delta = (float)((double)value - samples[component]);
+    float remaining = delta;
+    float lower;
+    float upper;
+    GetEntryLimits(index, &lower, &upper, component, false);
+    float limited = value > lower ? value : lower;
+    samples[component] = upper < limited ? upper : limited;
+    if (delta == 0.0f) return;
+    if (fabs(delta) > physicsTuningSpreadThreshold) {
+        float *weight = physicsTuningSpreadWeights;
+        int offset = 0;
+        while (weight < physicsTuningSpreadWeights + 20 && spread) {
+            float step = -remaining;
+            if (weight < physicsTuningSpreadWeights + 9) {
+                double product = (double)delta * *weight;
+                step = (float)product;
+                if (remaining > 0.0f) {
+                    if (!(product < remaining)) step = remaining;
+                } else if (!(product > remaining)) step = remaining;
+            }
+            offset = -offset;
+            if (offset >= 0 && ++offset >= 9) offset = 1;
+            int neighbour = component + offset;
+            if (neighbour < 9 && neighbour >= 0) {
+                GetEntryLimits(index, &lower, &upper, neighbour, false);
+                double next = (double)step + samples[neighbour];
+                if (!(next > lower)) next = lower;
+                if (upper < next) next = upper;
+                ++weight;
+                remaining = (float)((next - samples[neighbour]) + remaining);
+                samples[neighbour] = (float)next;
+            }
+            if (!(fabs(remaining) > physicsTuningSpreadThreshold)) break;
+        }
+    }
+    if (index == 23) {
+        for (int i = 0; i < 9; ++i) {
+            float *record = reinterpret_cast<float *>(recordC);
+            *GetField(record, 23, i) = (float)((double)samples[i] + record[0x224 / 4 + i]);
+        }
+    } else if (index == 24) {
+        for (int i = 0; i < 9; ++i) {
+            float difference = (float)GetValue(23, i);
+            reinterpret_cast<float *>(recordC)[0x200 / 4 + i] = (float)((double)difference + samples[i]);
+            *GetField(recordC, 24, i) = samples[i];
+        }
+    }
 }

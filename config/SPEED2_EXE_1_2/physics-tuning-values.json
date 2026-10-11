@@ -169,6 +169,18 @@
       "size": 230,
       "sha256": "83b65696dc9f3d590be90db1665aefdf798c578ada7151bd3e9041717e939bd7",
       "method": "SetLinkedValue"
+    },
+    {
+      "address": 5979712,
+      "size": 150,
+      "sha256": "458c514b22faf35812ca9b1dbe7a3411620cae3d3356c890bd014e8bde0dafe3",
+      "method": "GetSetting"
+    },
+    {
+      "address": 5975040,
+      "size": 717,
+      "sha256": "f8dafeb6729e266e01db91dd7606bb1c54b7c1542326e11139972c006e419f5a",
+      "method": "SetEngineSample"
     }
   ],
   "dependencies": [
@@ -178,6 +190,15 @@
       "sha256": "5333b186c02836974c6f792303aeb2c00d856316b93ccbbe65f51def6ae661b4",
       "name": "__ftol2",
       "note": "MSVC runtime; executes on both sides"
+    }
+  ],
+  "data": [
+    {
+      "address": 8373876,
+      "size": 36,
+      "sha256": "ff6bf9c6fb5759f8ceff97c23e79d4e50da59e3c9e934969cf294956f2da559a",
+      "name": "physicsTuningSpreadWeights",
+      "note": "Initialized .data; nine weights"
     }
   ]
 }
