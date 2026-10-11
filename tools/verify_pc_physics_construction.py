@@ -34,7 +34,7 @@ def main():
     externals = {'?physicsUpgradeGroupCount8383FC@@3HA': 0x8383fc,
                  '?physicsUpgradeGroups8383F8@@3PAUPhysicsUpgradeGroup@@A': 0x8383f8,
                  '?physicsUpgradeItems837B90@@3PAPAUPhysicsUpgradeItem@@A': 0x837b90,
-                 '__fltused': BASE + 0x8000}
+                 '?physicsUpgradeGradeScale@@3MA': 0x787adc, '__fltused': BASE + 0x8000}
     linked = link_objects([obj], externals)
     entries = {}
     for f in manifest['functions']:
@@ -42,6 +42,7 @@ def main():
         assert len(matches) == 1, (f, matches)
         entries[f['address']] = (f['address'], matches[0])
     machines = []
+    visits = dict.fromkeys((0x5a61ea, 0x5a666a, 0x5a67cf, 0x5a65a1), 0)
     for side in (0, 1):
         uc = Uc(UC_ARCH_X86, UC_MODE_32)
         uc.mem_map(0x400000, (len(image) + 4095) & ~4095)
@@ -52,7 +53,11 @@ def main():
         for address, body in linked['blocks']:
             uc.mem_write(address, body)
         ranges = linked['ranges'] if side else [(f['address'], f['address'] + f['size']) for f in manifest['functions']]
-        def guard(machine, address, size, user, ranges=ranges):
+        def guard(machine, address, size, user, ranges=ranges, side=side):
+            if not side and address in visits:
+                visits[address] += 1
+            if address == STOP:
+                return
             assert any(a <= address < b for a, b in ranges), hex(address)
         uc.hook_add(UC_HOOK_CODE, guard)
         machines.append(uc)
@@ -83,8 +88,11 @@ def main():
             assert uc.reg_read(UC_X86_REG_EIP) == STOP
             assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4 + cleanup
             assert all(uc.reg_read(reg) == 0x12345678 for reg in (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP))
+            if address == 0x5a6580:
+                uc.mem_write(STOP, b'\xdd\x1d' + struct.pack('<I', BASE + 0x1000))
+                uc.emu_start(STOP, STOP + 6, count=1)
             results.append((bytes(uc.mem_read(BASE, 0x4000)), bytes(uc.mem_read(0x837b90, 68 * 4)),
-                            bytes(uc.mem_read(0x8383f8, 8)), uc.reg_read(UC_X86_REG_EAX)))
+                            bytes(uc.mem_read(0x8383f8, 8)), uc.reg_read(UC_X86_REG_EAX) if address not in (0x5a6580, 0x5a61a0) else None))
         assert results[0] == results[1], (hex(address), args, counts)
         counts[hex(address)] += 1
 
@@ -93,8 +101,11 @@ def main():
         for group in range(4):
             struct.pack_into('<i', state, GROUPS - BASE + group * 0x17c, group)
             struct.pack_into('<I', state, GROUPS - BASE + group * 0x17c + 8, trial % 5)
+            struct.pack_into('<i', state, GROUPS - BASE + group * 0x17c + 4, 1 + group % 3)
         for i, address in enumerate(addresses):
             struct.pack_into('<i', state, address - BASE, i)
+            for j in range(4):
+                struct.pack_into('<f', state, address - BASE + 0x30 + j * 4, rng.choice((-1.0, 0.0, 0.25, 0.5, 1.0, 2.0, -0.5)))
             for j in range(5):
                 struct.pack_into('<i', state, address - BASE + 0x40 + j * 4, rng.choice((-1,) + tuple(range(16))))
             for j in range(2):
@@ -115,7 +126,20 @@ def main():
         compare(0x500070, 0, (), 0)
         compare(0x500080, 0, (trial % 4,), 0)
         compare(0x500150, 0, (trial % 20,), 0)
-    report = dict(executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,
+        for value in (-1, 0, 1, 2, 3, 9):
+            for level in (-1, 0, 1, 2, 3, 4):
+                compare(0x500100, 0, (value, level), 0)
+                compare(0x5a64a0, BASE + 0x2e0, (level, value), 8)
+        for value in (0, 1, 2, 3, 5, 9):
+            for count, pointer in ((0, 0), (0, BASE + 0x1100), (2, 0), (1, BASE + 0x1100),
+                                   (2, BASE + 0x1100), (3, BASE + 0x1100), (4, BASE + 0x1100)):
+                compare(0x5a6580, BASE + 0x2e0, (value, count, pointer), 12)
+        for uc in machines:
+            uc.mem_write(BASE + 0x1200, struct.pack('<ffff', -0.5, 0.0, 0.5, 1.0))
+        for count in (-1, 0, 1, 2, 3, 4):
+            compare(0x5a61a0, 0, (BASE + 0x1200, BASE + 0x2e0, GROUPS, count), 0)
+    assert all(visits.values()), visits
+    report = dict(original_branch_visits={hex(a): count for a, count in visits.items()}, executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,
                   byte_matching='not established', controlled_interfaces=[],
                   limitations=['Finite synthetic descriptor graphs; cycles and malformed indices/counts excluded.',
                                'All covered original callees execute recovered source on the rebuilt side.',

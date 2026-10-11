@@ -66,6 +66,27 @@ loader does not yet install upgrade descriptors. The constructor recovery does
 not establish full original record composition. Native traps retain the unresolved
 method boundaries.
 
+## Upgrade grades and component weights
+
+`PhysicsUpgrades.cpp` additionally recovers two-key group lookup `0x500100`
+(70 bytes), selected component accumulation `0x5a61a0` (106 bytes), grade selection
+`0x5a64a0` (219 bytes), and fraction query `0x5a6580` (754 bytes). Grade selection
+clears matching groups even for a nonpositive requested grade, then enables
+matching items in original level/type order without prerequisite recursion.
+Group lookup returns the first match of the two observed integer keys.
+
+Item components start at +0x30. Accumulation skips the exact binary32 -1.0 bit
+pattern and stores each sum as binary32. Fraction query selects default component
+counts 3 for kinds 1/5, 2 for kind 9, and 1 otherwise when count/output is absent.
+It zeroes the output, accumulates selected groups at levels 1–3, and computes a
+mean. Only an out-of-range mean triggers component clamping and a second average.
+That second pass uses the binary32 reciprocal stored during the first pass.
+The unrounded mean survives as the x87 return value, while the separately clamped
+mean times `0x787adc` is stored in the selection's grade array. A double return
+preserves that observed 53-bit value for the later original record modifiers.
+These helpers await the enclosing upgrade/record-composition chain before native
+use; native construction only calls the previously recovered clearing path.
+
 ## Mode variants
 
 `PhysicsVariants.cpp` recovers shared application `0x5a7530` (540 bytes) and
@@ -136,6 +157,18 @@ no controlled interfaces. Generated reports remain in
 `build/analysis/physics-variants/`. NaNs, arbitrary malformed records and alternate
 floating precision are excluded. MSVC uses `/Op` for the variant unit and the
 existing `/Ox` configuration for the separately compiled matrix dependency.
+
+The expanded constructor/upgrade verifier now passes **28,288 bit-identical
+comparisons**. In addition to the original 12,928 cases it covers 4,608 two-key
+lookups, 4,608 grade selections, 768 accumulations and 5,376 fraction queries.
+Fraction returns are stored and compared as binary64 to check the surviving
+unrounded mean. Cases cover count/pointer defaulting, counts 1–4, -1.0 component
+sentinels, selected/unselected items, first-match lookup, filtered clearing and
+out-of-range weights. Original branch counters confirm 256 second clamp/average
+passes and 2,304 default-count entries, with 3,294 selected component writes.
+All covered callees execute recovered source, with no controlled interfaces.
+Fixtures exclude malformed counts/indices, cyclic prerequisites, NaNs and
+alternate FPU precision; finite coverage is not full upgrade-composition proof.
 
 Native build and forward/reverse driving smoke checks pass with the recovered
 constructor and curve builder integrated. Finite stock fixtures do not cover arbitrary upgrade combinations,

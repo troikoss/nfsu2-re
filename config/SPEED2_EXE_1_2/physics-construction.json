@@ -54,6 +54,30 @@
       "size": 12,
       "sha256": "5151f60499a1abf8ca1db69b019fd981e9b96a6fd041393d5210e2edd99cd2e2",
       "symbol_prefix": "?GetPhysicsUpgradeItem@@"
+    },
+    {
+      "address": 5243136,
+      "size": 70,
+      "sha256": "8e391dbab522479131ddd96e204f53641c2b5ccaee048cc0c2a20f66aba50d00",
+      "symbol_prefix": "?FindPhysicsUpgradeGroup@@"
+    },
+    {
+      "address": 5923232,
+      "size": 106,
+      "sha256": "d1562dad7b8a4c1ef4b11239fd1f5d5b2eaf9c3d829a4fc71f567cd0fe86ad9e",
+      "symbol_prefix": "?AccumulatePhysicsUpgradeWeights@@"
+    },
+    {
+      "address": 5924000,
+      "size": 219,
+      "sha256": "4319098aeac3bb69e2227b94372d773c52cae3968af5bd620eec9f0e6d69aed6",
+      "symbol_prefix": "?SetGrade@PhysicsUpgradeSelection"
+    },
+    {
+      "address": 5924224,
+      "size": 754,
+      "sha256": "99f1f605f73f973f54755884c60c4521a65229814d0513f35b67163d51a6bebc",
+      "symbol_prefix": "?GetFraction@PhysicsUpgradeSelection"
     }
   ]
 }
