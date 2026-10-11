@@ -837,3 +837,57 @@ void PhysicsTuning::SetTuning(float value, int index, int component, bool fromDi
         SetValue((float)GetValue(other, 0), other, 0);
     }
 }
+
+// 0x5b4780 rebuilds the record's tuning with extras removed at nesting depth
+// zero. Current settings are cleared and reread for active kinds 0..22; each
+// active kind is then reapplied from its stored offset (gear kinds through
+// 0x5b3fa0 first, then again through 0x5b4670), followed by every sample of
+// active engine kinds without spreading. The original inlines 0x59b080 and
+// 0x5b3e40 here. If the nine primary engine samples no longer sum to their
+// starting binary32 total within 0.001, they are renormalized to it.
+void PhysicsTuning::ApplyAll() {
+    if (valueE4 == 0) {
+        PhysicsUpgradeSource *removal = reinterpret_cast<PhysicsUpgradeSource *>(carTypeInfoTable + value0 * 0x890 + 0x110);
+        removal->RemoveExtra(recordC, selection8);
+    }
+    ++valueE4;
+    for (int i = 0; i < 23; ++i) values40[i] = 0.0f;
+    for (int i = 0; i < 9; ++i) values9C[i] = 0.0f;
+    for (int i = 0; i < 9; ++i) valuesC0[i] = 0.0f;
+    for (int index = 0; index < 23; ++index) {
+        if (!IsActive(index)) continue;
+        float value = (float)GetValue(index, 0);
+        if (index < 23) values40[index] = value;
+        else if (index == 23) values9C[0] = value;
+        else if (index == 24) valuesC0[0] = value;
+    }
+    for (int index = 0; index < 23; ++index) {
+        if (!IsActive(index)) continue;
+        float value = (float)GetSetting(index, 0, false);
+        if (index >= 10 && index <= 15) ApplyValue(value, index, 0);
+        else SetTuning(value, index, 0, false);
+    }
+    for (int index = 10; index <= 15; ++index)
+        if (IsActive(index)) SetTuning((float)GetSetting(index, 0, false), index, 0, false);
+    float *record = reinterpret_cast<float *>(recordC);
+    float total = 0.0f;
+    for (int i = 0; i < 9; ++i) total = (float)((double)total + record[0x200 / 4 + i]);
+    for (int index = 23; index <= 24; ++index) {
+        if (!IsActive(index)) continue;
+        for (int i = 0; i < 9; ++i) {
+            float value = (float)GetValue(index, i);
+            if (index < 23) values40[index] = value;
+            else if (index == 23) values9C[i] = value;
+            else if (index == 24) valuesC0[i] = value;
+        }
+        for (int i = 0; i < 9; ++i) SetEngineSample((float)GetSetting(index, i, false), index, i, false);
+    }
+    record = reinterpret_cast<float *>(recordC);
+    double sum = 0.0;
+    for (int i = 0; i < 9; ++i) sum += record[0x200 / 4 + i];
+    if (!(fabs((double)total - sum) <= physicsTuningThousandth)) NormalizeEngine(total);
+    if (--valueE4 == 0) {
+        PhysicsUpgradeSource *application = reinterpret_cast<PhysicsUpgradeSource *>(carTypeInfoTable + value0 * 0x890 + 0x110);
+        application->ApplyExtra(recordC, selection8);
+    }
+}

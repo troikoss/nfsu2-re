@@ -320,12 +320,24 @@ optionally maps a display value back, clamps it with `0x5b3ee0`, writes it
 with `0x5b3fa0`, then re-clamps dependents: all samples of kind 23/24, every
 active gear kind, or the other kind of 16/17.
 
+Full tuning application `0x5b4780` (1,113 bytes) is recovered as
+`PhysicsTuning::ApplyAll`. With extras removed at nesting depth zero it
+clears the current settings, rereads active kinds 0..22 through `0x5a7da0`,
+reapplies each active kind from its stored offset (gear kinds through
+`0x5b3fa0`, others through `0x5b4670`), runs `0x5b4670` again for active gear
+kinds, then rereads and reapplies all nine samples of active engine kinds
+without spreading. If the primary engine samples no longer sum to their
+starting binary32 total within 0.001 (or the difference is NaN), it
+renormalizes them with `0x59b3c0`. The original inlines `0x59b080` and
+`0x5b3e40`; the recovered source calls them. Its caller, parameter composer
+`0x5b4dc0`, is not yet recovered.
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
 `tools/verify_pc_physics_tuning_values.py` covers every routine above with
 the fingerprints in `physics-tuning-values.json`. On 2026-10-12 it reported
-**324,081** bit-identical comparisons:
+**324,173** bit-identical comparisons:
 
 | Routine | Cases |
 | --- | ---: |
@@ -360,6 +372,7 @@ the fingerprints in `physics-tuning-values.json`. On 2026-10-12 it reported
 | `0x5b2c00` SetEngineSample | 8,280 |
 | `0x5b3fa0` ApplyValue | 6,492 |
 | `0x5b4670` SetTuning | 12,984 |
+| `0x5b4780` ApplyAll | 92 |
 
 Fixtures use 46 retail CarTypeInfo rows as sources and perturbed records,
 random extra-flag masks, synthetic lookup tables with every entry kind,
@@ -378,12 +391,15 @@ exercised; range selection uses components 0/1 only, because larger
 components read adjacent stack slots; the unspilled ordering comparison in
 `0x5b2800` and the intermediate store in `0x5b09a0` are not distinguished by
 the fixtures; setters that read entry limits are compared only for kinds with
-selected entries. Byte matching is not established. Source mutations (sign of a
+selected entries, and full application selects gear kinds 10..15 and pair
+16/17 together, because otherwise the original reads stale stack slots (a
+random partial selection produced a mismatch at record +0x2a0). Byte matching is not established. Source mutations (sign of a
 source-relative difference, reapplication depth, gear blend bound, offset
 clamps, a balance-range entry kind, linked-extreme and peak comparisons, a
 range-builder field offset, display-range ordering, the value-mapping
 epsilon gate, gear-excess carry, linked-value direction, spread-weight
-advance, the active-gear gate and the source-relative store) were each
+advance, the active-gear gate, the source-relative store and the second gear pass of
+full application) were each
 detected. The guard runs per translated block, requiring each block to lie
 inside a permitted range. NaN curve samples exposed the lookup
 truncation difference described in `pc-vehicle-physics.md`. Results stay in

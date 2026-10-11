@@ -73,8 +73,10 @@ probe wrapper at the same address for a different target; also reset FPTAG.
 ## Immediate plan on resume
 
 1. Reinspect Git status and the goal state.
-2. Continue full tuning application `0x5b4780`: remaining bounds/setter helpers
-   include `0x5b2980`, `0x5b3fa0`, `0x5b4670`, and `0x5b2c00`.
+2. Full tuning application `0x5b4780` and its whole callee tree are recovered
+   and verified (`PhysicsTuningValues.cpp`, `tools/verify_pc_physics_tuning_values.py`,
+   ~7.5 min). Native CarTypeInfo/tuning-table installation is still absent,
+   so none of it runs natively yet.
 3. Recover enclosing parameter composer `0x5b4dc0`, class-index calculation,
    performance helper `0x5b06a0`, real descriptor installation and source table
    lifecycle. Integrate its original call chain and remove native manual

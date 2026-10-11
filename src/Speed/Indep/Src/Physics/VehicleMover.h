@@ -311,6 +311,7 @@ struct PhysicsTuning {
     void SetEngineSample(float value, int index, int component, bool spread); // 0x5b2c00
     void ApplyValue(float value, int index, int component); // 0x5b3fa0
     void SetTuning(float value, int index, int component, bool fromDisplay); // 0x5b4670
+    void ApplyAll(); // 0x5b4780
     void GetBalanceRange(int index, int component, bool average, float *minimum, float *maximum); // 0x5a7b80
     void GetPairRange(int index, int component, bool average, float *minimum, float *maximum); // 0x5a7cb0
     void NormalizeEngine(float total); // 0x59b3c0

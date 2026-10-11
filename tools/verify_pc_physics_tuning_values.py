@@ -30,7 +30,7 @@ CLEANUP = dict(GetOffset=8, GetField=12, NormalizeEngine=4, GetValue=8, SetOffse
                GetRange=20, FindPhysicsCurvePeak=0, GetDisplayRange=20, MapValue=12,
                LimitEngineRange=16, GetEntryLimits=20, SetValue=12, SetGearRatio=12, SetGearRatios=8,
                SetLinkedValue=8, GetSetting=12, SetEngineSample=16,
-               ApplyValue=12, SetTuning=16)
+               ApplyValue=12, SetTuning=16, ApplyAll=0)
 
 
 def original_symbols():
@@ -137,7 +137,7 @@ def main():
             uc.reg_write(UC_X86_REG_EAX, 0x5a5a5a5a)
             for reg in SAVED:
                 uc.reg_write(reg, 0x12345678)
-            uc.emu_start(start, STOP, count=5000000)
+            uc.emu_start(start, STOP, count=50000000)
             assert uc.reg_read(UC_X86_REG_EIP) == STOP
             assert uc.reg_read(UC_X86_REG_ESP) == expected, (method, side)
             assert all(uc.reg_read(reg) == 0x12345678 for reg in SAVED)
@@ -477,6 +477,34 @@ def main():
                     for fromDisplay in (0, 1):
                         compare('SetTuning', state, (bits(value), index, component, fromDisplay), TUNING,
                                 table=ROWS + 0x2200, count=25)
+
+    # Full application: retail rows/records, every kind selected with entry
+    # kinds 0..4 and random stored offsets, or random subsets of selections.
+    rng = random.Random(0x5b4780)
+    for trial, row in enumerate(rows):
+        for subset in (False, True):
+            state = bytearray(b'\xa5' * 0x8000)
+            state[ROWS - BASE + 0x890 + 0x110:ROWS - BASE + 0x890 + 0x890] = row
+            state[RECORD - BASE:RECORD - BASE + 0x2b0] = row[:0x2b0]
+            state[SELECTION - BASE:SELECTION - BASE + 0x94] = bytes(0x94)
+            mask = rng.randrange(256)
+            for bit, flag in enumerate(flags):
+                struct.pack_into('<I', state, SELECTION - BASE + 0x28 + 4 * flag, 1 if mask & (1 << bit) else 0)
+            for i in range(68):
+                state[SELECTION - BASE + 0x50 + i] = rng.randrange(2) if subset else 1
+            # Kinds that read each other's limits (gears 10..15, pair 16/17) are
+            # selected together; otherwise the original reads stale stack slots.
+            for group in (range(10, 16), (16, 17)):
+                for i in group:
+                    state[SELECTION - BASE + 0x50 + i] = state[SELECTION - BASE + 0x50 + group[0]]
+            for i in range(25):
+                struct.pack_into('<ibbBBffff', state, ROWS - BASE + 0x2200 + i * 0x18, i, 0, i, rng.randrange(5), 0xa5,
+                                 rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5), -99.99, -99.99)
+            for i in range(41):
+                state[TUNING - BASE + 0x14 + i] = rng.choice((100, 0, 200, rng.randrange(256)))
+            struct.pack_into('<iiII', state, TUNING - BASE, 1, rng.choice((0, 1)), SELECTION, RECORD)
+            struct.pack_into('<i', state, TUNING - BASE + 0xe4, 0)
+            compare('ApplyAll', state, (), TUNING, table=ROWS + 0x2200, count=25)
 
     report = dict(executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,
                   byte_matching='not established', controlled_interfaces=[],
