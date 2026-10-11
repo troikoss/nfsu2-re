@@ -42,6 +42,10 @@ int main(int argc, char **argv) {
         float seconds = frame * duration;
         float throttle = seconds > 1.0f && seconds < 12.0f ? 1.0f : 0.0f;
         float brake = seconds >= 14.0f ? 1.0f : 0.0f;
+        if (getenv("UG2_REVERSE")) {
+            throttle = 0.0f;
+            brake = seconds > 1.0f ? 1.0f : 0.0f;
+        }
         float steer = seconds > 6.0f && seconds < 9.0f ? 0.3f : 0.0f;
         SetNativeControls(&vehicle, throttle, brake, 0.0f, steer);
         StepNativeVehicle(&vehicle, duration);

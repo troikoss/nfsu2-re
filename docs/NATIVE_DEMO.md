@@ -100,7 +100,7 @@ throughout. These are plausibility observations, not equivalence evidence.
 - The world is drawn from collision polygons, not UG2's render geometry; the car is a box.
 - No barrier collision yet (see above); every collision pack is loaded at start-up
   instead of the original streaming, and the spawn point is chosen heuristically.
-- Steering input scaling (±30° road-wheel angle) and the controls object are scaffold;
-  the original input filtering is unrecovered.
+- Steering input scaling (±30° road-wheel angle), reverse engagement (hold brake at rest)
+  and the controls object are scaffold; the original input filtering is unrecovered.
 - Native GCC x87 code is not bit-exact with MSVC; FPU control word is set to 0x027f.
 - Free-drive race phase 0 is used; race-phase-dependent branches are untested.

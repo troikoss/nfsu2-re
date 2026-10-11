@@ -364,6 +364,19 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
 
 void SetNativeControls(NativeVehicle *vehicle, float throttle, float brake, float handbrake, float steer) {
     NativeControls *controls = vehicle->controls;
+    // Scaffold reverse: holding brake at rest requests explicit gear 0 (ratio index 0),
+    // and the pedals swap while reversing; throttle at rest returns to automatic.
+    float speed = vehicle->owner->State()->value3EC;
+    if (controls->requestedGear != 0 && brake > 0.5f && throttle < 0.5f && speed < 0.5f && speed > -0.5f) {
+        controls->requestedGear = 0;
+    } else if (controls->requestedGear == 0 && throttle > 0.5f && speed > -0.5f) {
+        controls->requestedGear = -1;
+    }
+    if (controls->requestedGear == 0) {
+        float swap = throttle;
+        throttle = brake;
+        brake = swap;
+    }
     controls->throttle20C = throttle;
     controls->brake214 = brake;
     controls->handbrake210 = handbrake;

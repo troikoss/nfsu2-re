@@ -18,6 +18,18 @@ an unrebuilt conversion helper in emulation prevent claiming a full native game.
 See docs/pc-vehicle-physics.md and docs/pc-racing.md for evidence and limitations.
 Do not infer verification status merely because a source file is present.
 
+## Native driving demo
+
+A 32-bit Linux build drives a stock UG2 car on the L4RA streets using the recovered
+vehicle and track-collision sources; window, input, placeholder drawing and a few
+documented seams are platform scaffolding. Behavioural verification of the routines
+recovered for the demo is still pending. See [the demo notes](docs/NATIVE_DEMO.md).
+
+```sh
+cmake -S . -B build/native && cmake --build build/native
+build/native/ug2demo --car SKYLINE   # W/S throttle/brake (hold S at rest to reverse), A/D, Space, R, Esc
+```
+
 ## Local verification
 
 Install requirements-pc-analysis.txt into a Python virtual environment. Tools
