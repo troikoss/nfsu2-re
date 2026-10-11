@@ -329,6 +329,10 @@ struct PhysicsInfo {
 UG2_CHECK_OFFSET(PhysicsInfo, parameters10, 0x10);
 UG2_CHECK_SIZE(PhysicsInfo, 0x580);
 
+void ApplyPhysicsVariant(CarPhysicsRecord *, PhysicsUpgradeSelection *, float *); // 0x5a7530
+void __stdcall ApplyPhysicsVariant3(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5a7750
+void __stdcall ApplyPhysicsVariant10(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5a77c0
+void __stdcall ApplyPhysicsVariant2(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5a7830
 void BuildPhysicsDriveCurve(EngineCurve *output, PhysicsParameters *parameters); // 0x5b5ab0
 
 // Car object +0xc passed to the mover constructor; only +0xd8 is observed here.

@@ -1,0 +1,35 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 5928240,
+      "size": 540,
+      "sha256": "32eaf2b3a4a9fd48fcaf154b77b2be15f2ddef154e97af172644d5762cc094fc",
+      "method": "ApplyPhysicsVariant"
+    },
+    {
+      "address": 5928784,
+      "size": 105,
+      "sha256": "507daa88e4117812702ab3a6b293024af5efaccf9001d052d65d6a1f34754e2f",
+      "method": "ApplyPhysicsVariant3"
+    },
+    {
+      "address": 5928896,
+      "size": 105,
+      "sha256": "9646d876fbe5265051a43189368008c39d6905f178493236f9b3e9e859653aaa",
+      "method": "ApplyPhysicsVariant10"
+    },
+    {
+      "address": 5929008,
+      "size": 93,
+      "sha256": "ec343533f2746a66e42a5b1cde7ef472f23c1711925a9f370ec7a85d250031a7",
+      "method": "ApplyPhysicsVariant2"
+    },
+    {
+      "address": 4441984,
+      "size": 59,
+      "sha256": "70a173c3844b12f15cdc5190c3b14976d553a4d12fac9f561e0860bc9a7986dc",
+      "method": "WheelIdentity"
+    }
+  ]
+}

@@ -66,11 +66,29 @@ loader does not yet install upgrade descriptors. The constructor recovery does
 not establish full original record composition. Native traps retain the unresolved
 method boundaries.
 
+## Mode variants
+
+`PhysicsVariants.cpp` recovers shared application `0x5a7530` (540 bytes) and
+stdcall wrappers `0x5a7750` / `0x5a77c0` / `0x5a7830` (105/105/93 bytes).
+They select class rows at exact 0.2/0.8 thresholds, preserving equality and the
+0x144-byte table stride. Application retains the original interpolation order,
+changes drag coefficients, inertia scale/mass, centre height, axle correction
+coefficients, brake bias and drivetrain selector, then clamps height/bias and
+rebuilds inertia through recovered `WheelIdentity`. The mode-3 and mode-10
+wrappers zero nitrous capacity; mode 2 preserves it. Double intermediates retain
+the original unspilled x87 arithmetic at 53-bit precision.
+
+These routines are compiled into the native target but are not yet called by
+its stock-record entry seam. The enclosing original composer and upgrade/tuning
+application chain are still required; adding these helpers does not establish
+mode integration.
+
 ## Verification
 
 ```sh
 build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_physics_construction.py
+build/venv/bin/python tools/verify_pc_physics_variants.py
 cmake --build build/native -j2
 python tools/smoke_native_driving.py
 ```
@@ -106,6 +124,18 @@ low-byte argument behavior. It compares full guarded state and descriptor/table
 buffers, integer/pointer returns, stack cleanup and preserved registers. Reports
 remain under `build/analysis/physics-construction/`. Cyclic prerequisites,
 malformed indices/counts and chunk loading are excluded.
+
+The variant manifest `physics-variants.json` pins four recovered routines and
+matrix identity. On 2026-10-11, **6,624 comparisons** (1,656 per routine) passed
+with bit-identical guarded state, stack cleanup and preserved registers across
+46 retail records, four upgrade-level patterns and nine selectors including
+immediately adjacent binary32 values around both thresholds. Arbitrary rows
+exercise the shared routine, including clamp branches; wrappers use original
+executable tables. Rebuilt calls execute recovered matrix identity. There are
+no controlled interfaces. Generated reports remain in
+`build/analysis/physics-variants/`. NaNs, arbitrary malformed records and alternate
+floating precision are excluded. MSVC uses `/Op` for the variant unit and the
+existing `/Ox` configuration for the separately compiled matrix dependency.
 
 Native build and forward/reverse driving smoke checks pass with the recovered
 constructor and curve builder integrated. Finite stock fixtures do not cover arbitrary upgrade combinations,
