@@ -392,6 +392,11 @@ void FengPackage::Gather(FengObject *object, const float *parent, float parentAl
     m[3] = -b * sn + d * cs;
     m[4] = a * px + c * py + tx;
     m[5] = b * px + d * py + ty;
+    std::map<FengObject *, std::pair<float, float> >::const_iterator translation = modTranslations_.find(object);
+    if (translation != modTranslations_.end()) {
+        m[4] += translation->second.first;
+        m[5] += translation->second.second;
+    }
     float alpha = parentAlpha * (float)object->colour[3] / 255.0f;
     if (object->type18 == 5) {
         // Groups scale their children by their size.

@@ -1,0 +1,43 @@
+add_library(ug2modruntime STATIC runtime/ModRuntime.cpp)
+target_compile_options(ug2modruntime PRIVATE -m32 -fno-pie -O2 -Wall -Wextra)
+target_include_directories(ug2modruntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/sdk)
+target_link_libraries(ug2modruntime PUBLIC ${CMAKE_DL_LIBS})
+add_custom_target(ug2modidentity
+    COMMAND ${CMAKE_COMMAND} -DROOT=${CMAKE_SOURCE_DIR} -DCACHE=${CMAKE_BINARY_DIR}/CMakeCache.txt
+        -DCOMPILER=${CMAKE_CXX_COMPILER} -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/Ug2ModBuildId.h
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/BuildIdentity.cmake
+    BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/Ug2ModBuildId.h)
+target_sources(ug2native PRIVATE ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeModBridge.cpp)
+target_include_directories(ug2native PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(ug2native PUBLIC UG2_ENABLE_MODDING=1)
+add_dependencies(ug2native ug2modidentity)
+target_link_libraries(ug2native PUBLIC ug2modruntime)
+foreach(example original_physics widescreen_hud)
+    add_library(ug2mod_${example} MODULE examples/${example}/plugin.cpp)
+    set_target_properties(ug2mod_${example} PROPERTIES PREFIX "" OUTPUT_NAME "plugin"
+        POSITION_INDEPENDENT_CODE ON LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/mods/${example})
+    target_compile_options(ug2mod_${example} PRIVATE -m32 -O2 -Wall -Wextra -fvisibility=hidden)
+    target_link_options(ug2mod_${example} PRIVATE -m32)
+    target_include_directories(ug2mod_${example} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sdk)
+    install(TARGETS ug2mod_${example} LIBRARY DESTINATION bin/mods/${example})
+endforeach()
+configure_file(load_order.txt ${CMAKE_BINARY_DIR}/mods/load_order.txt COPYONLY)
+install(FILES sdk/ug2_mod_api.h DESTINATION include/ug2)
+install(FILES load_order.txt DESTINATION bin/mods)
+install(TARGETS ug2demo ug2sim RUNTIME DESTINATION bin)
+if(BUILD_TESTING)
+    add_executable(ug2mod_runtime_test tests/runtime_test.cpp)
+    target_compile_options(ug2mod_runtime_test PRIVATE -m32 -fno-pie -O2 -Wall -Wextra)
+    target_link_options(ug2mod_runtime_test PRIVATE -m32 -no-pie)
+    target_include_directories(ug2mod_runtime_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+    target_link_libraries(ug2mod_runtime_test PRIVATE ug2modruntime m)
+    add_executable(ug2mod_native_test tests/native_provider_test.cpp)
+    target_compile_options(ug2mod_native_test PRIVATE ${UG2_ARCH_FLAGS} -O2 -w
+        -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+    target_include_directories(ug2mod_native_test PRIVATE ${CMAKE_SOURCE_DIR}/src/Platform/Native)
+    target_link_options(ug2mod_native_test PRIVATE ${UG2_LINK_FLAGS})
+    target_link_libraries(ug2mod_native_test PRIVATE -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME native_mod_runtime COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/verify_native_modding.py
+        --build ${CMAKE_BINARY_DIR})
+endif()

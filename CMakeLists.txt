@@ -51,3 +51,9 @@ target_compile_options(ug2probe PRIVATE ${UG2_ARCH_FLAGS} -O1 -g -w
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2probe PRIVATE ${UG2_LINK_FLAGS})
+
+option(UG2_ENABLE_MODDING "Build the native mod loader and SDK examples" OFF)
+if(UG2_ENABLE_MODDING)
+    include(CTest)
+    add_subdirectory(modding)
+endif()

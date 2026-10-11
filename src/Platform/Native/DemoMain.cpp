@@ -5,6 +5,9 @@
 #include "NativeWorld.h"
 #include "NativeScene.h"
 #include "NativeHud.h"
+#ifdef UG2_ENABLE_MODDING
+#include "NativeModBridge.h"
+#endif
 #include "../../Speed/Indep/Src/Camera/DriveCamera.h"
 
 #include <SDL2/SDL.h>
@@ -39,9 +42,18 @@ void LookAt(const float *eye, const float *centre, const float *up) {
 
 // UG2 main view projection (0x5c7ec0): the half-angle tangents come from the camera's field of
 // view in 1/65536 turn units. The original far plane for eView type 1 is the immediate 15000.
-void UgFrustum(unsigned short fov, float nearPlane, float width, float height) {
+CameraProjection NativeProjection(unsigned short fov, float nearPlane, int width, int height) {
     CameraProjection projection;
-    ComputeCameraProjection(&projection, fov, height / width, nearPlane, 15000.0f);
+    ComputeCameraProjection(&projection, fov, float(height) / width, nearPlane, 15000.0f);
+#ifdef UG2_ENABLE_MODDING
+    CameraProjection reference;
+    ComputeCameraProjection(&reference, fov, 0.75f, nearPlane, 15000.0f);
+    NativeModsProjection(&projection, reference, width, height);
+#endif
+    return projection;
+}
+void UgFrustum(const CameraProjection &projection) {
+    float nearPlane = projection.nearPlane;
     glFrustum(-projection.tangentX * nearPlane, projection.tangentX * nearPlane,
               -projection.tangentY * nearPlane, projection.tangentY * nearPlane, nearPlane,
               projection.farPlane);
@@ -299,6 +311,11 @@ int main(int argc, char **argv) {
     bool noHud = false;
     int hudSkin = 0;
     const char *hudFont = 0;
+    int width = 1280, height = 720;
+#ifdef UG2_ENABLE_MODDING
+    const char *modsDirectory = 0;
+    bool noMods = false;
+#endif
     int cameraOption = 3;       // profile drive camera option: 0 bumper, 1 hood, 2 close, 3 far, 4 super far
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--game") && i + 1 < argc) game = argv[++i];
@@ -312,7 +329,16 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--no-hud")) noHud = true;
         else if (!strcmp(argv[i], "--hud-skin") && i + 1 < argc) hudSkin = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--hud-font") && i + 1 < argc) hudFont = argv[++i];
+        else if (!strcmp(argv[i], "--width") && i + 1 < argc) width = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--height") && i + 1 < argc) height = atoi(argv[++i]);
+#ifdef UG2_ENABLE_MODDING
+        else if (!strcmp(argv[i], "--mods-dir") && i + 1 < argc) modsDirectory = argv[++i];
+        else if (!strcmp(argv[i], "--no-mods")) noMods = true;
+#endif
         else if (!strcmp(argv[i], "--camera") && i + 1 < argc) cameraOption = atoi(argv[++i]);
+    }
+    if (width < 320 || height < 240 || width > 8192 || height > 8192) {
+        fprintf(stderr, "ug2demo: invalid resolution (320x240 through 8192x8192)\n"); return 1;
     }
     unsigned short control = 0x027f;
     __asm__ volatile("fldcw %0" : : "m"(control));
@@ -321,6 +347,9 @@ int main(int argc, char **argv) {
         fprintf(stderr, "ug2demo: %s\n", error);
         return 1;
     }
+#ifdef UG2_ENABLE_MODDING
+    NativeModSession mods(modsDirectory, noMods);
+#endif
     NativeTrack track;
     if (!LoadNativeTrack(game, "L4RA", &track, error, sizeof(error))) {
         fprintf(stderr, "ug2demo: %s\n", error);
@@ -328,6 +357,9 @@ int main(int argc, char **argv) {
     }
     float spawn[4] = {track.spawn[0], track.spawn[1], track.spawn[2] + 0.45f, track.heading};
     static NativeVehicle vehicle;
+#ifdef UG2_ENABLE_MODDING
+    mods.vehicle = &vehicle;
+#endif
     if (!CreateNativeVehicle(&vehicle, game, car, spawn[0], spawn[1], spawn[2], spawn[3], error, sizeof(error))) {
         fprintf(stderr, "ug2demo: %s\n", error);
         return 1;
@@ -336,7 +368,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "ug2demo: %s\n", SDL_GetError());
         return 1;
     }
-    const int width = 1280, height = 720;
+
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -347,6 +379,8 @@ int main(int argc, char **argv) {
         return 1;
     }
     SDL_GLContext context = SDL_GL_CreateContext(window);
+    if (!context) { fprintf(stderr, "ug2demo: %s\n", SDL_GetError()); SDL_DestroyWindow(window); SDL_Quit(); return 1; }
+    SDL_GL_GetDrawableSize(window, &width, &height);
     SDL_GL_SetSwapInterval(frames ? 0 : 1);
     glEnable(GL_DEPTH_TEST);
     GLuint worldList = BuildWorldList();
@@ -446,6 +480,9 @@ int main(int argc, char **argv) {
         steer += (target - steer) > rate ? rate : ((target - steer) < -rate ? -rate : target - steer);
         SetNativeControls(&vehicle, throttle, brake, handbrake, steer);
         StepNativeVehicle(&vehicle, duration);
+#ifdef UG2_ENABLE_MODDING
+        if (NativeModsFailed()) break;
+#endif
         {
             // Scaffold respawn: a car that still leaves the collision coverage (e.g. over a
             // barrier the track data does not close) is put back where it last had all four
@@ -475,6 +512,10 @@ int main(int argc, char **argv) {
             }
         }
 
+#ifdef UG2_ENABLE_MODDING
+        if (NativeModsFailed()) break;
+#endif
+        SDL_GL_GetDrawableSize(window, &width, &height);
         MoverBody *body = vehicle.mover->body20;
         float *m = body->matrixD0.elements;
         float forward[2] = {m[0], m[1]};
@@ -514,6 +555,10 @@ int main(int argc, char **argv) {
             memcpy(camera.target, cameraView.target, sizeof(camera.target));
         }
 
+        CameraProjection projection = NativeProjection(cameraView.fov, cameraView.nearPlane, width, height);
+#ifdef UG2_ENABLE_MODDING
+        if (NativeModsFailed()) break;
+#endif
         glViewport(0, 0, width, height);
         // Scaffold horizon colour sampled from the SKY_SUNRISE dome; the time-of-day clear and
         // fog colours are not recovered.
@@ -521,7 +566,7 @@ int main(int argc, char **argv) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        UgFrustum(cameraView.fov, cameraView.nearPlane, (float)width, (float)height);
+        UgFrustum(projection);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         LookAt(camera.position, camera.target, up);
@@ -543,6 +588,9 @@ int main(int argc, char **argv) {
             for (int i = 0; i < 4; ++i) DrawWheel(vehicle.mover->wheels38[i]);
         }
 
+#ifdef UG2_ENABLE_MODDING
+        NativeModsEvent(UG2_POST_WORLD_DRAW, duration, width, height);
+#endif
         DrivetrainAuxiliary *state = vehicle.owner->State();
         float rpm = vehicle.mover->engine48->state14 * engineValueScale;
         int gear = vehicle.mover->drivetrain4C->ratioIndex;
@@ -555,6 +603,10 @@ int main(int argc, char **argv) {
             hud.Update(&vehicle, metric, duration);
             hud.Draw(width, height);
         }
+#ifdef UG2_ENABLE_MODDING
+        NativeModsEvent(UG2_POST_HUD_DRAW, duration, width, height);
+        if (NativeModsFailed()) break;
+#endif
         glEnable(GL_DEPTH_TEST);
         if (screenshot && frames && frame == frames - 1) SaveScreenshot(screenshot, width, height);
         if (haveTrack && frames && frame == frames - 1 && getenv("UG2_DEBUG_PICK")) {
@@ -563,7 +615,7 @@ int main(int argc, char **argv) {
             sscanf(getenv("UG2_DEBUG_PICK"), "%d %d", &px, &py);
             glMatrixMode(GL_PROJECTION);
             glLoadIdentity();
-            UgFrustum(cameraView.fov, cameraView.nearPlane, (float)width, (float)height);
+            UgFrustum(projection);
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
             LookAt(camera.position, camera.target, up);
@@ -575,8 +627,16 @@ int main(int argc, char **argv) {
         }
         SDL_GL_SwapWindow(window);
     }
+#ifdef UG2_ENABLE_MODDING
+    bool modFailure = NativeModsFailed();
+    mods.Finish();
+#else
+    bool modFailure = false;
+    DestroyNativeVehicle(&vehicle);
+#endif
+    driveCamera.Destroy();
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    return 0;
+    return modFailure ? 3 : 0;
 }

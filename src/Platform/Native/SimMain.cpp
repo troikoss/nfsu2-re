@@ -1,6 +1,9 @@
 // Headless driving check for the native build (platform scaffolding).
 #include "NativeVehicle.h"
 #include "NativeWorld.h"
+#ifdef UG2_ENABLE_MODDING
+#include "NativeModBridge.h"
+#endif
 
 #include <fenv.h>
 #include <math.h>
@@ -24,6 +27,14 @@ int main(int argc, char **argv) {
         fprintf(stderr, "ug2sim: %s\n", error);
         return 1;
     }
+#ifdef UG2_ENABLE_MODDING
+    const char *modsDirectory = 0; bool noMods = false;
+    for (int i = 4; i < argc; ++i) {
+        if (!strcmp(argv[i], "--mods-dir") && i + 1 < argc) modsDirectory = argv[++i];
+        else if (!strcmp(argv[i], "--no-mods")) noMods = true;
+    }
+    NativeModSession mods(modsDirectory, noMods);
+#endif
     NativeTrack track;
     if (!LoadNativeTrack(game, "L4RA", &track, error, sizeof(error))) {
         fprintf(stderr, "ug2sim: %s\n", error);
@@ -32,6 +43,9 @@ int main(int argc, char **argv) {
     printf("track: %d collision packs, spawn (%.1f %.1f %.1f)\n", track.packCount, track.spawn[0],
            track.spawn[1], track.spawn[2]);
     static NativeVehicle vehicle;
+#ifdef UG2_ENABLE_MODDING
+    mods.vehicle = &vehicle;
+#endif
     if (!CreateNativeVehicle(&vehicle, game, car, track.spawn[0], track.spawn[1], track.spawn[2] + 0.45f,
                              track.heading, error, sizeof(error))) {
         fprintf(stderr, "ug2sim: %s\n", error);
@@ -53,6 +67,9 @@ int main(int argc, char **argv) {
         }
         SetNativeControls(&vehicle, throttle, brake, 0.0f, steer);
         StepNativeVehicle(&vehicle, duration);
+#ifdef UG2_ENABLE_MODDING
+        if (NativeModsFailed()) return 3;
+#endif
         if (frame % 30 == 0) {
             DrivetrainAuxiliary *state = vehicle.owner->State();
             MoverBody *body = vehicle.mover->body20;
@@ -77,5 +94,8 @@ int main(int argc, char **argv) {
             }
         }
     }
+#ifndef UG2_ENABLE_MODDING
+    DestroyNativeVehicle(&vehicle);
+#endif
     return 0;
 }

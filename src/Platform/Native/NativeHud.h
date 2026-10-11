@@ -12,6 +12,7 @@
 class NativeHud {
 public:
     NativeHud();
+    ~NativeHud();
     // Loads the FNG, its textures and the localisation table.
     bool Load(const char *gameDirectory, NativeTextureCache *textures, const char *fontPath, char *error,
               int errorSize);

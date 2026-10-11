@@ -327,3 +327,15 @@ For reproducible wall checks, run:
 ```sh
 UG2_STEER=-0.4 UG2_DEBUG_COLLISION=1 build/native/ug2sim "Need for Speed Underground 2" SKYLINE 900
 ```
+
+## Optional native mods
+
+Configure with `-DUG2_ENABLE_MODDING=ON` to build the separate native plugin loader.
+The default build remains unchanged in scope. See [Native modding](../modding/README.md)
+for SDK/lifetime rules, installation, load order and physics-provider contracts.
+The bundled `widescreen_hud` plugin moves verified driving-HUD anchors outward
+and retains the recovered 4:3 vertical view while widening horizontal FOV.
+Use `--width W --height H`; `--no-mods` restores the original native presentation.
+Rendering and debug picking share the adjusted projection. Recovered camera and
+physics routines are unchanged. `original_physics` forwards to the recovered solver;
+custom physics is supplied by third-party providers through documented native seams.

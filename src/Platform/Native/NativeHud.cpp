@@ -1,4 +1,7 @@
 #include "NativeHud.h"
+#ifdef UG2_ENABLE_MODDING
+#include "NativeModBridge.h"
+#endif
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -149,6 +152,47 @@ void HudHorizontalBar(void *o, float value, float maximum, float start, float en
     object->flags1C |= 0x400000;
 }
 
+#ifdef UG2_ENABLE_MODDING
+namespace {
+FengPackage *modHudPackage;
+uint32_t modHudGeneration;
+Ug2Handle HudHandle(size_t index) { return (uint64_t(modHudGeneration) << 32) | (index + 1); }
+uint32_t ModHudCount() { return modHudPackage ? modHudPackage->Objects().size() : 0; }
+int ModHudObject(uint32_t index, Ug2HudObject *out) {
+    if (!modHudPackage || index >= modHudPackage->Objects().size()) return UG2_ERROR;
+    FengObject *object = modHudPackage->Objects()[index];
+    out->hash = object->hash; out->type = object->type18;
+    out->handle = HudHandle(index); out->parent = 0;
+    for (size_t i = 0; i < modHudPackage->Objects().size(); ++i)
+        if (modHudPackage->Objects()[i] == object->parent) out->parent = HudHandle(i);
+    return UG2_OK;
+}
+Ug2Handle ModHudFind(uint32_t hash) {
+    if (!modHudPackage) return 0;
+    for (size_t i = 0; i < modHudPackage->Objects().size(); ++i)
+        if (modHudPackage->Objects()[i]->hash == hash) return HudHandle(i);
+    return 0;
+}
+int ModHudTranslate(Ug2Handle handle, float x, float y) {
+    uint32_t index = uint32_t(handle);
+    if (!modHudPackage || uint32_t(handle >> 32) != modHudGeneration || !index || index > modHudPackage->Objects().size()) return UG2_ERROR;
+    modHudPackage->SetModTranslation(modHudPackage->Objects()[index - 1], x, y);
+    return UG2_OK;
+}
+struct HudReady {
+    ~HudReady() { NativeModsEvent(UG2_HUD_READY); }
+};
+}
+#endif
+NativeHud::~NativeHud() {
+#ifdef UG2_ENABLE_MODDING
+    if (modHudPackage == &package_) {
+        modHudPackage = 0; ++modHudGeneration;
+        NativeModsHudAdapter(0, 0, 0, 0);
+    }
+#endif
+}
+
 NativeHud::NativeHud() : textures_(0), minimapReady_(false), loaded_(false) {
     activeHud = this;
     featureHigh_ = 0;
@@ -218,6 +262,10 @@ bool NativeHud::Load(const char *gameDirectory, NativeTextureCache *textures, co
     ReadNativeFile(base + "/LANGUAGES/English.bin", &language_);
     if (!font_.Load(fontPath)) fprintf(stderr, "ug2demo: no HUD font found; HUD text is not drawn\n");
     loaded_ = true;
+#ifdef UG2_ENABLE_MODDING
+    modHudPackage = &package_; ++modHudGeneration;
+    NativeModsHudAdapter(ModHudCount, ModHudObject, ModHudFind, ModHudTranslate);
+#endif
     return true;
 }
 
@@ -247,6 +295,9 @@ std::string NativeHud::Localised(unsigned int hash) const {
 
 void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     if (!loaded_) return;
+#ifdef UG2_ENABLE_MODDING
+    HudReady notifyReady;
+#endif
     // Native session seam: this demo owns one local player.
     hudPlayerCount89E7C0 = 1;
     // The native feature setup selects recovered gauges and the single-player city minimap.
@@ -418,6 +469,10 @@ void NativeHud::SetCareerHudState(int balance, unsigned int regionHash) {
 
 void NativeHud::Draw(int width, int height) {
     if (!loaded_) return;
+    package_.ClearModTranslations();
+#ifdef UG2_ENABLE_MODDING
+    NativeModsEvent(UG2_PRE_HUD_LAYOUT, 0, width, height);
+#endif
     package_.Draw(textures_, &font_, width, height);
 }
 

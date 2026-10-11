@@ -13,6 +13,7 @@
 #include <GL/gl.h>
 #include <string>
 #include <vector>
+#include <map>
 
 // Original 0x505450: case-insensitive h = h * 33 + c from 0xffffffff.
 unsigned int FengHash(const char *text);
@@ -72,6 +73,10 @@ public:
     std::vector<FengObject *> &Objects() { return objects_; }
     // Names from the executable are not needed to draw; `Describe` lists the package for debugging.
     void Describe() const;
+    void ClearModTranslations() { modTranslations_.clear(); }
+    void SetModTranslation(FengObject *object, float x, float y) {
+        modTranslations_[object] = std::make_pair(x, y);
+    }
     // Draws visible objects in a 640x480 virtual screen fitted to the viewport by height.
     void Draw(NativeTextureCache *textures, NativeFont *font, int width, int height);
 
@@ -99,6 +104,7 @@ private:
     void Gather(FengObject *object, const float *parent, float parentAlpha, std::vector<DrawItem> *items);
     std::vector<FengObject *> objects_;
     std::vector<FengObject *> roots_;
+    std::map<FengObject *, std::pair<float, float> > modTranslations_;
 };
 
 // Text through the stb_truetype rasteriser. The original draws UI text with GDI fonts

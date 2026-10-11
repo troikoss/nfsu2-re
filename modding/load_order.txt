@@ -1,0 +1,3 @@
+# Earlier callbacks run first. The last registered physics provider wins.
+original_physics
+widescreen_hud

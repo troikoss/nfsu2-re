@@ -1,4 +1,7 @@
 #include "NativeVehicle.h"
+#ifdef UG2_ENABLE_MODDING
+#include "NativeModBridge.h"
+#endif
 #include "../../Speed/Indep/Libs/bWare/Strings.h"
 #include "OriginalImage.h"
 #include "../../Speed/Indep/Src/Physics/VehicleIntegrator.h"
@@ -335,6 +338,9 @@ bool LoadCarHulls(const char *gameDirectory, const char *carName, const char *mo
 }  // namespace
 
 void DestroyNativeVehicle(NativeVehicle *vehicle) {
+#ifdef UG2_ENABLE_MODDING
+    NativeModsVehicleDestroying(vehicle);
+#endif
     if (vehicle->owner && vehicle->owner->collisionBody3C) {
         delete vehicle->owner->collisionBody3C;
         vehicle->owner->collisionBody3C = 0;
@@ -413,7 +419,11 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     if (!LoadCarHulls(gameDirectory, carName, carTypeName, error, errorSize)) {
         return false;
     }
+#ifdef UG2_ENABLE_MODDING
+    owner->collisionBody3C = NativeModsCollisionBody(owner, 0);
+#else
     owner->collisionBody3C = new CarCollisionBody(owner, 0);
+#endif
     MoverCarInfo *carInfo = static_cast<MoverCarInfo *>(calloc(1, 0x100));
     VehicleMover *mover = static_cast<VehicleMover *>(calloc(1, sizeof(VehicleMover)));
     new (mover->integrator8) MoverIntegrator;
@@ -428,6 +438,10 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     vehicle->info = info;
     vehicle->carInfo = carInfo;
     snprintf(vehicle->carName, sizeof(vehicle->carName), "%s", carName);
+#ifdef UG2_ENABLE_MODDING
+    NativeModsVehicleCreated(vehicle);
+    if (NativeModsFailed()) { snprintf(error, errorSize, "mod provider initialization failed"); return false; }
+#endif
     return true;
 }
 
@@ -459,10 +473,20 @@ float StepNativeVehicle(NativeVehicle *vehicle, float duration) {
     // Advance runs the car update, i.e. the mover step) and then resolve collisions
     // (0x5ffa50). Scaffold: the world clock (0x57a0e0) is advanced after the step so the
     // mover keeps reading a zero frame duration as before.
+#ifdef UG2_ENABLE_MODDING
+    NativeModsBeforeStep(vehicle, duration);
+    if (NativeModsFailed()) return 0.0f;
+#endif
     AdvanceCollisionBodies(duration);
+#ifdef UG2_ENABLE_MODDING
+    if (NativeModsFailed()) return 0.0f;
+#endif
     UpdateCollisionWorld(collisionEventOwner890080, duration);
     frameDuration865154 = duration;
     AdvanceWorldClock();
+#ifdef UG2_ENABLE_MODDING
+    NativeModsAfterStep(vehicle, duration);
+#endif
     float result = 0.0f;
     // Scaffold producer for the acceleration vector at car +0x80 (state value40). The drive camera
     // averages it (0x453570) and 0x5ec3a0 dots it with the forward axis; its original writer is
