@@ -1,5 +1,7 @@
 # NFSU2 RE
 
+<img width="1278" height="713" alt="image" src="https://github.com/user-attachments/assets/54f86a58-a3f1-40af-b24c-dc5aecb778de" />
+
 An unofficial source reconstruction and verification project for **Need for Speed
 Underground 2, PC v1.2**. The goal is complete recovery into verified,
 reproducibly buildable source. The current Linux driving demo is an intermediate
