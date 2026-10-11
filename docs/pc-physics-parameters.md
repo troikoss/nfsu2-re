@@ -176,6 +176,55 @@ is not established. Native stock outputs for all 46 rows matched original
 record construction followed by extra application; forward/reverse smoke
 checks passed at 114.6/76.8 km/h respectively.
 
+## Tuning values, field addresses and engine normalization
+
+`PhysicsTuningValues.cpp` recovers four helpers used by full tuning
+application `0x5b4780` and its bounds/setter helpers:
+
+- Offset query `0x59aee0` (148 bytes) on tuning +0x14, a 41-byte array: kinds
+  0..22 read their own byte, kind 23 reads bytes 23..31 and kind 24 bytes
+  32..40 by component; other kinds use 0.0. The result is
+  `(byte - 100.0) * 0.01` (`0x784258`/`0x78425c`) clamped to [-1, 1]
+  (`0x7842a0`/`0x784250`). The lower comparison uses the unrounded value; the
+  upper comparison and the return use its binary32 spill.
+- Field-address switch `0x59b200` (344 bytes plus a 25-entry jump table).
+  Every caller passes the tuning object in `ecx`, which the routine ignores; it
+  is recovered as a thiscall member with three stack arguments (`ret 0xc`).
+  Kinds 0..24 map to offset-based record fields; other kinds return null.
+  Components are not validated.
+- Engine normalization `0x59b3c0` (218 bytes): `(total - sum of the nine
+  samples at record +0x200) * 0.11111111` (binary32 `0x79da34`), added to each sample. Neither
+  the sum nor the correction is spilled to binary32; the record pointer is
+  re-read before each write.
+- Value reader `0x5a7da0` (352 bytes plus jump tables). At nesting depth zero
+  (tuning +0xe4) it removes extra adjustments before the read and reapplies
+  them afterwards using the CarTypeInfo row at `0x8a1ccc` + index * 0x890 +
+  0x110. Kinds 1/5/19/20 average both components through binary32 spills
+  (constant 0.5 at `0x784260`); 3/7 return `-(record - source)`; 10..15 read
+  component 0; 23 subtracts the matching +0x224 sample; others read the
+  addressed field.
+
+Native CarTypeInfo table installation is still absent, so these helpers are
+not called by the native demo yet.
+
+`tools/verify_pc_physics_tuning_values.py` fingerprints the four bodies and
+jump tables in `physics-tuning-values.json` and the seven constants. On
+2026-10-11, **94,722 comparisons** were bit-identical: 56,832 offset queries
+(all 256 byte values in every slot, kinds -2..27, components 0..8, x87
+precision control 24/53/64-bit), 594 field-address cases (kinds -3..27 and
+both 32-bit extremes, components -1..9, arbitrary receivers), 1,200
+normalizations (signed zero, ±2^24/2^50 cancellation, ±3.4e38, three
+precisions) and 36,096 value reads (46 retail rows as sources and perturbed
+records, random extra flag masks, depths 0/1/3/-1, every valid kind and
+component, signed-zero/cancellation fixtures). Float returns are compared as
+80-bit stores; full guarded state, stack cleanup, x87 stack depth and preserved
+registers also match. Removal/application execute as original code on one side
+and recovered source on the other; there are no controlled interfaces. Two
+source mutations (sign of the source-relative difference, reapplication depth
+test) were each detected. Kinds outside 0..24 make the original reader
+dereference null and are not exercised; NaNs are excluded. Byte matching is
+not established. Results stay in `build/analysis/physics-tuning-values/`.
+
 ## Mode variants
 
 `PhysicsVariants.cpp` recovers shared application `0x5a7530` (540 bytes) and
@@ -202,6 +251,8 @@ build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_variants.py
 build/venv/bin/python tools/verify_pc_physics_upgrade_search.py
+build/venv/bin/python tools/verify_pc_physics_extra_tuning.py
+build/venv/bin/python tools/verify_pc_physics_tuning_values.py
 build/venv/bin/python tools/verify_pc_physics_record_upgrades.py --native-stock build/native/ug2recordprobe
 python tools/smoke_native_driving.py
 ```

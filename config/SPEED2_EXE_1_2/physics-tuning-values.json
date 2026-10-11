@@ -1,0 +1,30 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "note": "GetField and GetValue sizes include their trailing jump tables (0x59b358, 0x5a7f00/0x5a7f14).",
+  "functions": [
+    {
+      "address": 5877472,
+      "size": 148,
+      "sha256": "dcd196d3161d34aa518b64bf5848ae416240f66e6a99fd82ba5fafee2488aeb7",
+      "method": "GetOffset"
+    },
+    {
+      "address": 5878272,
+      "size": 444,
+      "sha256": "c23a0be91b00a3feebb06a2e2964c8bd534f2cfcfec91cc48777ff15193dd889",
+      "method": "GetField"
+    },
+    {
+      "address": 5878720,
+      "size": 218,
+      "sha256": "93eb72d312bb74bff93a23cdd7fa43052daac7c43e67092fce2df19c801dbd6a",
+      "method": "NormalizeEngine"
+    },
+    {
+      "address": 5930400,
+      "size": 395,
+      "sha256": "752955c0bb4874d4a784c49b2e76d52fb204a342a77df6c55395e83d6f8157e8",
+      "method": "GetValue"
+    }
+  ]
+}

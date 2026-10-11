@@ -5,6 +5,7 @@
 #include "Drivetrain.h"
 #include "Engine.h"
 #include "PhysicsUpgrades.h"
+#include "PhysicsTuningSelection.h"
 #include "Ug2Layout.h"
 
 struct Engine;
@@ -282,7 +283,7 @@ struct PhysicsTuning {
     PhysicsUpgradeSelection *selection8;
     CarPhysicsRecord *recordC;
     int value10;
-    unsigned char values14[41];
+    PhysicsTuningValues values14;
     char unidentified3D[3];
     float values40[23];
     float values9C[9];
@@ -290,6 +291,9 @@ struct PhysicsTuning {
     int valueE4;
     PhysicsTuning *Construct();
     int CountActive(); // 0x59b0e0
+    float *GetField(void *record, int index, int component); // 0x59b200
+    void NormalizeEngine(float total); // 0x59b3c0
+    double GetValue(int index, int component); // 0x5a7da0
 };
 UG2_CHECK_SIZE(PhysicsTuning, 0xe8);
 

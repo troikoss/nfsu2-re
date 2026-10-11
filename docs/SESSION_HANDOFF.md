@@ -59,51 +59,30 @@ refresh wrapper, mode variants, pedals, gear accessors, forward selection, and
 kinematics prefixes. Some recovered routines still await complete caller
 integration. See the subsystem evidence rather than assuming full coverage.
 
-## Uncommitted work left by the interruption
+## Tuning value helpers (verified after the interruption)
 
-These changes exist in the worktree and are **not yet compiled or verified**:
-
-- New `src/Speed/Indep/Src/Physics/PhysicsTuningValues.cpp` with offset query
-  `0x59aee0`, field-address switch `0x59b200`, engine normalization `0x59b3c0`,
-  and value reader `0x5a7da0`.
-- `PhysicsTuningSelection.h`: a 41-byte `PhysicsTuningValues` subobject with
-  `GetOffset`; `VehicleMover.h`: its layout and method declarations.
-- `PhysicsParameters.cpp`: constructor access adapted to the new subobject.
-- `src/Platform/Native/OriginalSymbols.ld`: five original tuning constants.
-
-Review these changes against the binary before using them. No verification
-manifest or verifier extension for these four new helpers has been written.
-The new value reader calls recovered removal/application around reads only
-at nesting depth zero. Native CarTypeInfo table installation is still absent;
-these helpers do not establish native full tuning integration.
+The interrupted draft is now verified and committed: offset query `0x59aee0`,
+field-address switch `0x59b200` (thiscall member ignoring `ecx`), engine
+normalization `0x59b3c0` and value reader `0x5a7da0` in
+`PhysicsTuningValues.cpp`. `tools/verify_pc_physics_tuning_values.py` reports
+94,722 bit-identical comparisons; see `docs/pc-physics-parameters.md`. Native
+CarTypeInfo table installation is still absent, so they are not yet called
+natively. Verifier note: Unicorn keeps translated blocks, so never rewrite a
+probe wrapper at the same address for a different target; also reset FPTAG.
 
 ## Immediate plan on resume
 
-1. Reinspect Git status and the goal state. Preserve the interrupted source.
-2. Compare the four draft helpers with original disassembly and Ghidra output.
-   Preserve the offset query's unrounded lower comparison versus its binary32
-   upper comparison/return; engine normalization's unspilled sum/correction;
-   value reader's intermediate binary32 spills, negative difference, and depth
-   counter; and the field-address switch's stdcall stack cleanup.
-3. Add fingerprints and differential tests. Cover all tuning kinds/components,
-   all 256 offset byte values, clamp boundaries, signed zero/cancellation,
-   source-relative reads, averaging, engine primary-minus-secondary, nested
-   and outermost reads, and removal/reapplication. Execute recovered callees
-   on the rebuilt side and guard executed ranges. Do not add guessed guards
-   for malformed inputs the original does not handle.
-4. Build native targets and rerun affected construction and extra/tuning
-   verifiers sequentially. Record precise evidence and limitations. Commit
-   and push this checkpoint only after validation.
-5. Continue full tuning application `0x5b4780`: remaining bounds/setter helpers
+1. Reinspect Git status and the goal state.
+2. Continue full tuning application `0x5b4780`: remaining bounds/setter helpers
    include `0x5b2980`, `0x5b3fa0`, `0x5b4670`, and `0x5b2c00`.
-6. Recover enclosing parameter composer `0x5b4dc0`, class-index calculation,
+3. Recover enclosing parameter composer `0x5b4dc0`, class-index calculation,
    performance helper `0x5b06a0`, real descriptor installation and source table
    lifecycle. Integrate its original call chain and remove native manual
    composition as evidence permits; do not force empty tables to evade callees.
-7. Continue human steering (`0x405dc0`, `0x41dfc0`, keyboard `0x416bb0`, analog
+4. Continue human steering (`0x405dc0`, `0x41dfc0`, keyboard `0x416bb0`, analog
    `0x4061c0`, alternate `0x406a40`, device capture `0x571a60`, constructors).
    The native smoothing at 2.5 units/s and ±30° angle scaling remain substitutes.
-8. Follow the audit inventory through vehicle/session construction, complete
+5. Follow the audit inventory through vehicle/session construction, complete
    update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/
    presentation. Keep committing/pushing verified checkpoints before pauses.
 

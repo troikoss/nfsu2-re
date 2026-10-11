@@ -2,7 +2,7 @@
 
 // Original 0x5a7970. Padding and unobserved fields retain their prior bytes.
 PhysicsTuning *PhysicsTuning::Construct() {
-    for (int i = 0; i < 41; ++i) values14[i] = 100;
+    for (int i = 0; i < 41; ++i) values14.values0[i] = 100;
     for (int i = 0; i < 23; ++i) values40[i] = 0.0f;
     for (int i = 0; i < 9; ++i) values9C[i] = valuesC0[i] = 0.0f;
     recordC = 0;
