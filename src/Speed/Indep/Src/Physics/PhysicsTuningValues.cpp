@@ -527,3 +527,154 @@ void PhysicsTuning::LimitEngineRange(int index, float *minimum, float *maximum, 
     *minimum = 0.0f > *minimum ? 0.0f : *minimum;
     if (0.0f > *maximum) *maximum = 0.0f;
 }
+
+// 0x5b2980 derives the adjustable limits of a kind with a selected entry from
+// its averaged range and current linked setting. Entry kinds 2/3 scale the
+// span, 0/1 offset the setting through 0x401070/0x401050 and 4 is absolute;
+// other kinds leave both outputs untouched. Optional display mapping orders
+// the ends against the unspilled upper result. Equal ends separate by 0.01.
+void PhysicsTuning::GetEntryLimits(int index, float *lower, float *upper, int component, bool display) {
+    PhysicsTuningEntry *entry = FindPhysicsTuningEntry(index, selection8);
+    if (entry == 0) return;
+    float minimum;
+    float maximum;
+    GetRange(index, &minimum, &maximum, component, true);
+    float current = GetLinkedExtreme(index, component);
+    if (index == 23 || index == 24) LimitEngineRange(index, &minimum, &maximum, component);
+    unsigned char kind = entry->kind6;
+    if (kind == 2) {
+        if (index == 3 || index == 7 || index == 9) {
+            double limit = (double)current - ((double)maximum - minimum) * entry->valueC;
+            *lower = (float)(minimum > limit ? minimum : limit);
+            *upper = maximum;
+        } else {
+            double span = (double)maximum - minimum;
+            *lower = minimum;
+            double limit = span * entry->valueC + current;
+            *upper = (float)(maximum < limit ? maximum : limit);
+        }
+    } else if (kind == 3) {
+        double span = (double)maximum - minimum;
+        double limit = span * entry->value8 + current;
+        *lower = (float)(minimum > limit ? minimum : limit);
+        limit = span * entry->valueC + current;
+        *upper = (float)(maximum < limit ? maximum : limit);
+    } else if (kind == 0) {
+        if (GetSign(index) > 0.0f) {
+            *lower = minimum;
+            *upper = EngineMinimum(maximum, (float)((double)current + entry->valueC));
+        } else {
+            *lower = EngineMaximum(minimum, (float)((double)current - entry->valueC));
+            *upper = maximum;
+        }
+    } else if (kind == 1) {
+        *lower = EngineMaximum(minimum, (float)((double)current + entry->value8));
+        *upper = EngineMinimum(maximum, (float)((double)current + entry->valueC));
+    } else if (kind == 4) {
+        *lower = entry->value8;
+        *upper = entry->valueC;
+    }
+    if (display) {
+        *lower = (float)MapValue(index, *lower, true);
+        double mapped = MapValue(index, *upper, true);
+        *upper = (float)mapped;
+        if (mapped < *lower) {
+            float previous = *lower;
+            *lower = (float)mapped;
+            *upper = previous;
+        }
+    }
+    if (*lower == *upper) *upper = (float)((double)*upper + physicsTuningHundredth);
+}
+
+// 0x5b3ee0 clamps a requested setting to the entry limits, stores its offset
+// from the current setting as a fraction of the limit span and returns it.
+// The limits are only written for kinds with a selected entry; otherwise the
+// original reads its reused argument slots.
+float PhysicsTuning::SetValue(float value, int index, int component) {
+    float current = 0.0f;
+    if (index < 23) current = values40[index];
+    else if (index == 23) current = values9C[component];
+    else if (index == 24) current = valuesC0[component];
+    float lower;
+    float upper;
+    GetEntryLimits(index, &lower, &upper, component, false);
+    float clamped = value > lower ? value : lower;
+    value = upper < clamped ? upper : clamped;
+    values14.SetOffset((float)(((double)value - current) / ((double)upper - lower)), index, component);
+    return value;
+}
+
+extern float physicsTuningGearGap;
+
+// 0x5b2ed0 sets one gear ratio (kinds 10..15, ratios indexed by kind - 8)
+// within its entry limits and returns the unapplied excess. Raising a ratio
+// pushes the next lower gear's ratio below it by 0.05, lowering one pushes
+// the next higher gear's ratio above it; the neighbour is set recursively
+// and its excess is carried back. Limits are only written for kinds with a
+// selected entry.
+float PhysicsTuning::SetGearRatio(float value, int index, float *ratios) {
+    float lower;
+    float upper;
+    GetEntryLimits(index, &lower, &upper, 0, false);
+    float limited = value > lower ? value : lower;
+    float clamped = upper < limited ? upper : limited;
+    double delta = (double)value - ratios[index - 8];
+    if (delta == 0.0) return 0.0f;
+    int direction = 0;
+    if (delta > 0.0 && index > 10) direction = -1;
+    else if (delta < 0.0 && index < 15) direction = 1;
+    float excess = (float)((double)value - clamped);
+    if (direction != 0) {
+        int neighbour = direction + index;
+        float current = ratios[neighbour - 8];
+        float next = current;
+        double below = (double)clamped - physicsTuningGearGap;
+        if (current > below && neighbour > index) {
+            if (current < below) next = current;
+            else next = (float)below;
+        } else {
+            clamped = (float)((double)physicsTuningGearGap + clamped);
+            if (current < clamped && neighbour < index) next = EngineMaximum(current, clamped);
+        }
+        if (next != current) excess = (float)((double)SetGearRatio(next, neighbour, ratios) + excess);
+    }
+    ratios[index - 8] = (float)((double)value - excess);
+    return excess;
+}
+
+// 0x5b3060 applies 0x5b2ed0 to a copy of the record's six gear ratios,
+// zeroes copies beyond the gear count + 2, and writes kinds 10..15 back.
+void PhysicsTuning::SetGearRatios(float value, int index) {
+    float ratios[8];
+    CarPhysicsRecord *record = recordC;
+    for (int i = 10; i <= 15; ++i) ratios[i - 8] = *GetField(record, i, 0);
+    SetGearRatio(value, index, ratios);
+    int count = recordC->drivetrain1B0.unidentified18 + 2;
+    if (count <= 7)
+        for (int i = count; i < 8; ++i) ratios[i] = 0.0f;
+    for (int i = 10; i <= 15; ++i) *GetField(recordC, i, 0) = ratios[i - 8];
+}
+
+// 0x5b3100 sets kind 16 or 17 and moves the other kind of the pair by the
+// same fraction of its own entry-limit span in the opposite direction.
+void PhysicsTuning::SetLinkedValue(float value, int index) {
+    int other = (index != 17) + 16;
+    float lower;
+    float upper;
+    float otherLower;
+    float otherUpper;
+    GetEntryLimits(index, &lower, &upper, 0, false);
+    GetEntryLimits(other, &otherLower, &otherUpper, 0, false);
+    float current = 0.0f;
+    if (index < 23) current = values40[index];
+    else if (index == 23) current = values9C[0];
+    else if (index == 24) current = valuesC0[0];
+    double fraction = ((double)value - current) / ((double)upper - lower);
+    float otherCurrent = 0.0f;
+    if (other < 23) otherCurrent = values40[other];
+    else if (other == 23) otherCurrent = values9C[0];
+    else if (other == 24) otherCurrent = valuesC0[0];
+    *GetField(recordC, index, 0) = value;
+    *GetField(recordC, other, 0) = (float)((double)otherCurrent - ((double)otherUpper - otherLower) * fraction);
+}

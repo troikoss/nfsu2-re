@@ -277,12 +277,31 @@ over record +0x1f0..+0x1f8, and, when the bound's power at the sample speed
 `start + (end - start) * sample * 0.125` exceeds the peak, lowers it by the
 excess divided by `speed * 0.104712`. Both ends are clamped at zero.
 
+Entry limits `0x5b2980` (533 bytes) derive the adjustable limits of a kind
+with a selected entry from its averaged range and current linked setting
+(`0x5a79f0`), first capping engine samples with `0x5ace80`. Entry kinds 2/3
+scale the span (negative-sense kinds 3/7/9 from below), 0/1 offset the
+setting through `0x401070`/`0x401050` (kind 0 by `0x59b6c0`'s sign), 4 is
+absolute, and other kinds leave the outputs untouched. Optional display
+mapping through `0x5b2800` orders the ends against the unspilled upper
+result; equal ends separate by 0.01. Setter `0x5b3ee0` (178 bytes) clamps a
+requested setting to those limits, stores `(value - current) / span` through
+`0x59af80` and returns the clamped value. Gear setter `0x5b2ed0` (392 bytes)
+sets one ratio within its limits and recursively pushes the neighbouring
+gear 0.05 below or above it, returning the unapplied excess; `0x5b3060`
+(149 bytes) runs it on a copy of the record's six ratios, zeroes copies past
+the gear count + 2 and writes them back. `0x5b3100` (230 bytes) sets kind 16
+or 17 and moves the other by the same fraction of its own span in the
+opposite direction. Without a selected entry the limit outputs keep the
+caller's reused argument slots; the recovered setters leave those locals
+uninitialized, and the fixtures only exercise kinds with entries there.
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
 `tools/verify_pc_physics_tuning_values.py` covers every routine above with
 the fingerprints in `physics-tuning-values.json`. On 2026-10-12 it reported
-**252,983** bit-identical comparisons:
+**292,553** bit-identical comparisons:
 
 | Routine | Cases |
 | --- | ---: |
@@ -308,6 +327,11 @@ the fingerprints in `physics-tuning-values.json`. On 2026-10-12 it reported
 | `0x5b09a0` GetDisplayRange | 16,560 |
 | `0x5b2800` MapValue | 31,200 |
 | `0x5ace80` LimitEngineRange | 6,900 |
+| `0x5b2980` GetEntryLimits | 27,600 |
+| `0x5b3ee0` SetValue | 7,416 |
+| `0x5b2ed0` SetGearRatio | 1,932 |
+| `0x5b3060` SetGearRatios | 1,932 |
+| `0x5b3100` SetLinkedValue | 690 |
 
 Fixtures use 46 retail CarTypeInfo rows as sources and perturbed records,
 random extra-flag masks, synthetic lookup tables with every entry kind,
@@ -325,11 +349,14 @@ Limitations: kinds outside 0..24 make `0x5a7da0` dereference null and are not
 exercised; range selection uses components 0/1 only, because larger
 components read adjacent stack slots; the unspilled ordering comparison in
 `0x5b2800` and the intermediate store in `0x5b09a0` are not distinguished by
-the fixtures. Byte matching is not established. Source mutations (sign of a
+the fixtures; setters that read entry limits are compared only for kinds with
+selected entries. Byte matching is not established. Source mutations (sign of a
 source-relative difference, reapplication depth, gear blend bound, offset
 clamps, a balance-range entry kind, linked-extreme and peak comparisons, a
-range-builder field offset, display-range ordering and the value-mapping
-epsilon gate) were each detected. NaN curve samples exposed the lookup
+range-builder field offset, display-range ordering, the value-mapping
+epsilon gate, gear-excess carry and linked-value direction) were each
+detected. The guard runs per translated block, requiring each block to lie
+inside a permitted range. NaN curve samples exposed the lookup
 truncation difference described in `pc-vehicle-physics.md`. Results stay in
 `build/analysis/physics-tuning-values/`.
 

@@ -699,3 +699,4 @@ physicsTuningGearHighInput = 0x7a1ad0;
 physicsTuningKind16Maximum = 0x7a2380;
 physicsTuningSampleSpacing = 0x788164;
 physicsTuningTorqueScale = 0x7a2384;
+physicsTuningGearGap = 0x7a1acc;

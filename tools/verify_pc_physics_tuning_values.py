@@ -6,7 +6,7 @@ import random
 import struct
 import subprocess
 import pefile
-from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
+from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_BLOCK
 from unicorn.x86_const import *
 from pc_coff import link_objects
 from probe_pc_race_reward import ROOT, EXE
@@ -21,13 +21,14 @@ SAVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 
 
 FLOATING = ('GetOffset', 'GetValue', 'ConvertUnits', 'GetGearValue', 'GetSign', 'EngineMaximum', 'EngineMinimum',
-            'GetLinkedExtreme', 'EngineRemapClamped', 'FindPhysicsCurvePeak', 'MapValue')
+            'GetLinkedExtreme', 'EngineRemapClamped', 'FindPhysicsCurvePeak', 'MapValue', 'SetValue', 'SetGearRatio')
 # Bytes of stack arguments removed by the callee.
 CLEANUP = dict(GetOffset=8, GetField=12, NormalizeEngine=4, GetValue=8, SetOffset=12, IsActive=4, ApplyEntry=12,
                ConvertUnits=12, GetGearValue=8, GetSign=4, EngineMaximum=0, EngineMinimum=0, GetLinkedExtreme=8,
                GetBalanceRange=20, GetPairRange=20, ExpandPhysicsTuningRange=0, EngineRemapClamped=0,
                GetRange=20, FindPhysicsCurvePeak=0, GetDisplayRange=20, MapValue=12,
-               LimitEngineRange=16)
+               LimitEngineRange=16, GetEntryLimits=20, SetValue=12, SetGearRatio=12, SetGearRatios=8,
+               SetLinkedValue=8)
 
 
 def original_symbols():
@@ -105,9 +106,10 @@ def main():
             uc.mem_write(wrapper, b'\xe8' + struct.pack('<i', target - wrapper - 5) + b'\xdb\x3d' + struct.pack('<I', OUT)
                          + b'\x68' + struct.pack('<I', STOP) + b'\xc3')
             ranges = ranges + [(wrapper, wrapper + 0x20)]
+        # Every translated block must start and end inside a permitted range.
         def guard(machine, address, size, user, ranges=ranges):
-            assert any(a <= address < b for a, b in ranges), hex(address)
-        uc.hook_add(UC_HOOK_CODE, guard)
+            assert any(a <= address and address + size <= b for a, b in ranges), hex(address)
+        uc.hook_add(UC_HOOK_BLOCK, guard)
         machines.append(uc)
     counts = dict.fromkeys(entries, 0)
 
@@ -388,6 +390,23 @@ def main():
                         compare('GetDisplayRange', state, (index, pair[0], pair[1], component, average), TUNING,
                                 table=ROWS + 0x2200, count=30 if trial % 7 else 0)
                 if 0 <= index <= 24:
+                    for component in (0, 1, 4):
+                        for display in (0, 1):
+                            for pair in ((OUT - 0x100, OUT - 0xfc), (OUT - 0x100, OUT - 0x100)):
+                                struct.pack_into('<ff', state, OUT - 0x100 - BASE, -7.5, 7.5)
+                                compare('GetEntryLimits', state, (index, pair[0], pair[1], component, display), TUNING,
+                                        table=ROWS + 0x2200, count=30 if trial % 7 else 0)
+                    # Without a selected entry the original reads its reused argument slots.
+                    selected = trial % 7 and any(
+                        struct.unpack_from('<b', state, ROWS - BASE + 0x2200 + i * 0x18 + 5)[0] == index and
+                        state[SELECTION - BASE + 0x50 + struct.unpack_from('<i', state, ROWS - BASE + 0x2200 + i * 0x18)[0]]
+                        for i in range(30))
+                    if selected:
+                        for component in ((0, 3, 8) if index in (23, 24) else (0,)):
+                            for value in (0.0, -1.0, 0.25, rng.uniform(-2, 2), rng.uniform(-500, 9000), nan):
+                                compare('SetValue', state, (bits(value), index, component), TUNING,
+                                        table=ROWS + 0x2200, count=30)
+                if 0 <= index <= 24:
                     for value in (0.0, 0.5, -1.0, rng.uniform(-50, 50), rng.uniform(0, 9000), nan):
                         for toDisplay in (0, 1):
                             for control in ((0x027f, 0x037f) if trial < 6 else (0x027f,)):
@@ -410,6 +429,33 @@ def main():
                     low, high = rng.uniform(-1, 1), rng.choice((rng.uniform(-1, 2), rng.uniform(0, 600), 1e6, -0.0, nan))
                     struct.pack_into('<ff', state, OUT - 0x100 - BASE, low, high)
                     compare('LimitEngineRange', state, (index, OUT - 0x100, OUT - 0xfc, sample), TUNING, control)
+
+    # Gear and linked setters: every kind has a selected entry with kinds 0..4,
+    # so recursive limit queries always write their outputs.
+    rng = random.Random(0x5b2ed0)
+    for trial, row in enumerate(rows):
+        state = bytearray(b'\xa5' * 0x8000)
+        state[ROWS - BASE + 0x890 + 0x110:ROWS - BASE + 0x890 + 0x890] = row
+        state[RECORD - BASE:RECORD - BASE + 0x2b0] = row[:0x2b0]
+        state[SELECTION - BASE:SELECTION - BASE + 0x94] = bytes(0x94)
+        for i in range(68):
+            state[SELECTION - BASE + 0x50 + i] = 1
+        for i in range(25):
+            struct.pack_into('<ibbBBffff', state, ROWS - BASE + 0x2200 + i * 0x18, i, 0, i, rng.randrange(5), 0xa5,
+                             rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5), -99.99, -99.99)
+        for i in range(41):
+            struct.pack_into('<f', state, TUNING - BASE + 0x40 + 4 * i, rng.uniform(0.5, 4.0))
+        struct.pack_into('<iiII', state, TUNING - BASE, 1, rng.choice((0, 1)), SELECTION, RECORD)
+        ratios = [struct.unpack_from('<f', row, 0x1b0 + 4 * k)[0] for k in range(10, 16)]
+        for index in range(10, 16):
+            current = ratios[index - 10]
+            for value in (current, current + 0.3, current - 0.3, current * 2, 0.0, rng.uniform(0, 5), nan):
+                struct.pack_into('<8f', state, OUT - 0x100 - BASE, 9.0, 9.0, *ratios)
+                compare('SetGearRatio', state, (bits(value), index, OUT - 0x100), TUNING, table=ROWS + 0x2200, count=25)
+                compare('SetGearRatios', state, (bits(value), index), TUNING, table=ROWS + 0x2200, count=25)
+        for index in (16, 17, 18):
+            for value in (0.0, 0.5, 1.0, rng.uniform(-2, 2), nan):
+                compare('SetLinkedValue', state, (bits(value), index), TUNING, table=ROWS + 0x2200, count=25)
 
     report = dict(executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,
                   byte_matching='not established', controlled_interfaces=[],

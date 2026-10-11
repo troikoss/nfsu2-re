@@ -302,6 +302,11 @@ struct PhysicsTuning {
     void LimitEngineRange(int index, float *minimum, float *maximum, int sample); // 0x5ace80
     void GetDisplayRange(int index, float *minimum, float *maximum, int component, bool display); // 0x5b09a0
     double MapValue(int index, float value, bool toDisplay); // 0x5b2800
+    void GetEntryLimits(int index, float *lower, float *upper, int component, bool display); // 0x5b2980
+    float SetValue(float value, int index, int component); // 0x5b3ee0
+    float SetGearRatio(float value, int index, float *ratios); // 0x5b2ed0
+    void SetGearRatios(float value, int index); // 0x5b3060
+    void SetLinkedValue(float value, int index); // 0x5b3100
     void GetBalanceRange(int index, int component, bool average, float *minimum, float *maximum); // 0x5a7b80
     void GetPairRange(int index, int component, bool average, float *minimum, float *maximum); // 0x5a7cb0
     void NormalizeEngine(float total); // 0x59b3c0
