@@ -2,6 +2,7 @@
 #define UG2_HUMAN_DRIVER_INPUT_H
 
 #include "VehicleMover.h"
+#include "HumanSteering.h"
 
 // Partial timer view used at human input +0x2cc. Original 0x577310.
 struct DriverTimer {
@@ -11,10 +12,12 @@ struct DriverTimer {
 UG2_CHECK_SIZE(DriverTimer, 4);
 
 // Human input vtable 0x784fc8, constructor 0x425fc0. Steering subobject
-// +0x220 and full constructor/device capture remain separate recovery work.
+// +0x220 has a recovered constructor/rate helper; full input construction,
+// device capture and steering update remain separate recovery work.
 class HumanDriverInput : public MoverInput {
 public:
-    char unidentified218[0x90];
+    char unidentified218[8];
+    HumanSteering steering220;
     MoverModeOwner *car2A8;
     int device2AC;
     float value2B0;
@@ -42,6 +45,7 @@ public:
 };
 
 UG2_CHECK_OFFSET(HumanDriverInput, car2A8, 0x2a8);
+UG2_CHECK_OFFSET(HumanDriverInput, steering220, 0x220);
 UG2_CHECK_OFFSET(HumanDriverInput, transmission2C0, 0x2c0);
 UG2_CHECK_OFFSET(HumanDriverInput, throttle2D4, 0x2d4);
 UG2_CHECK_OFFSET(HumanDriverInput, brake2DC, 0x2dc);

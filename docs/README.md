@@ -18,6 +18,7 @@
 - [Controls](pc-controls.md): keyboard binding item recovery, native Controls page, and SDL gamepad/mouse UI routing.
 - [Racing](pc-racing.md): drift ranking, career reward/eligibility recovery, and bounded verification.
 - [Vehicle physics](pc-vehicle-physics.md): timestep, integrator, engine, and drivetrain investigation.
+- [Human steering](pc-human-steering.md): timed-average and rate-helper recovery, constructor integration and remaining physics dependencies.
 - [Wheel and body physics](pc-wheel-physics.md): vector math, wheel preparation/correction, coupling, and body verification.
 
 The physics documents preserve the recovery sequence: later findings supersede

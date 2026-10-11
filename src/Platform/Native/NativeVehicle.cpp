@@ -349,6 +349,11 @@ void DestroyNativeVehicle(NativeVehicle *vehicle) {
         delete vehicle->owner->collisionBody3C;
         vehicle->owner->collisionBody3C = 0;
     }
+    if (vehicle->controls) {
+        vehicle->controls->steering220.Destroy();
+        vehicle->controls = 0;
+        if (vehicle->owner) vehicle->owner->input30 = 0;
+    }
 }
 
 bool InitialiseNativeRuntime(const char *gameDirectory, char *error, int errorSize) {
@@ -396,11 +401,12 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     NativeControls *controls = static_cast<NativeControls *>(calloc(1, sizeof(NativeControls)));
     new (controls) NativeControls;
     // Partial constructor seam. These fields are observed in 0x423330/0x425fc0;
-    // device capture and the steering subobject constructor remain unrecovered.
+    // full input construction and device capture remain unrecovered.
     controls->gearRequest1E4 = 1;
     controls->directGear1E8 = 1;
     controls->car2A8 = owner;
     controls->device2AC = -1;
+    controls->steering220.Construct(owner);
     // Native free-drive entry seam: the original session entry is unresolved.
     // Select drive through the recovered human slot rather than leaving the
     // constructor's neutral request active throughout this standalone demo.

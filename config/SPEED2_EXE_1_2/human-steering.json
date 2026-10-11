@@ -1,0 +1,74 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "method": "Construct",
+      "address": 5742368,
+      "size": 83,
+      "sha256": "2494ec5cdc31221159869177f1ef19b6644b0719a3003caefc2d6971b8214527",
+      "kind": "dependency"
+    },
+    {
+      "method": "ConstructTimed",
+      "address": 5742464,
+      "size": 102,
+      "sha256": "b6120c6ff7756aed405fbd1f52ffae16013ab21b2fc21e9571997e2e8576f53c",
+      "kind": "dependency"
+    },
+    {
+      "method": "Advance",
+      "address": 5728928,
+      "size": 261,
+      "sha256": "283b82f97742e8cf9b8cd3457b6bdffa3519df407080f35741beb4e900cdcab0",
+      "kind": "dependency"
+    },
+    {
+      "method": "ConstructSteering",
+      "symbol": "Construct@HumanSteering",
+      "address": 4217952,
+      "size": 145,
+      "kind": "function",
+      "sha256": "df91f322841faef616810a710101d5f0faf9dbac9ac97a0a406bee524960e103"
+    },
+    {
+      "method": "CalculateRate",
+      "symbol": "CalculateRate@HumanSteering",
+      "address": 4219104,
+      "size": 223,
+      "kind": "function",
+      "sha256": "8a0fe91e6af36bd45b1f88408ae1cb5ef6c3239c835405bbb823401ddfb456bd"
+    },
+    {
+      "method": "dependencyEngineCurve",
+      "symbol": "Lookup@EngineCurve",
+      "address": 5727440,
+      "size": 138,
+      "kind": "dependency",
+      "sha256": "0b2593774ad52b8e54ebad8bb77708fa9e7b72f5c1805b7614866eea8bece4c7"
+    },
+    {
+      "method": "Destroy",
+      "symbol": "Destroy@SampleAverage",
+      "address": 5728480,
+      "size": 36,
+      "kind": "dependency",
+      "sha256": "3179797dbb6f16b4ea1ee7163075001e2e961f092de9f921fc515af5dfd8444a"
+    },
+    {
+      "method": "DestroyTimed",
+      "symbol": "DestroyTimed@TimedAverage",
+      "address": 5728864,
+      "size": 54,
+      "kind": "dependency",
+      "sha256": "16ad8a512aa81d6bfa29c2df3a1d1a743e9aaf138fa1023aebbc81c4f30e7138"
+    },
+    {
+      "method": "DestroySteering",
+      "symbol": "Destroy@HumanSteering",
+      "address": 4218112,
+      "size": 77,
+      "kind": "function",
+      "sha256": "30173333ecc9a26f0e99d40f471717371ec8b7aa3c4f01ec8d4ce9ed984b3f55"
+    }
+  ]
+}

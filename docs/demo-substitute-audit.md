@@ -29,6 +29,11 @@ not been proven irrelevant to gameplay.
 
 ## Implemented driving recovery
 
+The next [human steering checkpoint](pc-human-steering.md) recovers and integrates
+the steering subobject constructor/destructor and verifies its timed averages
+and rate helper. Steering smoothing and angle scaling still remain native while
+the maximum-angle/physics composition chain is recovered.
+
 `Physics/HumanDriverInput.cpp` recovers gear accessors `0x405b20`, `0x405b30`,
 `0x405b40`, `0x405b50`, human forward selection `0x407310`, timer advancement
 `0x577310`, and pedal processing `0x407a30`. The latter retains hold timing,
