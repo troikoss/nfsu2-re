@@ -299,6 +299,7 @@ struct PhysicsTuning {
     float GetSign(int index); // 0x59b6c0
     float GetLinkedExtreme(int index, int component); // 0x5a79f0
     void GetRange(int index, float *minimum, float *maximum, int component, bool average); // 0x5aca50
+    void GetDisplayRange(int index, float *minimum, float *maximum, int component, bool display); // 0x5b09a0
     void GetBalanceRange(int index, int component, bool average, float *minimum, float *maximum); // 0x5a7b80
     void GetPairRange(int index, int component, bool average, float *minimum, float *maximum); // 0x5a7cb0
     void NormalizeEngine(float total); // 0x59b3c0

@@ -10,7 +10,8 @@ struct PhysicsTuningEntry {
     char unidentified7;
     float value8;
     float valueC;
-    char unidentified10[8];
+    float value10; // -99.99 when unset
+    float value14; // -99.99 when unset
 };
 UG2_CHECK_SIZE(PhysicsTuningEntry, 0x18);
 struct PhysicsTuningValues {

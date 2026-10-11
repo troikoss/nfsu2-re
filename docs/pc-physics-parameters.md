@@ -254,6 +254,14 @@ peak `0x5ac980` (200 bytes) scans a sample curve with recovered lookup
 product and its position. MSVC 7.1 `/Op` leaves `float` returns unspilled,
 so `EngineCurve::Lookup` keeps its float signature.
 
+Display range `0x5b09a0` (475 bytes plus jump tables) calls the range builder
+with averaging, then, for kinds with a selected entry, optionally replaces
+each end with entry +0x10/+0x14 unless it is -99.99, or converts it (gear
+kinds through `0x59b5c0` first) with an inlined forward `0x59b4a0`; the
+recovered source calls `ConvertUnits` there. Ends are ordered, and equal ends
+always separate by 0.01. Its unconverted intermediate store is kept but is
+only observable if an output aliases tuning +4.
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
@@ -273,14 +281,15 @@ for components 0/1 only, because larger components read adjacent stack
 slots. A further 16,560 range-builder cases (every kind -2..26 and 128, two
 depths, distinct and aliased outputs, random extra flags and entries on 46
 retail rows) and 480 curve-peak cases (counts 1..64, empty/inverted spans,
-NaN and null outputs, three precisions) bring the total to **200,323**
-bit-identical comparisons. Recovered lookup `0x5764d0` executes on the rebuilt
+NaN and null outputs, three precisions) and 16,560 display-range cases
+(entries with and without -99.99 overrides, three selection values) bring
+the total to **216,883** bit-identical comparisons. Recovered lookup `0x5764d0` executes on the rebuilt
 side. The
 lookup and minimum helper execute as recovered source on the rebuilt side;
 `__ftol2` is original runtime code on both sides. Mutations of the gear blend
 upper bound, offset-store clamps, a balance-range entry kind, the
-linked-extreme comparison, the peak comparison and one range-builder field
-offset were each detected.
+linked-extreme comparison, the peak comparison, one range-builder field
+offset and the display-range ordering test were each detected.
 
 ## Mode variants
 

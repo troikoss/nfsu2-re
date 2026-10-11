@@ -1,6 +1,6 @@
 {
   "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
-  "note": "GetField, GetValue, ConvertUnits, GetLinkedExtreme and GetRange sizes include their trailing jump tables.",
+  "note": "Sizes of routines with switch tables include their trailing jump tables.",
   "functions": [
     {
       "address": 5877472,
@@ -121,6 +121,12 @@
       "size": 138,
       "sha256": "0b2593774ad52b8e54ebad8bb77708fa9e7b72f5c1805b7614866eea8bece4c7",
       "method": "Lookup"
+    },
+    {
+      "address": 5966240,
+      "size": 554,
+      "sha256": "3368521dea0d6e218e1b428176cc08393b76b43e55701263c81e428d4882b3c0",
+      "method": "GetDisplayRange"
     }
   ],
   "dependencies": [

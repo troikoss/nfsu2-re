@@ -26,7 +26,7 @@ FLOATING = ('GetOffset', 'GetValue', 'ConvertUnits', 'GetGearValue', 'GetSign', 
 CLEANUP = dict(GetOffset=8, GetField=12, NormalizeEngine=4, GetValue=8, SetOffset=12, IsActive=4, ApplyEntry=12,
                ConvertUnits=12, GetGearValue=8, GetSign=4, EngineMaximum=0, EngineMinimum=0, GetLinkedExtreme=8,
                GetBalanceRange=20, GetPairRange=20, ExpandPhysicsTuningRange=0, EngineRemapClamped=0,
-               GetRange=20, FindPhysicsCurvePeak=0)
+               GetRange=20, FindPhysicsCurvePeak=0, GetDisplayRange=20)
 
 
 def original_symbols():
@@ -371,16 +371,20 @@ def main():
         for i in range(68):
             state[SELECTION - BASE + 0x50 + i] = rng.randrange(2)
         for i in range(30):
-            struct.pack_into('<ibbBBff', state, ROWS - BASE + 0x2200 + i * 0x18, i % 68, rng.randrange(-2, 3), i % 25,
+            overrides = [rng.choice((-99.99, -99.99, 0.0, rng.uniform(-500, 500))) for _ in range(2)]
+            struct.pack_into('<ibbBBffff', state, ROWS - BASE + 0x2200 + i * 0x18, i % 68, rng.randrange(-2, 3), i % 25,
                              rng.choice((0, 1, 2, 3, 4, 7)), 0xa5,
-                             rng.choice(specials[:8] + [rng.uniform(-1, 1)]), rng.choice(specials[:8] + [rng.uniform(-1, 1)]))
+                             rng.choice(specials[:8] + [rng.uniform(-1, 1)]), rng.choice(specials[:8] + [rng.uniform(-1, 1)]),
+                             *overrides)
         for depth in (0, 2):
-            struct.pack_into('<iiII', state, TUNING - BASE, 1, rng.choice((0, 1)), SELECTION, RECORD)
+            struct.pack_into('<iiII', state, TUNING - BASE, 1, rng.choice((0, 1, 2)), SELECTION, RECORD)
             struct.pack_into('<i', state, TUNING - BASE + 0xe4, depth)
             for index in list(range(-2, 27)) + [128]:
                 for component, average in ((0, 0), (1, 0), (0, 1)):
                     for pair in ((OUT - 0x100, OUT - 0xfc), (OUT - 0x100, OUT - 0x100)):
                         compare('GetRange', state, (index, pair[0], pair[1], component, average), TUNING,
+                                table=ROWS + 0x2200, count=30 if trial % 7 else 0)
+                        compare('GetDisplayRange', state, (index, pair[0], pair[1], component, average), TUNING,
                                 table=ROWS + 0x2200, count=30 if trial % 7 else 0)
 
     report = dict(executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,

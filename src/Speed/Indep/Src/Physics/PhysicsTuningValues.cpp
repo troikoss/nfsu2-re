@@ -431,3 +431,36 @@ void PhysicsTuning::GetRange(int index, float *minimum, float *maximum, int comp
         application->ApplyExtra(recordC, selection8);
     }
 }
+
+// 0x5b09a0: averaged range of a kind with an entry. For display, entry
+// +0x10/+0x14 override each end unless -99.99; otherwise the end is
+// converted (gear kinds through 0x59b5c0 first) and the inlined 0x59b4a0
+// forward conversion is stored after the unconverted value. Ends are then
+// ordered. Equal ends always separate by 0.01.
+void PhysicsTuning::GetDisplayRange(int index, float *minimum, float *maximum, int component, bool display) {
+    GetRange(index, minimum, maximum, component, true);
+    PhysicsTuningEntry *entry = FindPhysicsTuningEntry(index, selection8);
+    if (entry == 0) return;
+    if (display) {
+        if (entry->value10 != -99.99f) *minimum = entry->value10;
+        else {
+            float value = *minimum;
+            if (index >= 10 && index <= 15) value = (float)GetGearValue(value, true);
+            *minimum = value;
+            *minimum = (float)ConvertUnits(index, value, true);
+        }
+        if (entry->value14 != -99.99f) *maximum = entry->value14;
+        else {
+            float value = *maximum;
+            if (index >= 10 && index <= 15) value = (float)GetGearValue(value, true);
+            *maximum = value;
+            *maximum = (float)ConvertUnits(index, value, true);
+        }
+        if (*minimum > *maximum) {
+            float lower = *minimum;
+            *minimum = *maximum;
+            *maximum = lower;
+        }
+    }
+    if (*minimum == *maximum) *maximum = (float)((double)*maximum + physicsTuningHundredth);
+}
