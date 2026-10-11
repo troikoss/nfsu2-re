@@ -50,13 +50,17 @@ def main():
     wheel = dict(address=0x43c780, size=59, sha256='70a173c3844b12f15cdc5190c3b14976d553a4d12fac9f561e0860bc9a7986dc')
     dep_functions.append(wheel)
     functions = manifest['functions'] + dep_functions
+    extra_manifest = json.loads((ROOT / 'config/SPEED2_EXE_1_2/physics-extra-tuning.json').read_text())
+    assert extra_manifest['exe_sha256'] == manifest['exe_sha256']
+    extra = next(f for f in extra_manifest['functions'] if f['method'] == 'ApplyExtra')
+    functions += [extra]
     for f in functions:
         assert hashlib.sha256(image[f['address'] - 0x400000:f['address'] - 0x400000 + f['size']]).hexdigest() == f['sha256']
     assert hashlib.sha256(image[CONVERSION[0] - 0x400000:CONVERSION[0] - 0x400000 + CONVERSION[1]]).hexdigest() == CONVERSION[2]
     BUILD.mkdir(parents=True, exist_ok=True)
     source = BUILD / 'record-upgrades-analysis.cpp'
     source.write_text(''.join('#include "' + str(ROOT / 'src/Speed/Indep/Src/Physics' / (unit + '.cpp')) + '"\n'
-                              for unit in ('PhysicsRecordUpgrades', 'PhysicsRecordBuild')))
+                              for unit in ('PhysicsRecordUpgrades', 'PhysicsRecordBuild', 'PhysicsRecordExtra')))
     obj = BUILD / 'record-upgrades-analysis.obj'
     subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo',
                     '/c', '/Ox', '/Op', '/Ob0', '/Z7', '/EHsc', '/Fo' + str(obj.relative_to(ROOT)),
@@ -174,6 +178,11 @@ def main():
             uc.reg_write(UC_X86_REG_ESP, STACK)
             uc.reg_write(UC_X86_REG_FPCW, 0x027f)
             uc.emu_start(methods['BuildRecord'][0], STOP, count=1000000)
+            assert uc.reg_read(UC_X86_REG_EIP) == STOP
+            uc.mem_write(STACK, struct.pack('<III', STOP, RECORD, SELECTION))
+            uc.reg_write(UC_X86_REG_ECX, SOURCE)
+            uc.reg_write(UC_X86_REG_ESP, STACK)
+            uc.emu_start(extra['address'], STOP, count=100000)
             assert uc.reg_read(UC_X86_REG_EIP) == STOP
             expected = bytes(uc.mem_read(RECORD, 0x2b0)) + bytes(uc.mem_read(SELECTION, 0x94))
             start = i * len(expected)

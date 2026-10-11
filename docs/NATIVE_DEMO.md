@@ -319,7 +319,8 @@ every 30 frames afterwards; `UG2_DEBUG_PAUSE=1` prints delivered messages and ga
   scaffold race-status/context/random
   objects, keyboard capture, and stock source rows loaded from GLOBALB.BUN
   CarTypeInfo `+0x110`. Recovered `0x5ac4f0` now builds the stock physics record;
-  descriptor loading, tuning `0x5997e0` and enclosing parameter composition remain
+  extra adjustment `0x5997e0` follows it. Descriptor loading, full tuning
+  application and enclosing parameter composition remain
   unfinished. See [physics parameter evidence](pc-physics-parameters.md).
 - `DemoMain.cpp`: SDL2/OpenGL window and input; `NativeFng.cpp`/`NativeHud.cpp`: FNG HUD;
   `NativePause.cpp`: pause menu seams (see above); `NativeAssets.cpp`/

@@ -1,0 +1,29 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 5871584,
+      "size": 1451,
+      "sha256": "5b0e163a44f44412cfb6e972567559d9fe004affad7759640ab21871e8bc2dfa",
+      "method": "ApplyExtra"
+    },
+    {
+      "address": 5877312,
+      "size": 79,
+      "sha256": "e5825e388f80acc2ad5a1abbea236cd71b47b184ee88b338b235d71caef8f2ee",
+      "method": "FindPhysicsTuningEntry"
+    },
+    {
+      "address": 5877984,
+      "size": 98,
+      "sha256": "a0fb85a062d90f3822e2ce20ac1270e5d530b942b36b7224ffc8f07dc1b4318e",
+      "method": "CountActive"
+    },
+    {
+      "address": 5873040,
+      "size": 1471,
+      "sha256": "51cd0838f305d7e70fe6c075efdfb9edcafcb469f5ee0b59dbc1adfc4bbe6ebc",
+      "method": "RemoveExtra"
+    }
+  ]
+}

@@ -667,3 +667,5 @@ physicsUpgradeRounding = 0x784260;
 physicsUpgradeSearchEpsilon = 0x7844f4;
 physicsUpgradeSearchBias = 0x7864e0;
 physicsUpgradeOverride7FC290 = 0x7fc290;
+physicsTuningEntries = 0x86b340;
+physicsTuningEntryCount = 0x86b344;

@@ -20,7 +20,10 @@ PhysicsParameters *PhysicsParameters::Construct() {
     record30.body110.valueC = 1.0f;
     record30.body110.inertiaScale50 = 1.0f;
     record30.body110.mass0 = 0.1f;
-    for (int i = 0; i < 10; ++i) selection2E0.values0[i] = selection2E0.values28[i] = 0.0f;
+    for (int i = 0; i < 10; ++i) {
+        selection2E0.values0[i] = 0.0f;
+        selection2E0.values28[i] = 0;
+    }
     for (int i = 0; i < 68; ++i) selection2E0.selected50[i] = 0;
     tuning374.Construct();
     driveCurve55C.count = 64;

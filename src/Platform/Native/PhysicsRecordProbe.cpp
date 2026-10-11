@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
         memset(&parameters, 0, sizeof(parameters));
         parameters.Construct();
         source.BuildRecord(&parameters.record30, &parameters.selection2E0, 0);
+        source.ApplyExtra(&parameters.record30, &parameters.selection2E0);
         if (fwrite(&parameters.record30, 1, sizeof(parameters.record30), output) != sizeof(parameters.record30)
             || fwrite(&parameters.selection2E0, 1, sizeof(parameters.selection2E0), output) != sizeof(parameters.selection2E0)) return 1;
         ++count;

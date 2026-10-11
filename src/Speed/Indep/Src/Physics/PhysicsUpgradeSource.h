@@ -10,6 +10,8 @@ struct PhysicsUpgradeSelection;
 struct PhysicsUpgradeSource {
     char values0[0x780];
     void BuildRecord(CarPhysicsRecord *, PhysicsUpgradeSelection *, char); // 0x5ac4f0
+    void ApplyExtra(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5997e0
+    void RemoveExtra(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x599d90
     void ApplyUpgrade0(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5a6b50
     void ApplyUpgrade1(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5a6bd0
     void ApplyUpgrade3(CarPhysicsRecord *, PhysicsUpgradeSelection *); // 0x5a6d00

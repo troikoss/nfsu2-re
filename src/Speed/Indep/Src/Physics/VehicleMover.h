@@ -289,6 +289,7 @@ struct PhysicsTuning {
     float valuesC0[9];
     int valueE4;
     PhysicsTuning *Construct();
+    int CountActive(); // 0x59b0e0
 };
 UG2_CHECK_SIZE(PhysicsTuning, 0xe8);
 

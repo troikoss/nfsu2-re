@@ -266,8 +266,8 @@ unsigned int Read32(const std::vector<unsigned char> &data, size_t offset) {
 }
 
 // Platform scaffolding for the GLOBALB.BUN CarTypeInfo chunk (0x34600). The original
-// chunk loader and tuning composition 0x5997e0 remain unrecovered. The recovered
-// 0x5ac4f0 builds the stock record from the full CarTypeInfo +0x110 source row.
+// chunk loader and enclosing parameter composition remain unrecovered. Recovered
+// 0x5ac4f0/0x5997e0 build and adjust the full CarTypeInfo +0x110 source row.
 bool LoadStockRecord(const char *gameDirectory, const char *carName, CarPhysicsRecord *record,
                      PhysicsUpgradeSelection *selection,
                      CameraSettingsTable *cameraSettings, int *carIndex, char *modelName, char *error,
@@ -293,6 +293,7 @@ bool LoadStockRecord(const char *gameDirectory, const char *carName, CarPhysicsR
                     PhysicsUpgradeSource source;
                     memcpy(&source, &bundle[table + i * 0x890 + 0x110], sizeof(source));
                     source.BuildRecord(record, selection, 0);
+                    source.ApplyExtra(record, selection);
                     memcpy(cameraSettings, &bundle[table + i * 0x890 + 0x720], sizeof(CameraSettingsTable));
                     memcpy(modelName, &bundle[table + i * 0x890 + 0x20], 32);
                     modelName[31] = 0;

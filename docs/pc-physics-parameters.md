@@ -135,9 +135,46 @@ and low-byte flag semantics. The unknown record +0x2ac arithmetic remains explic
 Native `LoadStockRecord` now reads the full 0x780-byte source subobject and calls
 this builder with the constructor's zero requested grades and flag zero. Its
 previous raw 0x2b0-byte copy is removed. File/chunk access, stock entry selection,
-upgrade-table installation, tuning `0x5997e0`, parameter class-index calculation,
+upgrade-table installation, full tuning application, parameter class-index calculation,
 mode/session composition and full steering remain separate unresolved seams.
 No retail descriptor data is synthesized or committed.
+
+## Extra adjustments and tuning eligibility
+
+`PhysicsRecordExtra.cpp` recovers extra application `0x5997e0` (1,451 bytes)
+and removal `0x599d90` (1,471 bytes). Selection +0x28 contains integer flags;
+the layout now reflects those reads. These routines retain offset-based source
+fields, mass scaling/division, scalar adjustments, and the original engine
+sample order. The first two primary sample writes round to binary32 while the
+following additions/subtractions retain the unrounded 53-bit accumulator.
+Volatile writes preserve the intermediate stores. Zero flags still execute
+zero additions/subtractions. Removal leaves the flag-1 selector untouched and
+is not assumed to reverse prior rounding exactly.
+
+`PhysicsTuningSelection.cpp` recovers lookup `0x59ae40` (79 bytes) and active
+count `0x59b0e0` (98 bytes). The 0x18-byte table entries retain unknown fields.
+Kind and priority are signed bytes, selection checks the indexed byte, and
+priority ties retain the first eligible entry. Count considers kinds 0..24 and
+limits gear kinds 10..15 using the record's gear count. Original globals
+`0x86b340`/`0x86b344` remain the table pointer/count; native table installation
+and full tuning application `0x5b4780` remain unresolved.
+
+Native stock loading now calls extra application immediately after record
+building, as in the original composer. The native analysis probe uses the same
+sequence. This is a recovered stage within incomplete enclosing composition,
+not evidence that the full parameter builder is equivalent.
+
+`tools/verify_pc_physics_extra_tuning.py` checks the fingerprinted originals
+against recovered MSVC source without controlled callees. On 2026-10-11,
+33,856 cases were bit-identical: 11,808 each for application and removal,
+6,400 lookup cases and 3,840 count cases. Fixtures cover all 256 combinations
+of the eight observed flags on 46 retail rows, non-Boolean integer flags,
+signed zero/cancellation, signed priorities/kinds, ties, empty tables and gear
+limits. Results are local in `build/analysis/physics-extra-tuning/verification.json`.
+NaNs, malformed indices and overlapping objects are excluded. Byte matching
+is not established. Native stock outputs for all 46 rows matched original
+record construction followed by extra application; forward/reverse smoke
+checks passed at 114.6/76.8 km/h respectively.
 
 ## Mode variants
 
@@ -253,7 +290,8 @@ do not establish actual upgrade chunk loading or complete parameter composition.
 The native `ug2recordprobe` target links the same recovered library as the demo,
 sets its 53-bit FPU precision, runs recovered parameter construction and builds
 stock records without executing original instructions. The verifier compares
-its binary record/selection output directly with emulated original `0x5ac4f0`.
+its binary record/selection output directly with emulated original `0x5ac4f0`
+followed by extra application `0x5997e0`.
 All **46 native stock records and selections are bit-identical**. This covers
 zero requested grades and the native startup's empty descriptor table, not
 non-stock upgrades or full parameter composition.
