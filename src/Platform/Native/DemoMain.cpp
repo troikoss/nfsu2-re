@@ -449,11 +449,14 @@ int main(int argc, char **argv) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
-            if (havePause && uiInput.Event(event, window, pause)) continue;
+            if (havePause && uiInput.Owns(event) && NativeControlsCapturePad(event)) continue;
+            bool padGameplay = uiInput.Owns(event) && event.type == SDL_CONTROLLERBUTTONDOWN && !(havePause && pause.Active());
+            if (havePause && !padGameplay && uiInput.Event(event, window, pause)) continue;
             if (event.type == SDL_KEYDOWN && havePause && pause.Active()) {
                 // Scaffold key mapping for the FEng pad messages while the menu is up.
                 if (pause.CaptureKey(event.key.keysym.scancode)) continue;
                 SDL_Keycode key = event.key.keysym.sym;
+                if (key == SDLK_TAB) { pause.Key(kPauseKeyDevice); continue; }
                 if (key == SDLK_F2) { pause.OpenControls(); continue; }
                 if (key == SDLK_LEFT || key == SDLK_a) pause.Key(kPauseKeyLeft);
                 else if (key == SDLK_RIGHT || key == SDLK_d) pause.Key(kPauseKeyRight);
@@ -464,12 +467,14 @@ int main(int argc, char **argv) {
                 else if (key == SDLK_ESCAPE || key == SDLK_BACKSPACE) pause.Key(kPauseKeyBack);
                 continue;
             }
-            if (event.type == SDL_KEYDOWN && NativeControlKey(12, event.key.keysym.scancode) && !event.key.repeat) {
+            if ((event.type == SDL_KEYDOWN && NativeControlKey(12, event.key.keysym.scancode) && !event.key.repeat) ||
+                (padGameplay && NativeGamepadBindings::Get().Button(12, event.cbutton.button))) {
                 // JOY_EVENT_PAUSE seam: the game flow that pushes UI_Pause.fng is not recovered.
                 if (havePause) pause.Open();
                 else running = false;
             }
-            if (event.type == SDL_KEYDOWN && NativeControlKey(14, event.key.keysym.scancode) && !event.key.repeat) {
+            if ((event.type == SDL_KEYDOWN && NativeControlKey(14, event.key.keysym.scancode) && !event.key.repeat) ||
+                (padGameplay && NativeGamepadBindings::Get().Button(14, event.cbutton.button))) {
                 DestroyNativeVehicle(&vehicle);
                 if (!CreateNativeVehicle(&vehicle, game, car, spawn[0], spawn[1], spawn[2], spawn[3], error,
                                          sizeof(error))) {
@@ -482,7 +487,8 @@ int main(int argc, char **argv) {
                     if (haveHud) hud.Configure(&vehicle, hudSkin);
                 }
             }
-            if (event.type == SDL_KEYDOWN && NativeControlKey(10, event.key.keysym.scancode) && !event.key.repeat) {
+            if ((event.type == SDL_KEYDOWN && NativeControlKey(10, event.key.keysym.scancode) && !event.key.repeat) ||
+                (padGameplay && NativeGamepadBindings::Get().Button(10, event.cbutton.button))) {
                 // JOY_EVENT_CAMERA_POV_CHANGE: far -> close -> hood -> bumper -> far.
                 cameraOption = (cameraOption + 3) % 4;
                 driveCamera.SetType(DriveCameraTypeForOption(cameraOption));
@@ -509,13 +515,20 @@ int main(int argc, char **argv) {
                     else if (c == 'A') pause.Key(kPauseKeyAccept);
                     else if (c == 'B') pause.Key(kPauseKeyBack);
                     else if (c == 'C') pause.OpenControls();
+                    else if (c == 'G') pause.Key(kPauseKeyDevice);
+                    else if (c == 'H') { SDL_Event pad={};pad.type=SDL_CONTROLLERBUTTONDOWN;pad.cbutton.button=SDL_CONTROLLER_BUTTON_X;NativeControlsCapturePad(pad); }
+                    else if (c == 'J') { SDL_Event pad={};pad.type=SDL_CONTROLLERAXISMOTION;pad.caxis.axis=SDL_CONTROLLER_AXIS_LEFTX;pad.caxis.value=-32768;NativeControlsCapturePad(pad); }
                     else if (c == 'K') pause.CaptureKey(SDL_SCANCODE_Z);
-                    else if (c == 'M') {
+                    else if (c == 'M' || c == 'T' || c == 'V') {
                         int w, h; SDL_GetWindowSize(window, &w, &h);
-                        SDL_Event pointer = {}; pointer.type = SDL_MOUSEBUTTONDOWN;
+                        // Scripted input is a fixture independent of desktop window focus.
+                        SDL_Event focus={};focus.type=SDL_WINDOWEVENT;focus.window.event=SDL_WINDOWEVENT_FOCUS_GAINED;
+                        uiInput.Event(focus,window,pause);
+                        SDL_Event pointer = {}; pointer.type = c == 'V' ? SDL_MOUSEMOTION : SDL_MOUSEBUTTONDOWN;
+                        if(c=='V') pointer.motion.state=SDL_BUTTON_LMASK;
                         pointer.button.button = SDL_BUTTON_LEFT;
-                        pointer.button.x = (int)(w * .5f - 30 * h / 480.0f);
-                        pointer.button.y = (int)(h * .5f - 90 * h / 480.0f);
+                        pointer.button.x = (int)(w * .5f + (c=='M' ? -30 : 125) * h / 480.0f);
+                        pointer.button.y = (int)(h * .5f + (c=='M' ? -90 : -125) * h / 480.0f);
                         uiInput.Event(pointer, window, pause);
                     }
                 }
@@ -549,9 +562,13 @@ int main(int argc, char **argv) {
         float throttle = NativeControlPressed(1, keys) ? 1.0f : 0.0f;
         float brake = NativeControlPressed(2, keys) ? 1.0f : 0.0f;
         float handbrake = NativeControlPressed(5, keys) ? 1.0f : 0.0f;
-        float target = 0.0f;
+        throttle = fmaxf(throttle, uiInput.Action(1));
+        brake = fmaxf(brake, uiInput.Action(2));
+        handbrake = fmaxf(handbrake, uiInput.Action(5));
+        float target = uiInput.Action(3) - uiInput.Action(4);
         if (NativeControlPressed(3, keys)) target += 1.0f;
         if (NativeControlPressed(4, keys)) target -= 1.0f;
+        target = fmaxf(-1.0f, fminf(1.0f, target));
         if (scripted) {
             float t = frame / 60.0f;
             throttle = t > 0.5f && t < 9.0f ? 1.0f : 0.0f;
@@ -613,7 +630,7 @@ int main(int argc, char **argv) {
             forward[1] /= length;
         }
         {
-            bool wantLookBack = NativeControlPressed(9, keys);
+            bool wantLookBack = !paused && (NativeControlPressed(9, keys) || uiInput.Action(9) > .5f);
             if (wantLookBack != lookBack) {
                 lookBack = wantLookBack;
                 driveCamera.SetLookBack(lookBack);

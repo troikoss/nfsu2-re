@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-enum NativePauseKey { kPauseKeyLeft, kPauseKeyRight, kPauseKeyAccept, kPauseKeyBack, kPauseKeyUp, kPauseKeyDown, kPauseKeyStart };
+enum NativePauseKey { kPauseKeyLeft, kPauseKeyRight, kPauseKeyAccept, kPauseKeyBack, kPauseKeyUp, kPauseKeyDown, kPauseKeyStart, kPauseKeyDevice };
 
 // What the demo does for the game-flow messages the menu queues (0x5f4240 / 0x5f41e0).
 enum NativePauseRequest { kPauseRequestNone, kPauseRequestResume, kPauseRequestRestart, kPauseRequestQuit };
@@ -35,7 +35,7 @@ public:
     bool CaptureKey(int scancode);
     void Key(NativePauseKey key);
     // Coordinates in the centred 640x480 FEng space. Hover selects; click edits.
-    void Pointer(float x, float y, bool click);
+    void Pointer(float x, float y, bool click, bool drag = false);
     // Advances the real-time clock 0x8651ac, script events and queued FEng messages.
     void Update(float seconds);
     void Draw(int width, int height);

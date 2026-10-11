@@ -8,6 +8,7 @@ void NativeControlsKey(void *screen, NativePauseKey key);
 void NativeControlsPointer(void *screen, float x, float y, bool click);
 void NativeControlsUpdate(void *screen);
 bool NativeControlsCapture(void *screen, SDL_Scancode key);
+bool NativeControlsCapturePad(const SDL_Event &event);
 bool NativeControlKey(int action, SDL_Scancode key);
 bool NativeControlPressed(int action, const Uint8 *keys);
 #endif

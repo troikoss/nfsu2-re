@@ -2,6 +2,7 @@
 // Original screen factory/constructor: 0x4f92e0 / 0x4ecd10; keyboard list: 0x4dba50.
 // Full list ownership, device backends and screen handler 0x4f9340 remain seams.
 #include "NativeControls.h"
+#include "NativeGamepad.h"
 #include "NativeFrontend.h"
 #include "../../Speed/Indep/Src/Frontend/PCControls.h"
 #include <stdio.h>
@@ -12,6 +13,8 @@ namespace {
 const char *packageName = "UI_Options_PC_Controller.fng";
 int bindings[23][2];
 bool initialized = false;
+bool padDevice = false;
+void *activeControls = 0;
 int captureAction = 0, captureSlot = 0;
 struct Row { int action; unsigned int hash; };
 const Row rows[] = {
@@ -101,14 +104,20 @@ struct Screen {
         FngSetLabelString(p->Find(0x666593c4), 0x1b15f53c);
         FngSetLabelString(p->Find(0x59aba1e8), 0x37e740e0);
         FngSetLabelString(p->Find(0x42adb44c), 0x04dc6db5);
-        FengPackage::SetText(p->Find(0x426c7b4d), "Keyboard");
-        // Device switching needs the original gamepad/wheel list recovery; hide its arrows.
-        FengPackage::Hide(p->Find(0xd1cda594)); FengPackage::Hide(p->Find(0x9345e4a7));
+        // Native device caption: original screen/backend device switching is unrecovered.
+        deviceTitle=0;
+        for(size_t i=0;i<p->Objects().size();++i) {
+            FengObject *o=p->Objects()[i];
+            if(o->text=="Keyboard Configuration") deviceTitle=o;
+        }
+        FengPackage::Show(p->Find(0xd1cda594)); FengPackage::Show(p->Find(0x9345e4a7));
+        activeControls=this;
         Layout();
     }
-    ~Screen() { for (int r=0;r<18;++r) for(int c=0;c<2;++c) delete items[r][c]; captureAction=0; }
+    ~Screen() { for (int r=0;r<18;++r) for(int c=0;c<2;++c) delete items[r][c]; captureAction=0; activeControls=0; }
     void Layout(bool refresh = true) {
         FengPackage *p = NativeFrontendPackage(packageName);
+        FengPackage::SetText(deviceTitle, padDevice ? "Gamepad Configuration" : "Keyboard Configuration");
         if (selected >= 0) { if (selected < top) top=selected; if (selected >= top+7) top=selected-6; }
         FengObject *title=p->Find("TITLE_MASTER"), *data=p->Find("DATA_MASTER"), *data2=p->Find("DATA_MASTER2");
         if (!title || !data || !data2) return;
@@ -134,10 +143,11 @@ struct Screen {
             }
         }
         if (refresh) Script(p->Find("DONE_BUTTON"),selected<0 ? "Highlight" : "UnHighlight");
-        FengPackage::SetText(p->Find("Instructions_Label"), captureAction ? "Press a key. Esc cancels." : "Select a binding and press Enter / A. Esc / B returns.");
+        FengPackage::SetText(p->Find("Instructions_Label"), captureAction ? (padDevice ? "Press a pad button / move an axis. Esc cancels." : "Press a key. Esc cancels.") : "Enter / A binds. Tab / shoulders changes device. Esc / B returns.");
         if (refresh && getenv("UG2_DEBUG_PAUSE")) fprintf(stderr,"controls: row=%d column=%d top=%d capture=%d\n",selected+1,column+1,top,captureAction);
     }
     void Begin() { if(selected>=0) { items[selected][column]->React(packageName,0x406415e3); Layout(); } }
+    FengObject *deviceTitle;
     int selected,column,top;
     OptionButton *items[18][2];
 };
@@ -148,6 +158,7 @@ void ControlDevice874C40::BeginBinding(int action,int slot) { captureAction=acti
 void SetPCControlBindingLabel(void *object,int action,int slot,int) {
     Defaults();
     const char *name = captureAction==action && captureSlot==slot ? "..." :
+        padDevice ? NativeGamepadBindings::Name(NativeGamepadBindings::Get().binding[action][slot]) :
         bindings[action][slot] ? SDL_GetScancodeName((SDL_Scancode)bindings[action][slot]) : "---";
     FengPackage::SetText(static_cast<FengObject *>(object),name);
 }
@@ -157,7 +168,8 @@ void NativeControlsUpdate(void *s) { if (s) static_cast<Screen *>(s)->Layout(fal
 void NativeControlsKey(void *screen,NativePauseKey key) {
     Screen *s=static_cast<Screen *>(screen);
     if(captureAction) { if(key==kPauseKeyBack) { captureAction=0;s->Layout(); } return; }
-    if(key==kPauseKeyUp) { if(s->selected>=0) --s->selected; }
+    if(key==kPauseKeyDevice) { padDevice=!padDevice; }
+    else if(key==kPauseKeyUp) { if(s->selected>=0) --s->selected; }
     else if(key==kPauseKeyDown) { if(s->selected<17) ++s->selected; }
     else if(key==kPauseKeyLeft) s->column=0;
     else if(key==kPauseKeyRight) s->column=1;
@@ -167,6 +179,7 @@ void NativeControlsKey(void *screen,NativePauseKey key) {
 }
 bool NativeControlsCapture(void *screen,SDL_Scancode key) {
     if(!captureAction) return false;
+    if(padDevice && key!=SDL_SCANCODE_ESCAPE) return true;
     if(key!=SDL_SCANCODE_ESCAPE && key!=SDL_SCANCODE_UNKNOWN) bindings[captureAction][captureSlot]=key;
     if(key!=SDL_SCANCODE_ESCAPE && key!=SDL_SCANCODE_UNKNOWN && getenv("UG2_DEBUG_PAUSE")) {
         Uint8 oldKeys[SDL_NUM_SCANCODES] = {}, newKeys[SDL_NUM_SCANCODES] = {};
@@ -181,6 +194,7 @@ void NativeControlsPointer(void *screen,float x,float y,bool click) {
     Screen *s=static_cast<Screen *>(screen); if(captureAction) return;
     FengPackage *p=NativeFrontendPackage(packageName); FengObject *title=p->Find("TITLE_MASTER"), *data=p->Find("DATA_MASTER"), *second=p->Find("DATA_MASTER2");
     if(!title || !data || !second) return;
+    if(click && (p->Contains(p->Find(0xd1cda594),x,y) || p->Contains(p->Find(0x9345e4a7),x,y))) { padDevice=!padDevice;s->Layout();return; }
     float left=title->position[0]-title->size[0]/2, top=title->position[1]-title->size[1]/2;
     float dataX=data->position[0]-data->size[0]/2, secondX=second->position[0]-second->size[0]/2;
     if(x>=left && x<=secondX+150 && y>=top && y<top+7*40) {
@@ -199,4 +213,18 @@ bool NativeControlKey(int action,SDL_Scancode key) {
 }
 bool NativeControlPressed(int action,const Uint8 *keys) {
     Defaults();return (bindings[action][0] && keys[bindings[action][0]]) || (bindings[action][1] && keys[bindings[action][1]]);
+}
+
+bool NativeControlsCapturePad(const SDL_Event &event) {
+    if(!activeControls || !captureAction || !padDevice) return false;
+    int code=0;
+    if(event.type==SDL_CONTROLLERBUTTONDOWN) code=event.cbutton.button+1;
+    else if(event.type==SDL_CONTROLLERAXISMOTION && (captureAction<=5 || captureAction==9) && abs(event.caxis.value)>24000)
+        code=100+event.caxis.axis*2+(event.caxis.value<0 ? 1 : 0);
+    if(code) {
+        NativeGamepadBindings::Get().binding[captureAction][captureSlot]=code;
+        if(getenv("UG2_DEBUG_PAUSE")) fprintf(stderr,"controls: pad-bound action=%d slot=%d code=%d\n",captureAction,captureSlot,code);
+        captureAction=0;static_cast<Screen *>(activeControls)->Layout();
+    }
+    return event.type==SDL_CONTROLLERBUTTONDOWN || event.type==SDL_CONTROLLERAXISMOTION;
 }

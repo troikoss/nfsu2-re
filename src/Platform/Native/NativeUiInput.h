@@ -3,6 +3,7 @@
 
 // SDL platform seam. Devices feed the same FEng messages as keyboard input.
 #include "NativePause.h"
+#include "NativeGamepad.h"
 #include <SDL2/SDL.h>
 
 class NativeUiInput {
@@ -17,6 +18,13 @@ public:
             if (SDL_IsGameController(i)) { controller = SDL_GameControllerOpen(i); if (controller) break; }
         }
     }
+    bool Owns(const SDL_Event &e) const {
+        if(!focused || !controller) return false;
+        SDL_JoystickID id=SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller));
+        return (e.type==SDL_CONTROLLERBUTTONDOWN && e.cbutton.which==id) ||
+               (e.type==SDL_CONTROLLERAXISMOTION && e.caxis.which==id);
+    }
+    float Action(int action) const { return focused ? NativeGamepadBindings::Get().Action(controller,action) : 0; }
     bool Event(const SDL_Event &event, SDL_Window *window, NativePause &pause) {
         if (event.type == SDL_CONTROLLERDEVICEADDED) { Open(); return true; }
         if (event.type == SDL_CONTROLLERDEVICEREMOVED) {
@@ -35,7 +43,8 @@ public:
             if (event.cbutton.button == SDL_CONTROLLER_BUTTON_START) {
                 if (pause.Active()) pause.Key(kPauseKeyStart); else pause.Open();
             } else if (pause.Active()) {
-                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A) pause.Key(kPauseKeyAccept);
+                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_LEFTSHOULDER || event.cbutton.button == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) pause.Key(kPauseKeyDevice);
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A) pause.Key(kPauseKeyAccept);
                 else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_Y) pause.OpenControls();
                 else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_B) pause.Key(kPauseKeyBack);
             }
@@ -51,12 +60,14 @@ public:
             int x = event.type == SDL_MOUSEMOTION ? event.motion.x : event.button.x;
             int y = event.type == SDL_MOUSEMOTION ? event.motion.y : event.button.y;
             if (h > 0) pause.Pointer((x - w * .5f) * 480.0f / h, (y - h * .5f) * 480.0f / h,
-                                     event.type == SDL_MOUSEBUTTONDOWN);
+                                     event.type == SDL_MOUSEBUTTONDOWN,
+                                     event.type == SDL_MOUSEMOTION && (event.motion.state & SDL_BUTTON_LMASK));
             return true;
         }
         if (event.type == SDL_MOUSEWHEEL) {
             int amount = event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -event.wheel.y : event.wheel.y;
-            if (amount) pause.Key(amount > 0 ? kPauseKeyUp : kPauseKeyDown);
+            if(amount>32) amount=32; if(amount<-32) amount=-32;
+            for(int i=0;i<abs(amount);++i) pause.Key(amount > 0 ? kPauseKeyUp : kPauseKeyDown);
             return true;
         }
         return false;

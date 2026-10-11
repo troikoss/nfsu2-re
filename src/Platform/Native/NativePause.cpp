@@ -953,6 +953,7 @@ void NativePause::Key(NativePauseKey key) {
     NativeScreen *screen = ActiveScreen();
     if (!screen) return;
     if (screen == &controlsScreen) { NativeControlsKey(screen->object, key); return; }
+    if (key == kPauseKeyDevice) return;
     if (dialog.shown) {
         if (key == kPauseKeyLeft || key == kPauseKeyRight) {
             dialog.selected = key == kPauseKeyLeft ? 0 : 1;
@@ -970,7 +971,7 @@ void NativePause::Key(NativePauseKey key) {
     Pump();
 }
 
-void NativePause::Pointer(float x, float y, bool click) {
+void NativePause::Pointer(float x, float y, bool click, bool drag) {
     NativeScreen *screen = ActiveScreen();
     if (!screen) return;
     if (screen == &controlsScreen) { NativeControlsPointer(screen->object, x, y, click); return; }
@@ -987,7 +988,7 @@ void NativePause::Pointer(float x, float y, bool click) {
             }
         }
     } else if (screen->optionsList) {
-        NativePauseOptionsPointer(screen->object, x, y, click);
+        NativePauseOptionsPointer(screen->object, x, y, click, drag);
         Pump();
     } else if (click && screen->object && ScrollerOf(static_cast<IconScrollerFNGObject *>(screen->object))->Pointer(x, y)) {
         if (click) Key(kPauseKeyAccept);

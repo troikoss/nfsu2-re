@@ -12,6 +12,8 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = {
+    'mouse_slider_click': ('RAAT', ('name=Master Volume data= slider=0.50',)),
+    'mouse_slider_drag': ('RAAV', ('name=Master Volume data= slider=0.50',)),
     'audio': ('RAALDL', ('name=Master Volume data= slider=0.95', 'name=Menu Music Volume data= slider=0.95')),
     'display': ('RARARDR', ('name=Resolution data=1024x768', 'name=Level Of Detail data= slider=4.00')),
     'gameplay': ('RARRADDR', ('name=Speedometer Units data=KM/H', 'units=1')),

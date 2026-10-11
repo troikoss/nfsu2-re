@@ -5,6 +5,9 @@ from pathlib import Path
 import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 CASES = {
+    'pad_button_secondary': ('CGRAH', ['pad-bound action=3 slot=1 code=3']),
+    'pad_axis_capture': ('CGAJ', ['pad-bound action=3 slot=0 code=101']),
+    'pad_capture_cancel': ('CGAB', ['capture=3', 'capture=0']),
     'capture_primary': ('CAK', ['capture=3', 'bound action=3 slot=0 key=Z', 'key-active=1 old-active=0']),
     'capture_secondary': ('CRAK', ['row=1 column=2', 'bound action=3 slot=1 key=Z']),
     'capture_cancel': ('CAB', ['capture=3', 'capture=0']),

@@ -7,6 +7,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <map>
@@ -452,12 +453,16 @@ void NativePauseOptionsUpdate() {
     }
 }
 
-bool NativePauseOptionsPointer(void *object, float x, float y, bool click) {
+bool NativePauseOptionsPointer(void *object, float x, float y, bool click, bool drag) {
     OptionsScrollerFNGObject *owner = static_cast<OptionsScrollerFNGObject *>(object);
     std::map<OptionsScrollerFNGObject *, List>::iterator found = lists.find(owner);
     if (found == lists.end()) return false;
     List &list = found->second;
     FengPackage *package = NativeFrontendPackage(owner->package4);
+    if(click && package) {
+        if(package->Contains(package->Find(0x444969fd),x,y)) { owner->MessageHandler(kUp,0,0,0);return true; }
+        if(package->Contains(package->Find(0x444969fe),x,y)) { owner->MessageHandler(kDown,0,0,0);return true; }
+    }
     int visible = owner->value134 > 0 ? owner->value134 : 7;
     for (int i = list.top; i < (int)list.items.size() && i < list.top + visible; ++i) {
         OptionItem *item = list.items[i];
@@ -473,7 +478,22 @@ bool NativePauseOptionsPointer(void *object, float x, float y, bool click) {
         bool hitRow = x >= w.x && x <= w.dataX + w.dataWidth && y >= w.y && y < w.y + list.stepY;
         if (!hitLeft && !hitRight && !hitRow) continue;
         if (list.selected != i + 1) { owner->Select(i + 1); FngSetPackageValue10(owner->package4, i + 1); }
-        if (click) owner->MessageHandler(hitLeft ? kLeft : hitRight || toggle || slider ? kRight : kAccept, 0, 0, 0);
+        if(slider && (click || drag) && !hitLeft && !hitRight) {
+            Bar &bar=bars[&slider->bar54];
+            if(bar.base && bar.base->size[0]>92) {
+                float left=bar.base->position[0]-bar.base->size[0]/2+46;
+                float fraction=(x-left)/(bar.base->size[0]-92);
+                if(fraction<0) fraction=0;if(fraction>1) fraction=1;
+                float wanted=slider->bar54.min28+fraction*(slider->bar54.max24-slider->bar54.min28);
+                // Map pointer position to recovered left/right item messages. No settings writes here.
+                for(int step=0;step<256;++step) {
+                    float before=slider->GetValue();
+                    if(fabsf(wanted-before)<=slider->bar54.step38*.5f) break;
+                    owner->MessageHandler(wanted<before ? kLeft : kRight,0,0,0);
+                    if(slider->GetValue()==before) break;
+                }
+            }
+        } else if (click) owner->MessageHandler(hitLeft ? kLeft : hitRight || toggle || slider ? kRight : kAccept, 0, 0, 0);
         return true;
     }
     return false;

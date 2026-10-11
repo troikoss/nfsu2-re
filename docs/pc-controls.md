@@ -62,8 +62,10 @@ platform scaffolding; complete original car input processing is not recovered.
 Open Controls from the added **Player → Controls** row, or press **F2** while
 paused. This extra row/shortcut is a native entry seam because the original
 frontend Options menu is unavailable in the driving demo. Arrows select rows
-and columns, Enter begins keyboard capture, Escape cancels capture or returns
-to the parent page. Both bindings work until the demo exits.
+and columns; Enter / A begins capture. Tab, either shoulder button, or clicking
+the device arrows switches Keyboard / Gamepad. Escape cancels capture or returns
+to the parent page. Gamepad capture accepts buttons and signed axes; discrete
+camera/reset/pause bindings accept buttons. Both bindings work until the demo exits.
 
 `NativeUiInput.h` provides SDL platform device handling:
 
@@ -71,19 +73,31 @@ to the parent page. Both bindings work until the demo exits.
 - Start opens pause; D-pad / left stick navigate; A accepts, B returns,
   Y opens Controls. Directions repeat after 350 ms, then every 110 ms.
 - Mouse click selects/activates icons, hover selects option rows, and clicks
-  edit buttons/toggles/sliders. Slider clicks step the value; dragging is absent.
-  Click either binding column in Controls to capture a keyboard key.
+  edit buttons/toggles. Slider track clicks and left-button dragging map the
+  pointer position to recovered left/right messages; arrow clicks still step.
+  Click either binding column in Controls to capture the selected device.
+  Visible settings page arrows also scroll.
 - Wheel moves rows; right-click returns/cancels. Focus loss suppresses device
   input. Pointer coordinates use window height for the centred 640×480 FEng
   space, including wide windows and drawable/window size differences.
 
-Gamepads navigate the UI; **gamepad driving and rebinding are not implemented**.
+Gamepads also drive the existing demo vehicle. `NativeGamepad.h` supplies a
+separate session SDL profile: left stick steers, right/left triggers throttle
+and brake/reverse, A is handbrake, right-stick press looks back, Y changes camera,
+Back resets the car, and Start pauses. Signed stick axes have a 15% deadzone,
+triggers 5%, with the remaining range normalized to [0,1]. Keyboard and pad
+inputs combine using the greater pedal value and clamped steering. Focus loss
+and disconnect suppress pad driving. The original DirectInput processing,
+profiles, controller defaults and device list construction remain unrecovered;
+this does not claim retail-equivalent input. NOS, manual shifts, map/SMS/shop,
+career and hydraulics still lack demo consumers even if bindings are assigned.
 Image hit regions use the renderer's composed transforms; text/list regions
 use native row geometry. General FEng mouse dispatch, menu audio, full scroll
 animation/scrollbar, and original pointer behavior remain seams.
 
 An isolated SDL virtual-controller check exercises hotplug, Start/A/B/Y,
-D-pad repeat, stick, focus loss and mouse conversion/click/wheel:
+D-pad repeat, stick, analog driving/deadzones, secondary bindings, focus loss
+and mouse conversion/click/drag/wheel:
 
 ```sh
 g++ -m32 -std=c++11 -I src/Platform/Native/include tools/smoke_native_ui_input.cpp \
@@ -93,8 +107,9 @@ SDL_VIDEODRIVER=dummy build/analysis/smoke-native-ui-input
 
 This passed on 2026-10-11. It selects the virtual fixture explicitly so existing
 user gamepads cannot intercept its events. It verifies native device routing,
-not physical-controller mappings or original input behavior. Seven native Controls scenarios passed (primary/secondary capture, cancellation,
-mouse capture, end-of-list scrolling, parent return and Player entry). The
-existing settings suite also passed all 17 scenarios and rendered slider-fill
+not physical-controller mappings or original input behavior. Ten native Controls scenarios passed (keyboard primary/secondary capture,
+pad axis/button capture, both device cancellations, mouse capture, end-of-list
+scrolling, parent return and Player entry). The
+existing settings suite also passed all 19 scenarios (including slider click/drag) and rendered slider-fill
 checks after adapting its bottom-row navigation to the added Controls entry.
 Rendered screens/logs stay in ignored `build/analysis/native-controls/`.

@@ -18,6 +18,6 @@ void NativePauseOptionsLoad(const char *gameDirectory);
 void NativePauseOptionsUpdate();
 void NativeFrontendOpenControls();
 void NativeFrontendCloseControls();
-bool NativePauseOptionsPointer(void *owner, float x, float y, bool click);
+bool NativePauseOptionsPointer(void *owner, float x, float y, bool click, bool drag);
 
 #endif

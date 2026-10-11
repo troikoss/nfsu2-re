@@ -445,6 +445,9 @@ rendered slider checks.
 The native pause/settings UI also accepts SDL gamepad and mouse input.
 Start pauses, D-pad/left stick navigate, A accepts, B returns, and Y opens
 Controls. Mouse clicks activate icons/rows, the wheel moves rows, and
-right-click returns. Player → Controls (or F2 while paused) opens the retail
-PC keyboard binding package. Bindings are session-only; gamepad driving is
-not implemented. See [controls evidence and seams](pc-controls.md).
+right-click returns. Click or drag slider tracks to set values. Player → Controls
+(or F2 while paused) opens the retail binding package. Tab, shoulders or device
+arrows switch Keyboard/Gamepad for session rebinding. While driving, left stick
+steers, right/left triggers accelerate/brake, A handbrakes, right-stick press
+looks back, Y changes camera, Back resets, and Start pauses. Full support covers
+the demo's existing actions; unrecovered gameplay actions remain unavailable. See [controls evidence and seams](pc-controls.md).

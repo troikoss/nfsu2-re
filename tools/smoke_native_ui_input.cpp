@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <vector>
 static bool active = false;
-static int controls = 0, clicks = 0;
+static int controls = 0, clicks = 0, drags = 0;
 static float pointerX = 0, pointerY = 0;
 static std::vector<NativePauseKey> keys;
 NativePause::NativePause() {}
@@ -14,7 +14,7 @@ bool NativePause::Active() const { return active; }
 void NativePause::Open() { active = true; }
 void NativePause::OpenControls() { ++controls; }
 void NativePause::Key(NativePauseKey key) { keys.push_back(key); }
-void NativePause::Pointer(float x, float y, bool click) { pointerX=x;pointerY=y;if(click) ++clicks; }
+void NativePause::Pointer(float x, float y, bool click, bool drag) { pointerX=x;pointerY=y;if(click) ++clicks;if(drag) ++drags; }
 static void Pump(NativeUiInput &input, SDL_Window *window, NativePause &pause) {
     SDL_JoystickUpdate();SDL_PumpEvents();SDL_Event event;
     while(SDL_PollEvent(&event)) input.Event(event,window,pause);
@@ -47,11 +47,30 @@ int main() {
     SDL_JoystickSetVirtualButton(joystick,SDL_CONTROLLER_BUTTON_Y,1);Pump(input,window,pause);assert(controls==1);
     SDL_Event e={};e.type=SDL_MOUSEBUTTONDOWN;e.button.button=SDL_BUTTON_LEFT;e.button.x=790;e.button.y=450;
     input.Event(e,window,pause);assert(clicks==1 && fabsf(pointerX-100)<.01f && fabsf(pointerY-60)<.01f);
-    e.button.button=SDL_BUTTON_RIGHT;input.Event(e,window,pause);assert(keys.back()==kPauseKeyBack);
+    e.type=SDL_MOUSEMOTION;e.motion.x=790;e.motion.y=450;e.motion.state=SDL_BUTTON_LMASK;
+    input.Event(e,window,pause);assert(drags==1 && clicks==1);
+    e.type=SDL_MOUSEBUTTONDOWN;e.button.button=SDL_BUTTON_RIGHT;input.Event(e,window,pause);assert(keys.back()==kPauseKeyBack);
     e.type=SDL_MOUSEWHEEL;e.wheel.y=-1;input.Event(e,window,pause);assert(keys.back()==kPauseKeyDown);
+    SDL_JoystickSetVirtualButton(joystick,SDL_CONTROLLER_BUTTON_LEFTSHOULDER,1);Pump(input,window,pause);
+    assert(keys.back()==kPauseKeyDevice);
+    assert(NativeGamepadBindings::Get().Button(10,SDL_CONTROLLER_BUTTON_Y));
+    assert(NativeGamepadBindings::Get().Button(12,SDL_CONTROLLER_BUTTON_START));
+    assert(NativeGamepadBindings::Get().Button(14,SDL_CONTROLLER_BUTTON_BACK));
+    active=false;
+    SDL_JoystickSetVirtualAxis(joystick,SDL_CONTROLLER_AXIS_LEFTX,-32768);
+    SDL_JoystickSetVirtualAxis(joystick,SDL_CONTROLLER_AXIS_TRIGGERRIGHT,32767);
+    SDL_JoystickSetVirtualAxis(joystick,SDL_CONTROLLER_AXIS_TRIGGERLEFT,0);
+    Pump(input,window,pause);
+    assert(input.Action(3)>.99f && input.Action(4)==0 && input.Action(1)>.99f);
+    SDL_JoystickSetVirtualAxis(joystick,SDL_CONTROLLER_AXIS_LEFTX,2000);Pump(input,window,pause);
+    assert(input.Action(3)==0 && input.Action(4)==0);
+    NativeGamepadBindings::Get().binding[1][1]=SDL_CONTROLLER_BUTTON_X+1;
+    SDL_JoystickSetVirtualAxis(joystick,SDL_CONTROLLER_AXIS_TRIGGERRIGHT,-32768);
+    SDL_JoystickSetVirtualButton(joystick,SDL_CONTROLLER_BUTTON_X,1);Pump(input,window,pause);
+    assert(input.Action(1)==1);
     e.type=SDL_WINDOWEVENT;e.window.event=SDL_WINDOWEVENT_FOCUS_LOST;input.Event(e,window,pause);
-    size_t count=keys.size();SDL_JoystickSetVirtualAxis(joystick,SDL_CONTROLLER_AXIS_LEFTX,-22000);Pump(input,window,pause);assert(keys.size()==count);
+    assert(input.Action(1)==0);size_t count=keys.size();SDL_JoystickSetVirtualAxis(joystick,SDL_CONTROLLER_AXIS_LEFTX,-22000);Pump(input,window,pause);assert(keys.size()==count);
     SDL_JoystickClose(joystick);assert(SDL_JoystickDetachVirtual(device)==0);Pump(input,window,pause);
     input.Close();SDL_DestroyWindow(window);SDL_Quit();
-    puts("PASS SDL virtual gamepad hotplug, Start/A/B/Y, D-pad repeat, stick, focus loss and mouse conversion/click/wheel");
+    puts("PASS SDL virtual gamepad hotplug, menu navigation, analog driving, secondary binding, deadzone, focus loss and mouse click/drag/wheel");
 }
