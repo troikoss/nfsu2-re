@@ -178,8 +178,8 @@ unsigned int bGetTicker() {
 }
 
 // Unrecovered original routines. The demo state never reaches them; if it does, stop.
-void PhysicsInfo::Compose(int, char, char) { NativeTrap("car record composer 0x5b4dc0"); }
-void PhysicsInfo::Refresh(int, int, char) { NativeTrap("car record refresh 0x5b4fc0"); }
+void PhysicsParameters::Compose(int, char, char) { NativeTrap("car record composer 0x5b4dc0"); }
+void PhysicsParameters::Refresh(int, int, char) { NativeTrap("car record refresh 0x5b4fc0"); }
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
 // Skid-mark trail methods belong to the skid-mark renderer (0x5e6e70/0x5d3230).
 // Scaffold: record segments for the demo renderer instead of the original effect.
@@ -384,19 +384,19 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
                          float startX, float startY, float startZ, float heading, char *error,
                          int errorSize) {
     memset(vehicle, 0, sizeof(*vehicle));
-    PhysicsInfo *info = static_cast<PhysicsInfo *>(calloc(1, 0x400));
+    PhysicsInfo *info = static_cast<PhysicsInfo *>(calloc(1, sizeof(PhysicsInfo)));
     int carIndex = 0;
     char carTypeName[32];
-    if (!LoadStockRecord(gameDirectory, carName, &info->record30, &vehicle->cameraSettings, &carIndex, carTypeName,
+    if (!LoadStockRecord(gameDirectory, carName, &info->parameters10.record30, &vehicle->cameraSettings, &carIndex, carTypeName,
                          error, errorSize)) {
         return false;
     }
-    info->value10 = carIndex;
-    info->index14 = 0;
+    info->parameters10.value0 = carIndex;
+    info->parameters10.index4 = 0;
     MoverModeOwner *owner = static_cast<MoverModeOwner *>(calloc(1, 0xa00));
     owner->physicsInfo10 = info;
     owner->context14 = static_cast<MoverContext *>(calloc(1, 0x910));
-    owner->record20 = &info->record30;
+    owner->record20 = &info->parameters10.record30;
     owner->moverType28 = 1;
     NativeControls *controls = static_cast<NativeControls *>(calloc(1, sizeof(NativeControls)));
     new (controls) NativeControls;
@@ -417,7 +417,7 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     owner->effectsEnabled550 = 1;
     owner->resetDuration978 = resetDurationDefault;
     DrivetrainAuxiliary *state = owner->State();
-    state->record0 = &info->record30;
+    state->record0 = &info->parameters10.record30;
     // Car constructor 0x604260 builds the collider at +0x5c4; state +4 refers to it.
     WCollider *collider = reinterpret_cast<WCollider *>(reinterpret_cast<char *>(owner) + 0x5c4);
     collider->Construct();
@@ -447,7 +447,7 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     VehicleMover *mover = static_cast<VehicleMover *>(calloc(1, sizeof(VehicleMover)));
     new (mover->integrator8) MoverIntegrator;
     owner->mover34 = mover;
-    mover->Construct(&info->record30, carInfo, controls, owner);
+    mover->Construct(&info->parameters10.record30, carInfo, controls, owner);
     // Mover factory 0x5f46a0 marks the body as mover-driven and attaches it (0x5938c0).
     owner->collisionBody3C->hasMover5C = 1;
     owner->collisionBody3C->AttachMover();

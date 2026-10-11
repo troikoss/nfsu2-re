@@ -113,7 +113,7 @@ void VehicleMover::ExportState(float duration) {
     bool engaged = drivetrain4C->pending48 != 0 && drivetrain4C->value38 > 2;
     engine = engine48;
     float speed = engine->state14 * engineValueScale;
-    int level = (int)(owner5C->physicsInfo10->upgrades2E0[5] + 0.5f);
+    int level = (int)(owner5C->physicsInfo10->parameters10.upgrades2E0[1] + 0.5f);
     volatile float fall = -engineDisplayFallRates[level + (engaged ? 1 : 0) * 4] / engine->spec->divisorC;
     if (duration > 0.0f) {
         float previous = engineSpeedOverride;

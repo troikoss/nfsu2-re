@@ -508,10 +508,10 @@ void VehicleMover::ApplyLaunchAssist() {
         variant = 2;
     }
     PhysicsInfo *info = owner5C->physicsInfo10;
-    if (info->index14 == -1) {
-        info->Refresh(1, 1, 1);
+    if (info->parameters10.index4 == -1) {
+        info->parameters10.Refresh(1, 1, 1);
     }
-    volatile float rate = reinterpret_cast<float *>(&drivetrainTuningRows[0])[variant * 0x51 + info->index14];
+    volatile float rate = reinterpret_cast<float *>(&drivetrainTuningRows[0])[variant * 0x51 + info->parameters10.index4];
     if (drivetrain4C->adjustment68 > 0.0f) {
         float inverse = 1.0f / rate;
         for (int i = 0; i < 4; ++i) {

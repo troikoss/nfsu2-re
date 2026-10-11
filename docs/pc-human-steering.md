@@ -72,8 +72,8 @@ The human update `0x41dfc0` selects keyboard `0x416bb0`, analog `0x4061c0` or
 alternate `0x406a40`, applies `0x406460`, updates history and exports the angle.
 Maximum-angle helper `0x405dc0` additionally uses physics speed helper `0x5b5930`,
 car-body signed angle `0x59fa10`, clock-sensitive feedback and several curves.
-The physics helper reads its +0x55c curve and +0x2c0 value and may invoke refresh
-`0x5b4fc0` / composition `0x5b4dc0`. The current 0x400 native physics allocation
-does not cover that original layout. Recover and populate the original physics
-construction/composition before using this chain; do not synthesize the missing
-fields to force the steering helpers to run.
+The [physics helper and drive curve](pc-physics-parameters.md) are now recovered
+and verified. Native uses the corrected +0x10 parameter subobject and 0x580-byte
+allocation. Refresh `0x5b4fc0`, composition `0x5b4dc0` and construction remain
+unresolved. Recover and populate that original composition before integrating
+the full steering chain.

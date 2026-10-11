@@ -318,7 +318,7 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     o.turboFill88 = package_.Find("3rdperson_Turbofill");
     o.turboDial8C = package_.Find("3rdperson_TurboDial");
     gauge_.ops = &kOps;
-    const EngineSpec *engine = reinterpret_cast<const EngineSpec *>(vehicle->info->record30.engine1F0);
+    const EngineSpec *engine = reinterpret_cast<const EngineSpec *>(vehicle->info->parameters10.record30.engine1F0);
     gauge_.Configure(engine, skinIndex);
     const char *gaugeNames[] = {"3rdperson_Turbolines", "3rdperson_Turbofill", "3rdperson_TurboDial",
         "3rdPersonNeedle", "3rdPersonTachRPMNumbers", "3rdPersonSpeed", "3rdPersonSpeedUnits",
@@ -445,7 +445,7 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     // Native player/context seam supplies active chase gauges, map, equipped NOS,
     // and career bits only after their state arrives. 0x4ca090 handles transitions.
     controller_.ApplyMasks(0, 0x61, featureHigh_);
-    const EngineSpec *engine = reinterpret_cast<const EngineSpec *>(vehicle->info->record30.engine1F0);
+    const EngineSpec *engine = reinterpret_cast<const EngineSpec *>(vehicle->info->parameters10.record30.engine1F0);
     std::string units = Localised(metric ? 0x8569a25f : 0x8569ab44);
     gauge_.Update(vehicle->owner, engine, metric, units.c_str());
     HudUpdateShiftLight(vehicle->owner, vehicle->mover->drivetrain4C->indexF0,

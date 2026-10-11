@@ -88,7 +88,7 @@ void VehicleMover::Construct(CarPhysicsRecord *record, MoverCarInfo *carInfo, Mo
     AppendIntegrationBlock(this, reinterpret_cast<IntegrationStateBlock *>(drivetrain4C));
 
     PhysicsInfo *info = owner->physicsInfo10;
-    if (info->index14 == -1 && info->value10 != -1) {
+    if (info->parameters10.index4 == -1 && info->parameters10.value0 != -1) {
         int mode = 0;
         if (IsModeGroup3()) {
             mode = 3;
@@ -97,9 +97,9 @@ void VehicleMover::Construct(CarPhysicsRecord *record, MoverCarInfo *carInfo, Mo
         } else if (IsModeGroup2()) {
             mode = 2;
         }
-        info->Compose(mode, 1, 1);
+        info->parameters10.Compose(mode, 1, 1);
     }
-    drivetrain4C->indexF0 = info->index14;
+    drivetrain4C->indexF0 = info->parameters10.index4;
     engine48->drivetrain20 = drivetrain4C;
     if (owner->context14->value4 == 1 && IsModeGroup2() && raceSetting850078 != 1) {
         drivetrain4C->coefficientE4 = drivetrainModeCoefficientsE4[raceModeIndex89E7F4];

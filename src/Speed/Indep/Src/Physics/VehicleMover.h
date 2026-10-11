@@ -3,6 +3,7 @@
 
 #include "Collision/Collision.h"
 #include "Drivetrain.h"
+#include "Engine.h"
 #include "Ug2Layout.h"
 
 struct Engine;
@@ -271,18 +272,38 @@ struct MoverOwnerObject {
     bool IsRunning();
 };
 
-// Per-car physics/tuning object ("MenuCarInstance_10" in community names, ctor 0x5ac6e0).
-struct PhysicsInfo {
-    char unidentified0[0x10];
-    int value10;
-    signed char index14;
-    char unidentified15[0x1b];
+// Original 0x5ac6e0/0x5b4dc0/0x5b5930 operate on PhysicsInfo +0x10.
+// Keep this subobject explicit: its record +0x30 is outer object +0x40.
+struct PhysicsParameters {
+    int value0;
+    signed char index4;
+    char unidentified5[3];
+    float value8;
+    char unidentifiedC[4];
+    float value10;
+    char unidentified14[0x1c];
     CarPhysicsRecord record30;
     float upgrades2E0[10];
+    char unidentified308[0x154];
+    float curveSamples45C[64];
+    EngineCurve driveCurve55C;
     void Compose(int mode, char refresh, char flag);
-    // Original 0x5b4fc0 operates on this object +0x10; called here with (1, 1, 1).
     void Refresh(int refresh, int flag, char select);
+    float GetPhysicsSpeed(); // 0x5b5930
 };
+UG2_CHECK_OFFSET(PhysicsParameters, record30, 0x30);
+UG2_CHECK_OFFSET(PhysicsParameters, upgrades2E0, 0x2e0);
+UG2_CHECK_OFFSET(PhysicsParameters, driveCurve55C, 0x55c);
+UG2_CHECK_SIZE(PhysicsParameters, 0x570);
+
+struct PhysicsInfo {
+    char unidentified0[0x10];
+    PhysicsParameters parameters10;
+};
+UG2_CHECK_OFFSET(PhysicsInfo, parameters10, 0x10);
+UG2_CHECK_SIZE(PhysicsInfo, 0x580);
+
+void BuildPhysicsDriveCurve(EngineCurve *output, PhysicsParameters *parameters); // 0x5b5ab0
 
 // Car object +0xc passed to the mover constructor; only +0xd8 is observed here.
 struct MoverCarInfo {
@@ -391,7 +412,6 @@ struct MoverModeOwner {
 UG2_CHECK_OFFSET(MoverModeOwner, previousPosition510, 0x510);
 UG2_CHECK_OFFSET(MoverModeOwner, previousVelocity520, 0x520);
 UG2_CHECK_OFFSET(MoverModeOwner, previousAngular530, 0x530);
-UG2_CHECK_OFFSET(PhysicsInfo, record30, 0x30);
 UG2_CHECK_OFFSET(MoverModeOwner, participant2C, 0x2c);
 UG2_CHECK_OFFSET(MoverModeOwner, mode424, 0x424);
 UG2_CHECK_OFFSET(MoverModeOwner, engineValue440, 0x440);

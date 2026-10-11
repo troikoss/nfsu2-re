@@ -29,3 +29,5 @@ none alone establishes complete game recovery.
 Retail inputs and generated disassembly/reports stay in ignored local directories.
 Document their fingerprints, commands, and limitations here without redistributing
 them. Session-specific commit state and temporary goals belong in chat or Git history.
+
+- [Physics parameter layout and drive curve](pc-physics-parameters.md)

@@ -1,0 +1,33 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "method": "BuildPhysicsDriveCurve",
+      "address": 5986992,
+      "size": 513,
+      "kind": "function",
+      "sha256": "7b5f517e2b00bea8a49fc42d37e5ca61104c4e8464bf24542f3e601bf190b3f7"
+    },
+    {
+      "method": "GetPhysicsSpeed",
+      "address": 5986608,
+      "size": 371,
+      "kind": "function",
+      "sha256": "4f5ca86b8f24da908173ed2b3a0ff3c545d7aa5c8ad05d01a99819b8e0d84160"
+    },
+    {
+      "method": "ComputeShiftPoints",
+      "address": 5949392,
+      "size": 431,
+      "kind": "dependency",
+      "sha256": "7619b890bd0fd975a28aa9a5fcf374136896414d441b78dbc5d3a66f8d4472a0"
+    },
+    {
+      "method": "Lookup",
+      "address": 5727440,
+      "size": 138,
+      "kind": "dependency",
+      "sha256": "0b2593774ad52b8e54ebad8bb77708fa9e7b72f5c1805b7614866eea8bece4c7"
+    }
+  ]
+}
