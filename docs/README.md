@@ -10,6 +10,7 @@
 
 - [Strings](pc-strings.md): nine byte-matching routines, behavioral checks, and local reproduction.
 - [HUD minimap](pc-hud-minimap.md): angle/TrackInfo/indicator helper verification, city-map integration and rendering seams.
+- [Freeroam HUD](pc-hud-freeroam.md): turbo/NOS/heat, shift light, career text, GPS and notification scheduling, mask dispatch and bounded animation evidence.
 - [Racing](pc-racing.md): drift ranking, career reward/eligibility recovery, and bounded verification.
 - [Vehicle physics](pc-vehicle-physics.md): timestep, integrator, engine, and drivetrain investigation.
 - [Wheel and body physics](pc-wheel-physics.md): vector math, wheel preparation/correction, coupling, and body verification.

@@ -552,7 +552,7 @@ int main(int argc, char **argv) {
                  gear == 0 ? "R" : (gear == 1 ? "N" : (char[]){(char)('0' + gear - 1), 0}));
         SDL_SetWindowTitle(window, title);
         if (haveHud) {
-            hud.Update(&vehicle, metric);
+            hud.Update(&vehicle, metric, duration);
             hud.Draw(width, height);
         }
         glEnable(GL_DEPTH_TEST);

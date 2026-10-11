@@ -6,8 +6,8 @@
 // (the feature built by 0x4f5100). The FEng object operations are reached through a small
 // operations table because the FEng object model itself is not recovered.
 //
-// Not recovered and left out: the shift light (0x4c68d0 tail, needs 0x594f00/0x5ecd30 with
-// unresolved `this` pointers), the replay RPM source (car +0x968) and the HUDINDEX skin option.
+// The recovered shift-light tail and its drivetrain readers live in HudFreeroam.cpp.
+// The replay RPM source (car +0x968) and HUDINDEX skin option remain seams.
 
 #include "../Physics/Engine.h"
 #include "../Physics/VehicleMover.h"

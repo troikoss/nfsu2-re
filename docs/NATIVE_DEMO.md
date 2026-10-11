@@ -239,8 +239,15 @@ uses GDI `CreateFontA` fonts; a system italic sans face is rasterised with the v
 `imstb_truetype.h`, public domain/MIT, override with `--hud-font`), the acceleration vector at car
 `+0x80` (its original producer is not recovered; it is the change of the exported velocity per second,
 inferred from its camera use and from `0x5ec3a0` dotting it with the forward axis), the free-drive
-feature selection (the gauge cluster and city minimap are shown; the feature mask logic
-`0x600090`/`0x4ca090`, laps, nitrous bar and `tach_fill` colouring are not applied).
+feature selection (native chase/map/equipment context supplies masks to recovered
+`0x4ca090`; producer `0x600090`, laps and `tach_fill` colouring remain seams).
+The shift-light tail, turbo and NOS updates are now recovered. Region/cash/reward
+widgets accept external career state; the demo has no recovered career producer
+and keeps them inactive. GPS, heat and notification scheduling have bounded source
+verification but are not live native features. Message-script playback supports
+retained noncycling vector/colour tracks with recovered arithmetic. Complete NOS
+stencil rendering and full FEng scripts remain unresolved; see
+[freeroam HUD evidence](pc-hud-freeroam.md).
 The minimap uses recovered `0x4ca840`, TrackInfo record 4000, `TRACKMAP4000.BIN`,
 and the retail map/mask/north/player objects. Its border group follows recovered
 mask application `0x4c6690` and recursive FEng show/hide `0x50ca50`/`0x50ca00`;
@@ -250,7 +257,7 @@ RGB/stencil mask rendering remain platform seams; see [minimap evidence](pc-hud-
 Not recovered, left as seams: world collision pushes for the chase types (`0x444530`, `0x44b040`),
 camera shake (`0x452ed0`, `0x572a50`), Camera object finalisation (`0x447280`), the cockpit blocked
 tests (`0x445fc0`, `0x5d39f0`), the chase heading follower (`0x445c20`, only read by a subclass), the
-shift light, replay RPM source and HUDINDEX option.
+replay RPM source and HUDINDEX option.
 
 ## Platform scaffolding (not original code)
 
@@ -311,7 +318,7 @@ observations, not equivalence evidence.
   cylinders (`0x5a23d0`, `0x5a2780`), and collision effects/sounds (`0x5a9620`, `0x59fb70`).
 - Recover the enclosing car update `0x6012b0` and the original world-clock call site.
 - Recover camera collision pushes/shake, the acceleration producer at car +0x80,
-  remaining HUD features, and FEng script playback beyond INIT. Additional HUD
+  remaining HUD inputs/features, and full FEng script playback/rendering. Additional HUD
   source recovery requires separate verification and integration evidence.
 - A free/aerial camera remains useful for wider scenery checks.
 

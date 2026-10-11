@@ -125,9 +125,12 @@ checks, separate from the original/rebuilt comparisons.
   is restored after the map draw. The mask's soft alpha edge becomes a stencil
   threshold, so edge blending is approximate.
 - AI pose/visibility/refresh (type 3), career icon visibility/refresh, GPS
-  feature update, race/start/finish icon population and complete HUD feature
+  minimap integration, race/start/finish icon population and complete HUD feature
   mask production remain unresolved. Unsupported paths trap through `HudMinimapSeam`;
   native setup does not populate those types.
+  The separate GPS arrow update `0x4c8410` and controller mask dispatcher
+  `0x4ca090` now have bounded recovery evidence in [freeroam HUD](pc-hud-freeroam.md);
+  their route/context producers remain unresolved.
 - `0x4ca840` and minimap indicator visibility/refresh helpers are source recovery, not yet covered
   by original/rebuilt comparison. Next verification should compare the update's
   FEng call trace, UV/global writes, rotating/static modes, rim clamping and

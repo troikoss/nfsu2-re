@@ -17,6 +17,17 @@
 // Original 0x505450: case-insensitive h = h * 33 + c from 0xffffffff.
 unsigned int FengHash(const char *text);
 
+// Platform ownership of the retail script data. Arithmetic primitives are recovered.
+struct FengTrack {
+    int type, size, interpolation, cycle, duration, offset;
+    std::vector<std::pair<int, std::vector<unsigned char> > > keys;
+};
+struct FengScript {
+    unsigned int hash;
+    int duration;
+    std::vector<FengTrack> tracks;
+};
+
 struct FengObject : HudVisibilityObject {
     // Recovered prefix: type18 (1 image, 2 string, 5 group), flags1C, child list.
     unsigned int hash;       // ObjD 'Oh'
@@ -40,6 +51,10 @@ struct FengObject : HudVisibilityObject {
     std::vector<FengObject *> children;
     float angle;             // rotation about z in degrees (radians * 180 / pi), screen y down
     float depth;             // accumulated z for sorting
+
+    std::vector<FengScript> scripts;
+    int activeScript;
+    float scriptMilliseconds;
 
     bool Hidden() const { return (flags1C & 1) != 0; }
 };
@@ -70,6 +85,8 @@ public:
     static void GetPosition(FengObject *object, float *x, float *y);
     static void GetSize(FengObject *object, float *x, float *y);
     static void SetState(FengObject *object, int key, const float *value);
+    static void PlayScript(FengObject *object, const char *name, bool restart);
+    void AdvanceScripts(float seconds);
     static void SetText(FengObject *object, const char *text);     // 0x537be0
 
 private:

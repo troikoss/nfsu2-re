@@ -1,11 +1,14 @@
 #include "NativeFng.h"
 #include "NativeAssets.h"
+#include "../../Speed/Indep/Src/Hud/HudAnimation.h"
 
 #include <algorithm>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+void NativeTrap(const char *what);
 
 #define IMSTB_TRUETYPE_IMPLEMENTATION
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -24,26 +27,48 @@ float RdF(const unsigned char *p) {
 
 const unsigned int kInitScript = 0x1744b3;  // 0x5515e0 / 0x5554a0: the "Init" script hash
 
-struct Track {
-    int type;
-    int size;
-    int interpolation;
-    int offset;  // dwords into the state block
-    std::vector<std::pair<int, std::vector<unsigned char> > > keys;
-};
-
-// Evaluates an INIT track at time 0 (the loader's 0x541f60 call) with the nearest key at or
-// before 0 (else the first). Interpolation is not needed at an exact key time.
-void ApplyTrack(const Track &track, unsigned char *state, int stateBytes) {
-    if (track.keys.empty()) return;
-    size_t pick = 0;
-    for (size_t i = 0; i < track.keys.size(); ++i) {
-        if (track.keys[i].first <= 0) pick = i;
+// Retained retail tracks use the -1 key as a baseline, and later keys as
+// offsets (0x52bdc0). This bounded platform adapter supports message tracks
+// of types 4/6, noncycling interpolation 1, and constant tracks at time zero.
+// Other animation forms remain explicit seams.
+void ApplyTrack(const FengTrack &track, unsigned char *state, int stateBytes, int time) {
+    if (track.keys.empty() || track.offset < 0 || track.offset * 4 + track.size > stateBytes) return;
+    unsigned char *out = state + track.offset * 4;
+    const unsigned char *base = &track.keys[0].second[0];
+    if (track.keys.size() == 1) { memcpy(out, base, track.size); return; }
+    if (track.interpolation != 1 || track.cycle != 0 || (track.type != 4 && track.type != 6)) {
+        // The loader can still use a constant first key for unrecovered tracks.
+        if (time == 0) { memcpy(out, base, track.size); return; }
+        NativeTrap("FEng message track interpolation/cycle");
     }
-    int bytes = track.size;
-    int at = track.offset * 4;
-    if (at + bytes > stateBytes) return;
-    memcpy(state + at, &track.keys[pick].second[0], bytes);
+    size_t upper = 1;
+    while (upper + 1 < track.keys.size() && track.keys[upper].first < time) ++upper;
+    size_t lower = upper > 1 ? upper - 1 : upper;
+    float fraction = 1.0f;
+    if (track.keys[upper].first > time) {
+        if (upper == 1) fraction = 0.0f;
+        else fraction = (float)(time - track.keys[lower].first) /
+                        (float)(track.keys[upper].first - track.keys[lower].first);
+    }
+    const unsigned char *a = &track.keys[lower].second[0], *b = &track.keys[upper].second[0];
+    if (track.type == 4)
+        HudLerpVector3(reinterpret_cast<const float *>(a), reinterpret_cast<const float *>(b), fraction,
+                       reinterpret_cast<const float *>(base), reinterpret_cast<float *>(out));
+    else HudLerpColour(reinterpret_cast<const int *>(a), reinterpret_cast<const int *>(b), fraction,
+                       reinterpret_cast<const int *>(base), reinterpret_cast<int *>(out));
+}
+
+void ReadState(FengObject *object, const unsigned char *state, int size) {
+    if (size < 68) return;
+    for (int i = 0; i < 4; ++i) object->colour[i] = Rd32(state + i * 4);
+    for (int i = 0; i < 3; ++i) {
+        object->pivot[i] = RdF(state + 16 + i * 4);
+        object->position[i] = RdF(state + 28 + i * 4);
+        object->size[i] = RdF(state + 56 + i * 4);
+    }
+    for (int i = 0; i < 4; ++i) object->rotation[i] = RdF(state + 40 + i * 4);
+    if (size >= 84) for (int i = 0; i < 4; ++i) object->uv[i] = RdF(state + 68 + i * 4);
+    object->angle = 2.0f * atan2f(object->rotation[2], object->rotation[3]) * 180.0f / 3.14159265f;
 }
 
 }  // namespace
@@ -119,6 +144,8 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             object->font = 0;
                             object->parent = 0;
                             object->imageMask = 0;
+                            object->activeScript = -1;
+                            object->scriptMilliseconds = 0;
                             object->angle = 0;
                             object->depth = 0;
                             for (int i = 0; i < 3; ++i) object->pivot[i] = object->position[i] = 0, object->size[i] = 1;
@@ -169,25 +196,29 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             // Run the INIT script's tracks over the state block (0x541f60 at time 0).
                             for (size_t si = 0; si < scripts.size(); ++si) {
                                 const std::vector<unsigned char> &sc = scripts[si];
-                                unsigned int hash = 0;
-                                std::vector<Track> tracks;
+                                FengScript script;
+                                script.hash = 0;
+                                script.duration = 0;
+                                std::vector<FengTrack> &tracks = script.tracks;
                                 size_t t = 0;
                                 while (t + 4 <= sc.size()) {
                                     unsigned int tag = Rd16(&sc[t]);
                                     unsigned int len = Rd16(&sc[t + 2]);
                                     const unsigned char *pl = &sc[t + 4];
-                                    if (tag == 0x6853) hash = Rd32(pl);  // 'Sh'
+                                    if (tag == 0x6853) { script.hash = Rd32(pl); if (len >= 8) script.duration = (int)Rd32(pl + 4); }  // 'Sh'
                                     else if (tag == 0x4946) {            // 'FI'
-                                        Track track;
+                                        FengTrack track;
                                         track.type = pl[0];
                                         track.size = pl[1];
                                         track.interpolation = pl[2];
+                                        track.cycle = pl[3] & 0x7f;
+                                        track.duration = (int)(Rd32(pl + 4) & 0xffffff);
                                         track.offset = 0;
                                         tracks.push_back(track);
                                     } else if (tag == 0x6f54 && !tracks.empty()) {  // 'To'
                                         tracks.back().offset = (int)Rd32(pl);
                                     } else if (tag == 0x644b && !tracks.empty()) {  // 'Kd'
-                                        Track &track = tracks.back();
+                                        FengTrack &track = tracks.back();
                                         unsigned int stride = track.size + 4;
                                         for (unsigned int k = 0; k + stride <= len; k += stride) {
                                             int time = (int)Rd32(pl + k);
@@ -197,24 +228,13 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                     }
                                     t += 4 + len;
                                 }
-                                if (hash == kInitScript) {
+                                object->scripts.push_back(script);
+                                if (script.hash == kInitScript) {
                                     for (size_t k = 0; k < tracks.size(); ++k)
-                                        ApplyTrack(tracks[k], state.empty() ? 0 : &state[0], (int)state.size());
+                                        ApplyTrack(tracks[k], state.empty() ? 0 : &state[0], (int)state.size(), 0);
                                 }
                             }
-                            if (state.size() >= 68) {
-                                const unsigned char *st = &state[0];
-                                for (int i = 0; i < 4; ++i) object->colour[i] = Rd32(st + i * 4);
-                                for (int i = 0; i < 3; ++i) {
-                                    object->pivot[i] = RdF(st + 16 + i * 4);
-                                    object->position[i] = RdF(st + 28 + i * 4);
-                                    object->size[i] = RdF(st + 56 + i * 4);
-                                }
-                                for (int i = 0; i < 4; ++i) object->rotation[i] = RdF(st + 40 + i * 4);
-                                if (state.size() >= 84) {
-                                    for (int i = 0; i < 4; ++i) object->uv[i] = RdF(st + 68 + i * 4);
-                                }
-                            }
+                            if (!state.empty()) ReadState(object, &state[0], (int)state.size());
                             if (object->type18 == 1 && object->resource >= 0 &&
                                 object->resource < (int)resourceHashes.size()) {
                                 object->textureHash = resourceHashes[object->resource];
@@ -278,6 +298,37 @@ void FengPackage::Show(FengObject *object) { HudShowObject(object); }
 
 void FengPackage::SetRotation(FengObject *object, float degrees) {
     if (object) object->angle = degrees;
+}
+
+void FengPackage::PlayScript(FengObject *object, const char *name, bool restart) {
+    if (!object) return;
+    unsigned int hash = FengHash(name);
+    for (size_t i = 0; i < object->scripts.size(); ++i) {
+        if (object->scripts[i].hash != hash) continue;
+        if (object->activeScript != (int)i || restart) object->scriptMilliseconds = 0;
+        object->activeScript = (int)i;
+        return;
+    }
+}
+
+void FengPackage::AdvanceScripts(float seconds) {
+    for (size_t i = 0; i < objects_.size(); ++i) {
+        FengObject *object = objects_[i];
+        if (object->activeScript < 0) continue;
+        const FengScript &script = object->scripts[object->activeScript];
+        unsigned char state[84] = {};
+        memcpy(state, object->colour, 16);
+        memcpy(state + 16, object->pivot, 12);
+        memcpy(state + 28, object->position, 12);
+        memcpy(state + 40, object->rotation, 16);
+        memcpy(state + 56, object->size, 12);
+        memcpy(state + 68, object->uv, 16);
+        for (size_t k = 0; k < script.tracks.size(); ++k)
+            ApplyTrack(script.tracks[k], state, sizeof(state), (int)object->scriptMilliseconds);
+        ReadState(object, state, sizeof(state));
+        object->scriptMilliseconds += seconds * 1000.0f;
+        if (object->scriptMilliseconds > script.duration) object->scriptMilliseconds = (float)script.duration + 1.0f;
+    }
 }
 
 void FengPackage::SetColour(FengObject *object, unsigned int argb) {
@@ -404,6 +455,16 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
               md = item.matrix[3] * scale;
         float mtx = item.matrix[4] * scale + width * 0.5f, mty = item.matrix[5] * scale + height * 0.5f;
         if (o->type18 == 1) {
+            // Original 0x5bcc30 selects SRCALPHA/ONE for mode 2 and
+            // DESTALPHA/ONE for mode 6. Ordinary source-alpha blending made
+            // the black NOS mask/gamebreaker background an opaque rectangle.
+            // Destination-alpha/stencil composition remains a native seam.
+            const NativeImage *image = textures->Find(o->textureHash);
+            int blend = image ? image->alphaBlend : 1;
+            if (blend == 2) glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            else if (blend == 5) glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
+            else if (blend == 6) glBlendFunc(GL_DST_ALPHA, GL_ONE);
+            else glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             bool alpha = false;
             GLuint tex = o->textureHash ? textures->Get(o->textureHash, &alpha) : 0;
             if (tex) glBindTexture(GL_TEXTURE_2D, tex);
@@ -472,6 +533,7 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
             if (masked) glPopAttrib();
             if (!tex) glEnable(GL_TEXTURE_2D);
         } else if (o->type18 == 2 && font && font->Ready() && !o->text.empty()) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glColor4f(R, G, B, item.alpha);
             glPushMatrix();
             float m16[16] = {ma, mb, 0, 0, mc, md, 0, 0, 0, 0, 1, 0, mtx, mty, 0, 1};
