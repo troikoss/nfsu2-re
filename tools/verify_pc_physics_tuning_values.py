@@ -29,7 +29,8 @@ CLEANUP = dict(GetOffset=8, GetField=12, NormalizeEngine=4, GetValue=8, SetOffse
                GetBalanceRange=20, GetPairRange=20, ExpandPhysicsTuningRange=0, EngineRemapClamped=0,
                GetRange=20, FindPhysicsCurvePeak=0, GetDisplayRange=20, MapValue=12,
                LimitEngineRange=16, GetEntryLimits=20, SetValue=12, SetGearRatio=12, SetGearRatios=8,
-               SetLinkedValue=8, GetSetting=12, SetEngineSample=16)
+               SetLinkedValue=8, GetSetting=12, SetEngineSample=16,
+               ApplyValue=12, SetTuning=16)
 
 
 def original_symbols():
@@ -466,6 +467,15 @@ def main():
                 for value in (0.0, rng.uniform(-50, 50), rng.uniform(100, 400), rng.uniform(-0.01, 0.01), nan):
                     for spread in (0, 1, 0x100):
                         compare('SetEngineSample', state, (bits(value), index, component, spread), TUNING,
+                                table=ROWS + 0x2200, count=25)
+        for index in range(25):
+            for component in ((0, 5) if index in (23, 24) else (0, 1)):
+                for value in (rng.uniform(-1, 1), rng.uniform(0, 400) if index in (23, 24) else rng.uniform(0, 5), nan):
+                    if index in (23, 24) and trial % 4:
+                        continue  # engine kinds spread through many limit queries; sample a quarter of rows
+                    compare('ApplyValue', state, (bits(value), index, component), TUNING, table=ROWS + 0x2200, count=25)
+                    for fromDisplay in (0, 1):
+                        compare('SetTuning', state, (bits(value), index, component, fromDisplay), TUNING,
                                 table=ROWS + 0x2200, count=25)
 
     report = dict(executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,

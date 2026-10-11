@@ -310,12 +310,22 @@ applied whole, and the walk stops once the remainder is within 1e-7. Kind
 (an inlined `0x5a7da0` read; the recovered source calls it) and stores the
 samples at +0x224. Other kinds compute but write nothing.
 
+Record writer `0x5b3fa0` (472 bytes plus jump tables) stores a setting with
+extras removed at nesting depth zero: kinds 1/5/19/20 place both components
+at the value's fraction of the averaged range within their own ranges; 3/7
+store `source - value` for both components; 9 sets both components; gear
+kinds, 16/17 and 23/24 use `0x5b3060`, `0x5b3100` and spreading `0x5b2c00`;
+other kinds store the component. Tuning setter `0x5b4670` (271 bytes)
+optionally maps a display value back, clamps it with `0x5b3ee0`, writes it
+with `0x5b3fa0`, then re-clamps dependents: all samples of kind 23/24, every
+active gear kind, or the other kind of 16/17.
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
 `tools/verify_pc_physics_tuning_values.py` covers every routine above with
 the fingerprints in `physics-tuning-values.json`. On 2026-10-12 it reported
-**304,605** bit-identical comparisons:
+**324,081** bit-identical comparisons:
 
 | Routine | Cases |
 | --- | ---: |
@@ -348,6 +358,8 @@ the fingerprints in `physics-tuning-values.json`. On 2026-10-12 it reported
 | `0x5b3100` SetLinkedValue | 690 |
 | `0x5b3e40` GetSetting | 3,772 |
 | `0x5b2c00` SetEngineSample | 8,280 |
+| `0x5b3fa0` ApplyValue | 6,492 |
+| `0x5b4670` SetTuning | 12,984 |
 
 Fixtures use 46 retail CarTypeInfo rows as sources and perturbed records,
 random extra-flag masks, synthetic lookup tables with every entry kind,
@@ -370,8 +382,8 @@ selected entries. Byte matching is not established. Source mutations (sign of a
 source-relative difference, reapplication depth, gear blend bound, offset
 clamps, a balance-range entry kind, linked-extreme and peak comparisons, a
 range-builder field offset, display-range ordering, the value-mapping
-epsilon gate, gear-excess carry, linked-value direction and spread-weight
-advance) were each
+epsilon gate, gear-excess carry, linked-value direction, spread-weight
+advance, the active-gear gate and the source-relative store) were each
 detected. The guard runs per translated block, requiring each block to lie
 inside a permitted range. NaN curve samples exposed the lookup
 truncation difference described in `pc-vehicle-physics.md`. Results stay in

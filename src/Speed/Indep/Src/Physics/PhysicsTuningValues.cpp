@@ -760,3 +760,80 @@ void PhysicsTuning::SetEngineSample(float value, int index, int component, bool 
         }
     }
 }
+
+// 0x5b3fa0 writes a setting into the record with extras removed at nesting
+// depth zero. Two-component kinds 1/5/19/20 place both components at the
+// same fraction of their own ranges as the value within the averaged range;
+// 3/7 store source - value; 9 sets both components; gear kinds, 16/17 and
+// engine kinds use their recovered setters; others store the component.
+void PhysicsTuning::ApplyValue(float value, int index, int component) {
+    if (valueE4 == 0) {
+        PhysicsUpgradeSource *removal = reinterpret_cast<PhysicsUpgradeSource *>(carTypeInfoTable + value0 * 0x890 + 0x110);
+        removal->RemoveExtra(recordC, selection8);
+    }
+    ++valueE4;
+    switch (index) {
+    case 1: case 5: case 19: case 20: {
+        float averageMinimum;
+        float averageMaximum;
+        GetRange(index, &averageMinimum, &averageMaximum, 0, true);
+        float span = (float)((double)averageMaximum - averageMinimum);
+        for (int i = 0; i < 2; ++i) {
+            float minimum;
+            float maximum;
+            GetRange(index, &minimum, &maximum, i, false);
+            float limited = value > averageMinimum ? value : averageMinimum;
+            double clamped = averageMaximum < limited ? averageMaximum : limited;
+            double fraction = (clamped - averageMinimum) / span;
+            *GetField(recordC, index, i) = (float)(fraction * ((double)maximum - minimum) + minimum);
+        }
+        break;
+    }
+    case 23: case 24:
+        SetEngineSample(value, index, component, true);
+        break;
+    case 9:
+        *GetField(recordC, index, 0) = value;
+        *GetField(recordC, index, 1) = value;
+        break;
+    case 10: case 11: case 12: case 13: case 14: case 15:
+        SetGearRatios(value, index);
+        break;
+    case 3: case 7: {
+        void *source = carTypeInfoTable + value0 * 0x890 + 0x110;
+        for (int i = 0; i < 2; ++i)
+            *GetField(recordC, index, i) = (float)((double)*GetField(source, index, i) - value);
+        break;
+    }
+    case 16: case 17:
+        SetLinkedValue(value, index);
+        break;
+    default:
+        *GetField(recordC, index, component) = value;
+        break;
+    }
+    if (--valueE4 == 0) {
+        PhysicsUpgradeSource *application = reinterpret_cast<PhysicsUpgradeSource *>(carTypeInfoTable + value0 * 0x890 + 0x110);
+        application->ApplyExtra(recordC, selection8);
+    }
+}
+
+// 0x5b4670 sets a tuning value (optionally from its display scale), applies
+// it, then re-clamps the dependent settings: all engine samples of kind
+// 23/24, every active gear kind, or the other kind of the 16/17 pair.
+void PhysicsTuning::SetTuning(float value, int index, int component, bool fromDisplay) {
+    float requested;
+    if (fromDisplay) requested = (float)MapValue(index, value, false);
+    else requested = value;
+    requested = SetValue(requested, index, component);
+    ApplyValue(requested, index, component);
+    if (index == 23 || index == 24) {
+        for (int i = 0; i < 9; ++i) SetValue((float)GetValue(index, i), index, i);
+    } else if (index >= 10 && index <= 15) {
+        for (int kind = 10; kind <= 15; ++kind)
+            if (IsActive(kind)) SetValue((float)GetValue(kind, 0), kind, 0);
+    } else if (index == 16 || index == 17) {
+        int other = (index != 17) + 16;
+        SetValue((float)GetValue(other, 0), other, 0);
+    }
+}

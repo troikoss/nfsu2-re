@@ -181,6 +181,18 @@
       "size": 717,
       "sha256": "f8dafeb6729e266e01db91dd7606bb1c54b7c1542326e11139972c006e419f5a",
       "method": "SetEngineSample"
+    },
+    {
+      "address": 5980064,
+      "size": 524,
+      "sha256": "97ee5dda2cca23dbfc98cc9d086b102ed13e4f9298ef14e2355d5ec5b459e11f",
+      "method": "ApplyValue"
+    },
+    {
+      "address": 5981808,
+      "size": 271,
+      "sha256": "e82ec5af346a51488fe97ad9fcd0d69fe613718125f198148e1b358eace98b56",
+      "method": "SetTuning"
     }
   ],
   "dependencies": [
