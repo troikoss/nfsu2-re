@@ -142,6 +142,9 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             object->textureHash = 0;
                             object->justification = 0;
                             object->font = 0;
+                            object->leading = 0;
+                            object->maxWidth = 0;
+                            object->fontHash = 0;
                             object->parent = 0;
                             object->imageMask = 0;
                             object->activeScript = -1;
@@ -179,12 +182,14 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                             for (unsigned int i = 0; i + 1 < len; i += 2) {
                                                 unsigned int c = Rd16(pl + i);
                                                 if (!c) break;
-                                                object->text += (char)(c < 128 ? c : '?');
+                                                object->text += (char)(c < 256 ? c : '?');
                                             }
                                             break;
                                         }
                                         case 0x6a53: object->justification = (int)Rd32(pl); break;  // 'Sj'
                                         case 0x4853: object->font = Rd32(pl); break;                 // 'SH'
+                                        case 0x6c53: object->leading = (int)Rd32(pl); break;         // 'Sl'
+                                        case 0x7753: object->maxWidth = Rd32(pl); break;             // 'Sw'
                                         }
                                         t += 4 + len;
                                     }
@@ -240,9 +245,9 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                 }
                             }
                             if (!state.empty()) ReadState(object, &state[0], (int)state.size());
-                            if (object->type18 == 1 && object->resource >= 0 &&
-                                object->resource < (int)resourceHashes.size()) {
-                                object->textureHash = resourceHashes[object->resource];
+                            if (object->resource >= 0 && object->resource < (int)resourceHashes.size()) {
+                                if (object->type18 == 1) object->textureHash = resourceHashes[object->resource];
+                                else if (object->type18 == 2) object->fontHash = resourceHashes[object->resource];
                             }
                             // Rotation about z from the quaternion (screen y down, positive = clockwise).
                             object->angle = 2.0f * atan2f(object->rotation[2], object->rotation[3]) * 180.0f / 3.14159265f;
@@ -548,7 +553,7 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
             glPushMatrix();
             float m16[16] = {ma, mb, 0, 0, mc, md, 0, 0, 0, 0, 1, 0, mtx, mty, 0, 1};
             glMultMatrixf(m16);
-            font->Draw(o->text, 0, 0, o->size[0], o->justification);
+            font->DrawString(o);
             glPopMatrix();
         }
     }
@@ -562,9 +567,424 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
     glMatrixMode(GL_MODELVIEW);
 }
 
-NativeFont::NativeFont() : texture_(0), bakedSize_(48.0f) { memset(glyphs_, 0, sizeof(glyphs_)); }
+namespace {
 
-bool NativeFont::Load(const char *explicitPath) {
+// FNTF header (0x30201 chunk data + 0x200): +10 glyph count, +0xc flags (0x40000: 16-byte glyph
+// records, else 12), +0x14 glyph table offset, +0x18 kerning table offset, +0x24 line height.
+// Glyph records: +0 code, +2 width, +3 height, +4 x, +6 y, +9 x offset, +0xa y offset,
+// +0xb kerning pair count, +0xc first kerning pair, +0xe advance.
+const unsigned int kFntfMagic = 0x46544e46;
+
+int GlyphStride(const unsigned char *fntf) { return (Rd32(fntf + 0xc) & 0x40000) ? 0x10 : 0xc; }
+
+// 0x6f45b0: binary search of the glyph table.
+const unsigned char *SearchGlyph(unsigned int code, const unsigned char *table, unsigned int count, int stride) {
+    while (count != 0) {
+        const unsigned char *glyph = table + (count >> 1) * stride;
+        unsigned int found = Rd16(glyph);
+        if (code == found) return glyph;
+        if ((int)(code - found) > 0) {
+            table = glyph + stride;
+            count -= 1;
+        }
+        count >>= 1;
+    }
+    return 0;
+}
+
+// 0x4fda70: direct index from 0x20, else the search.
+const unsigned char *FindGlyph(const unsigned char *fntf, unsigned int code) {
+    const unsigned char *table = fntf + Rd32(fntf + 0x14);
+    unsigned int count = Rd16(fntf + 10);
+    int stride = GlyphStride(fntf);
+    int index = (int)(code & 0xffff) - 0x20;
+    if (index >= 0 && index < (int)count && Rd16(table + index * stride) == (code & 0xffff))
+        return table + index * stride;
+    return SearchGlyph(code & 0xffff, table, count, stride);
+}
+
+// 0x6f45f0: kerning of `glyph` after `previous`.
+int Kerning(const unsigned char *fntf, const unsigned char *glyph, unsigned short previous) {
+    unsigned int pairs = glyph[0xb];
+    if (pairs == 0) return 0;
+    const unsigned char *kerning = fntf + Rd32(fntf + 0x18);
+    if ((Rd32(fntf + 0xc) & 0x40000) == 0) {
+        int count = (int)Rd32(kerning);
+        for (int i = 0; i < count; ++i) {
+            const unsigned char *pair = kerning + 4 + i * 4;
+            if ((short)Rd16(pair) == (short)previous && pair[3] == Rd16(glyph)) return (signed char)pair[2];
+        }
+        return 0;
+    }
+    const unsigned char *pair = kerning + 4 + Rd16(glyph + 0xc) * 4;
+    for (unsigned int i = 0; i < pairs; ++i)
+        if ((short)Rd16(pair + i * 4) == (short)previous) return (signed char)pair[i * 4 + 2];
+    return 0;
+}
+
+int GlyphAdvance(const unsigned char *glyph) { return (short)Rd16(glyph + 0xe); }
+
+// Character remapping shared by the measuring and drawing loops.
+unsigned short RemapCharacter(unsigned short c) {
+    if (c > 0xff7f) c &= 0xff;
+    if (c == 0x99) c = 0x2122;
+    else if (c == 0x9c) c = 0x153;
+    return c;
+}
+
+// 0x50ba70: "$name$" tokens are not drawn unless flags 0x820 are set.
+bool IsToken(const unsigned short *p, unsigned int flags) {
+    if (!p || (flags & 0x820) != 0 || *p != '$') return false;
+    int length = 0;
+    for (const unsigned short *q = p + 1; *q != 0 && *q != '$'; ++q) ++length;
+    return length != 0;
+}
+
+// 0x50bac0: skips a token and its closing '$'. Native guard: stop at an unterminated token's end.
+const unsigned short *SkipToken(const unsigned short *p, unsigned int flags) {
+    if (!p || (flags & 0x820) != 0 || *p != '$') return p;
+    ++p;
+    if (*p != '$') {
+        while (*p != 0 && *p != '$') ++p;
+        if (*p != 0) ++p;
+    }
+    return p;
+}
+
+// 0x50bce0: width of the line starting at `p`, stopping before a line break or, with a wrap
+// width, at the last space before the width is reached (`wrapped` is then set).
+float LineWidth(const unsigned char *fntf, const unsigned short *p, unsigned int flags, unsigned int maxWidth,
+                bool *wrapped) {
+    if (!p) return 0.0f;
+    unsigned short c = *p;
+    bool reset = false;
+    int count = 0;
+    float width = 0.0f, lastSpace = 0.0f;
+    if (c == 0) return width;
+    for (;;) {
+        float before = width;
+        if (reset) {
+            count = 0;
+            reset = false;
+        }
+        if ((flags & 0x20) == 0 && (c == 10 || c == 0x5e)) return width;
+        if (c == 0xd) {
+            ++p;
+        } else {
+            if (c == 0x20) lastSpace = width;
+            if ((flags & 0x80) != 0 && c == 0xa0) {
+                count = 0;
+                c = 0x20;
+            }
+            if (!IsToken(p, flags)) {
+                c = RemapCharacter(c);
+                const unsigned char *glyph = FindGlyph(fntf, c);
+                if (glyph) {
+                    if (count != 0) width += (float)Kerning(fntf, glyph, p[-1]);
+                    width += (float)GlyphAdvance(glyph);
+                }
+                ++p;
+            } else {
+                p = SkipToken(p, flags);
+                reset = true;
+            }
+            if (maxWidth != 0 && *p != 0 && (float)maxWidth <= width) {
+                if ((flags & 0x200) != 0) lastSpace = before;
+                if (lastSpace > 0.0f) width = lastSpace;
+                if (wrapped) *wrapped = true;
+                return width;
+            }
+        }
+        c = *p;
+        ++count;
+        if (c == 0) return width;
+    }
+}
+
+// 0x50bf40: height of all lines, `leading` added per line break.
+float TextHeight(const unsigned char *fntf, float lineHeight, const unsigned short *p, int leading) {
+    if (!p) return 0.0f;
+    unsigned short c = *p;
+    float height = 0.0f;
+    bool glyphs = true;
+    if (c != 0) {
+        do {
+            ++p;
+            if (c == 10 || c == 0x5e) {
+                glyphs = false;
+                height = (float)leading + height + lineHeight;
+            } else if (c != 0xd) {
+                if (FindGlyph(fntf, c & 0xff)) glyphs = true;
+            }
+            c = *p;
+        } while (c != 0);
+        if (!glyphs) return height;
+    }
+    return height + lineHeight;
+}
+
+// 0x50c080: number of lines. A line break only counts once a space has been seen on its line.
+int LineCount(const unsigned char *fntf, const unsigned short *p, unsigned int flags, unsigned int maxWidth) {
+    if (!p) return 0;
+    if ((flags & 0x20) != 0) return 1;
+    unsigned short c = *p;
+    const unsigned short *space = 0;
+    bool reset = false;
+    float width = 0.0f;
+    int lines = 1, count = 0;
+    for (;;) {
+        if (c == 0) return lines;
+        bool newLine = false;
+        if ((c == 10 || c == 0x5e) && space) {
+            p = space + 1;
+            newLine = true;
+        } else if (c == 0xd) {
+            ++p;
+        } else {
+            if (reset) {
+                count = 0;
+                reset = false;
+            }
+            if (c == 0x20) space = p;
+            if (!IsToken(p, flags)) {
+                c = RemapCharacter(c);
+                const unsigned char *glyph = FindGlyph(fntf, c);
+                if (glyph) {
+                    if (count != 0) width += (float)Kerning(fntf, glyph, p[-1]);
+                    width += (float)GlyphAdvance(glyph);
+                }
+                ++p;
+            } else {
+                p = SkipToken(p, flags);
+                reset = true;
+            }
+            if (maxWidth != 0 && *p != 0 && (float)maxWidth <= width && space) {
+                p = space;
+                while (*p == 0x20) ++p;
+                newLine = true;
+            }
+        }
+        if (newLine) {
+            ++lines;
+            width = 0.0f;
+            space = 0;
+            reset = true;
+        }
+        c = *p;
+        ++count;
+    }
+}
+
+// Horizontal start of a line for 'Sj' bits 0 (centre) and 1 (right).
+float LineStart(int justification, float width) {
+    if (justification & 1) return width * -0.5f;
+    if (justification & 2) return -width;
+    return 0.0f;
+}
+
+// 0x7f918c: per-font vertical offset and leading scale, keyed by name hash.
+const struct { unsigned int hash; float offsetY, leadingScale; } kFontAdjustments[] = {
+    {0xdca5485a, 18.0f, 2.0f},
+    {0x833a8678, 21.5f, 2.0f},
+    {0xf88a75f9, 18.0f, 1.0f},
+    {0x71c777d7, 23.0f, 1.0f},
+};
+// 0x7f9184: substitute fonts, tried when a font is not loaded.
+const unsigned int kFontSubstitutes[][2] = {
+    {0x9583aa1a, 0x5b9d88b9},  // Font_ConduitMdITCTT38bi -> ConduitMdITC_TT21i
+};
+
+}  // namespace
+
+NativeFont::NativeFont() : textures_(0), texture_(0), bakedSize_(48.0f) { memset(glyphs_, 0, sizeof(glyphs_)); }
+
+// Platform seam for the 0x30201 handler 0x52cd00 and constructor 0x51bdc0: font name at +0,
+// texture name at +0x100, FNTF at +0x200. Language-suffix stripping of the name is not needed for
+// the English data loaded here.
+void NativeFont::AddFonts(const std::vector<unsigned char> &bundle) {
+    for (size_t offset = 0; offset + 8 <= bundle.size();) {
+        unsigned int id = Rd32(&bundle[offset]);
+        unsigned int length = Rd32(&bundle[offset + 4]);
+        if (length > bundle.size() - offset - 8) break;
+        const unsigned char *data = &bundle[offset + 8];
+        if (id == 0x30201 && length > 0x228 && Rd32(data + 0x200) == kFntfMagic) {
+            std::string name((const char *)data, strnlen((const char *)data, 0x100));
+            std::string texture((const char *)data + 0x100, strnlen((const char *)data + 0x100, 0x100));
+            FengFont font;
+            font.hash = FengHash(name.c_str());
+            font.textureHash = FengHash(texture.c_str());
+            font.fntf.assign(data + 0x200, data + length);
+            const unsigned char *fntf = &font.fntf[0];
+            size_t glyphEnd = Rd32(fntf + 0x14) + (size_t)Rd16(fntf + 10) * GlyphStride(fntf);
+            if (glyphEnd > font.fntf.size() || Rd32(fntf + 0x18) + 4 > font.fntf.size()) {
+                offset += 8 + length;
+                continue;
+            }
+            font.lineHeight = (float)(int)Rd32(fntf + 0x24);
+            font.offsetY = 0.0f;
+            font.leadingScale = 1.0f;
+            for (size_t i = 0; i < sizeof(kFontAdjustments) / sizeof(kFontAdjustments[0]); ++i) {
+                if (kFontAdjustments[i].hash == font.hash) {
+                    font.offsetY = kFontAdjustments[i].offsetY;
+                    font.leadingScale = kFontAdjustments[i].leadingScale;
+                }
+            }
+            fonts_.push_back(font);
+        }
+        offset += 8 + length;
+    }
+}
+
+const NativeFont::FengFont *NativeFont::Find(unsigned int hash) const {
+    for (int guard = 0; guard < 4; ++guard) {
+        for (size_t i = 0; i < fonts_.size(); ++i)
+            if (fonts_[i].hash == hash) return &fonts_[i];
+        size_t i = 0, n = sizeof(kFontSubstitutes) / sizeof(kFontSubstitutes[0]);
+        while (i < n && kFontSubstitutes[i][0] != hash) ++i;
+        if (i == n) return 0;
+        hash = kFontSubstitutes[i][1];
+    }
+    return 0;
+}
+
+static bool LoadTrueType(const char *explicitPath, GLuint *texture, float bakedSize, NativeFont::Glyph *glyphs);
+
+bool NativeFont::Load(const char *gameDirectory, NativeTextureCache *textures, const char *explicitPath) {
+    textures_ = textures;
+    std::string base = gameDirectory ? gameDirectory : ".";
+    const char *bundles[][2] = {
+        {"/GLOBAL/GLOBALA.BUN", 0},
+        {"/LANGUAGES/English.bin", "/LANGUAGES/LanguageTextures.bin"},
+    };
+    if (!explicitPath) {
+        for (size_t i = 0; i < sizeof(bundles) / sizeof(bundles[0]); ++i) {
+            std::vector<unsigned char> bundle;
+            if (!ReadNativeFile(base + bundles[i][0], &bundle) || bundle.empty()) continue;
+            AddFonts(bundle);
+            NativeImageMap images;
+            if (bundles[i][1]) {
+                std::vector<unsigned char> pack;
+                if (ReadNativeFile(base + bundles[i][1], &pack) && !pack.empty())
+                    LoadNativeTextures(&pack[0], pack.size(), &images);
+            } else {
+                LoadNativeTextures(&bundle[0], bundle.size(), &images);
+            }
+            if (textures) textures->Add(images);
+        }
+    }
+    // The TrueType face draws strings whose font is missing, or all strings with `--hud-font`.
+    bool trueType = LoadTrueType(explicitPath, &texture_, bakedSize_, glyphs_);
+    return Ready() || trueType;
+}
+
+void NativeFont::DrawString(const FengObject *object) {
+    const FengFont *font = Find(object->fontHash);
+    if (!font) {
+        if (texture_) DrawTrueType(object->text, object->size[0], object->justification);
+        return;
+    }
+    // Native seam: the string's size scales its FEng units like the retail object matrix.
+    glPushMatrix();
+    glScalef(object->size[0], object->size[1], 1.0f);
+    DrawRetail(*font, object);
+    glPopMatrix();
+}
+
+// 0x51c110 layout with 0x51bfc0 glyph quads, in the string's local FEng units.
+void NativeFont::DrawRetail(const FengFont &font, const FengObject *object) {
+    const NativeImage *image = textures_ ? textures_->Find(font.textureHash) : 0;
+    GLuint texture = textures_ ? textures_->Get(font.textureHash, 0) : 0;
+    if (!image || !texture || image->width <= 0 || image->height <= 0) return;
+    std::vector<unsigned short> text;
+    for (size_t i = 0; i < object->text.size(); ++i) text.push_back((unsigned char)object->text[i]);
+    text.push_back(0);
+    const unsigned char *fntf = &font.fntf[0];
+    const unsigned short *p = &text[0];
+    int justification = object->justification;
+    unsigned int flags = object->flags1C;
+    unsigned int maxWidth = object->maxWidth;
+    int leading = (int)((float)object->leading * font.leadingScale);
+    float height;
+    if ((justification & 5) == 0) height = TextHeight(fntf, font.lineHeight, p, leading);
+    else height = ((float)object->leading * font.leadingScale + font.lineHeight) *
+                  (float)LineCount(fntf, p, flags, maxWidth);
+    float y = 0.0f;
+    if (justification & 4) y = height * -0.5f;
+    else if (justification & 8) y = -height;
+    float lineStart = LineStart(justification, LineWidth(fntf, p, flags, maxWidth, 0));
+    float pen = lineStart;
+    bool wrapped = false;
+    float lineWidth = LineWidth(fntf, p, flags, maxWidth, &wrapped);
+    float textureWidth = (float)image->width, textureHeight = (float)image->height;
+    bool reset = false;
+    int count = 0;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBegin(GL_QUADS);
+    unsigned short c = *p;
+    while (c != 0) {
+        if (reset) {
+            count = 0;
+            reset = false;
+        }
+        bool newLine = false;
+        if ((flags & 0x20) == 0 && (c == 10 || c == 0x5e)) {
+            ++p;
+            if (*p == 0) break;
+            lineWidth = LineWidth(fntf, p, flags, maxWidth, &wrapped);
+            lineStart = LineStart(justification, lineWidth);
+            newLine = true;
+        } else {
+            if (IsToken(p, flags)) {
+                p = SkipToken(p, flags);
+                reset = true;
+            } else {
+                bool kern = true;
+                if ((flags & 0x80) != 0 && c == 0xa0) {
+                    kern = false;
+                    c = 0x20;
+                } else {
+                    c = RemapCharacter(c);
+                }
+                const unsigned char *glyph = FindGlyph(fntf, c);
+                if (glyph) {
+                    if (count != 0 && kern) pen += (float)Kerning(fntf, glyph, p[-1]);
+                    // 0x51bfc0: quad at least 4 units wide; UVs take the transparent texel ring
+                    // around the glyph. GL seam: a half-texel inset keeps bilinear filtering from
+                    // reaching the neighbouring glyphs of the packed texture when scaled up.
+                    float x0 = (float)(signed char)glyph[9] + pen;
+                    float y0 = (float)(signed char)glyph[10] + font.offsetY + y;
+                    float w = glyph[2] < 4 ? 4.0f : (float)glyph[2];
+                    float x1 = x0 + w, y1 = (float)glyph[3] + y0;
+                    float u0 = ((float)((int)Rd16(glyph + 4) - 1) + 0.5f) / textureWidth;
+                    float v0 = ((float)((int)Rd16(glyph + 6) - 1) + 0.5f) / textureHeight;
+                    float u1 = ((float)(glyph[2] + 1 + Rd16(glyph + 4)) - 0.5f) / textureWidth;
+                    float v1 = ((float)(glyph[3] + 1 + Rd16(glyph + 6)) - 0.5f) / textureHeight;
+                    glTexCoord2f(u0, v0); glVertex2f(x0, y0);
+                    glTexCoord2f(u1, v0); glVertex2f(x1, y0);
+                    glTexCoord2f(u1, v1); glVertex2f(x1, y1);
+                    glTexCoord2f(u0, v1); glVertex2f(x0, y1);
+                    pen += (float)GlyphAdvance(glyph);
+                }
+                ++p;
+            }
+            if (maxWidth != 0 && wrapped && lineWidth <= pen - lineStart) {
+                while (*p == 0x20) ++p;
+                lineWidth = LineWidth(fntf, p, flags, maxWidth, &wrapped);
+                lineStart = LineStart(justification, lineWidth);
+                newLine = true;
+            }
+        }
+        if (newLine) {
+            y = (float)leading + font.lineHeight + y;
+            pen = lineStart;
+        }
+        c = *p;
+        ++count;
+    }
+    glEnd();
+}
+
+static bool LoadTrueType(const char *explicitPath, GLuint *texture, float bakedSize, NativeFont::Glyph *glyphs) {
     const char *candidates[] = {
         explicitPath,
         "/usr/share/fonts/truetype/lato/Lato-SemiboldItalic.ttf",
@@ -584,10 +1004,10 @@ bool NativeFont::Load(const char *explicitPath) {
     stbtt_pack_context context;
     if (!stbtt_PackBegin(&context, &alpha[0], atlas, atlas, 0, 1, 0)) return false;
     stbtt_packedchar packed[96];
-    stbtt_PackFontRange(&context, &file[0], 0, bakedSize_, 32, 95, packed);
+    stbtt_PackFontRange(&context, &file[0], 0, bakedSize, 32, 95, packed);
     stbtt_PackEnd(&context);
     for (int i = 0; i < 95; ++i) {
-        Glyph &g = glyphs_[i];
+        NativeFont::Glyph &g = glyphs[i];
         g.x0 = packed[i].xoff;
         g.y0 = packed[i].yoff;
         g.x1 = packed[i].xoff2;
@@ -603,8 +1023,8 @@ bool NativeFont::Load(const char *explicitPath) {
         rgba[i * 4] = rgba[i * 4 + 1] = rgba[i * 4 + 2] = 255;
         rgba[i * 4 + 3] = alpha[i];
     }
-    glGenTextures(1, &texture_);
-    glBindTexture(GL_TEXTURE_2D, texture_);
+    glGenTextures(1, texture);
+    glBindTexture(GL_TEXTURE_2D, *texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atlas, atlas, 0, GL_RGBA, GL_UNSIGNED_BYTE, &rgba[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -620,7 +1040,8 @@ float NativeFont::Measure(const std::string &text) const {
     return width;
 }
 
-void NativeFont::Draw(const std::string &text, float x, float y, float scale, int justification) {
+void NativeFont::DrawTrueType(const std::string &text, float scale, int justification) {
+    const float x = 0, y = 0;
     // The text scale of an FEng string is relative to a ~32 unit glyph height; the baked face is
     // bakedSize_ high, so scale to 32/bakedSize_ per unit.
     float unit = scale * 32.0f / bakedSize_;

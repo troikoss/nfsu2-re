@@ -260,7 +260,7 @@ bool NativeHud::Load(const char *gameDirectory, NativeTextureCache *textures, co
         }
     }
     ReadNativeFile(base + "/LANGUAGES/English.bin", &language_);
-    if (!font_.Load(fontPath)) fprintf(stderr, "ug2demo: no HUD font found; HUD text is not drawn\n");
+    if (!font_.Load(gameDirectory, textures, fontPath)) fprintf(stderr, "ug2demo: no HUD font found; HUD text is not drawn\n");
     loaded_ = true;
 #ifdef UG2_ENABLE_MODDING
     modHudPackage = &package_; ++modHudGeneration;

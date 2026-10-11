@@ -101,10 +101,7 @@ NativeScreen *FindScreen(const char *name) {
 }
 
 std::string Localised(unsigned int hash) {
-    std::string text = LookupNativeString(language, hash);
-    for (size_t i = 0; i < text.size(); ++i)
-        if (text[i] == '^') text[i] = ' ';  // FEng line break; NativeFont draws one line
-    return text;
+    return LookupNativeString(language, hash);  // '^' line breaks are laid out by NativeFont (0x51c110)
 }
 
 // Package loading seam: UI_*.fng chunks 0x30210 hold the name hash and a JDLZ block that
@@ -614,7 +611,7 @@ bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, con
         return false;
     }
     ReadNativeFile(base + "/LANGUAGES/English.bin", &language);
-    if (!font.Load(fontPath)) fprintf(stderr, "ug2demo: no font found; pause menu text is not drawn\n");
+    if (!font.Load(gameDirectory, cache, fontPath)) fprintf(stderr, "ug2demo: no font found; pause menu text is not drawn\n");
     // Objects behind the .bss pointers the recovered code dereferences.
     gameFlow8900D8 = &nativeFlow;
     pcHelpBar8384D8 = &nativeHelpBar;

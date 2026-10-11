@@ -52,8 +52,11 @@ struct FengObject : HudVisibilityObject {
     float uv[4];             // 17..20 (images)
     // Strings
     std::string text;
-    int justification;       // 'Sj'
-    unsigned int font;       // 'SH'
+    int justification;       // 'Sj' (object +0x6c)
+    unsigned int font;       // 'SH': string label hash (0x534fc0 hands it to 0x4fe940), not a font
+    int leading;             // 'Sl' (object +0x70): extra pixels between lines
+    unsigned int maxWidth;   // 'Sw' (object +0x74): wrap width, 0 for none
+    unsigned int fontHash;   // resource hash of the string's .ffn font (object +0x24)
     // Set by FengPackage
     FengObject *parent;
     FengObject *imageMask;    // native render seam: alpha silhouette used to clip this image
@@ -115,24 +118,39 @@ private:
     std::map<FengObject *, std::pair<float, float> > modTranslations_;
 };
 
-// Text through the stb_truetype rasteriser. The original draws UI text with GDI fonts
-// (CreateFontA/ExtTextOutA) into textures; this substitutes a system italic sans face.
+// UI text. Retail FEng strings use the bitmap fonts of 0x30201 chunks ("FNTF" glyph tables with a
+// texture of the same name): the font list is built by 0x52cd00/0x51bdc0, looked up by 0x51bd70, and
+// strings are laid out by 0x51c110 (glyph quads 0x51bfc0). Loading, the font list and GL drawing are
+// platform scaffolding; the layout arithmetic follows those routines but is not byte-verified.
+// When a font is missing, or `--hud-font` names a TrueType file, stb_truetype draws a system face.
 class NativeFont {
 public:
     NativeFont();
-    bool Load(const char *explicitPath);
-    bool Ready() const { return texture_ != 0; }
-    // Width of `text` in pixels at font size 1.0 (the baked size).
-    float Measure(const std::string &text) const;
-    // Draws `text` at (x, y) in the current matrix, scaled by `scale`; 'Sj' bit 0 centres and
-    // bit 1 right-aligns horizontally, otherwise the origin is the left edge.
-    void Draw(const std::string &text, float x, float y, float scale, int justification);
-    float LineHeight() const { return bakedSize_; }
+    bool Load(const char *gameDirectory, NativeTextureCache *textures, const char *explicitPath);
+    bool Ready() const { return texture_ != 0 || !fonts_.empty(); }
+    // Draws a string object in its local frame (the current GL matrix, FEng units).
+    void DrawString(const FengObject *object);
+    struct Glyph { float x0, y0, x1, y1, u0, v0, u1, v1, advance; };
 
 private:
+    struct FengFont {
+        unsigned int hash;         // +0x14: name hash
+        unsigned int textureHash;  // +0x18: texture name hash
+        float lineHeight;          // +0x24: FNTF +0x24
+        float offsetY;             // +0x28: per-font table 0x7f918c, else 0
+        float leadingScale;        // +0x2c: per-font table 0x7f918c, else 1
+        std::vector<unsigned char> fntf;
+    };
+    const FengFont *Find(unsigned int hash) const;  // 0x51bd70
+    void AddFonts(const std::vector<unsigned char> &bundle);
+    void DrawRetail(const FengFont &font, const FengObject *object);
+    void DrawTrueType(const std::string &text, float scale, int justification);
+    float Measure(const std::string &text) const;
+
+    NativeTextureCache *textures_;
+    std::vector<FengFont> fonts_;
     GLuint texture_;
     float bakedSize_;
-    struct Glyph { float x0, y0, x1, y1, u0, v0, u1, v1, advance; };
     Glyph glyphs_[96];
 };
 

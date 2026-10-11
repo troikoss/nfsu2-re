@@ -234,9 +234,8 @@ compile with MSVC 7.1 `/Ox /Ob0`):
   `3RDPERSON_RPMDIAL_CUSTOM_nn` from `HUD_CustomTextures_ALL.bin` (`--hud-skin N`, 0 default), unit
   text `MPH`/`KM/H` by hash from `LANGUAGES/English.bin` (`--metric`).
 
-Scaffolding in this pass: the FEng object model and renderer (`NativeFng.cpp`), UI text (the original
-uses GDI `CreateFontA` fonts; a system italic sans face is rasterised with the vendored
-`imstb_truetype.h`, public domain/MIT, override with `--hud-font`), the acceleration vector at car
+Scaffolding in this pass: the FEng object model and renderer (`NativeFng.cpp`), UI text (see
+[UI fonts](#ui-fonts)), the acceleration vector at car
 `+0x80` (its original producer is not recovered; it is the change of the exported velocity per second,
 inferred from its camera use and from `0x5ec3a0` dotting it with the forward axis), the free-drive
 feature selection (native chase/map/equipment context supplies masks to recovered
@@ -375,6 +374,31 @@ For reproducible wall checks, run:
 ```sh
 UG2_STEER=-0.4 UG2_DEBUG_COLLISION=1 build/native/ug2sim "Need for Speed Underground 2" SKYLINE 900
 ```
+
+## UI fonts
+
+FEng strings use the retail bitmap fonts, not GDI (the only `CreateFontA` caller, `0x70d5f7`, rasterises
+an 8-pixel debug font). Each font is a `0x30201` chunk: name at +0, texture name at +0x100 and an
+`FNTF` glyph table at +0x200. `LANGUAGES/English.bin` holds Conduit ITC 14i and 38bi, Arial, Arial 12,
+Impact 36 and LCD 48 (textures in `LANGUAGES/LanguageTextures.bin`); `GLOBAL/GLOBALA.BUN` holds
+Conduit ITC 21i with its texture. A string object's font is its package resource (object `+0x24`).
+
+Followed from the retail code: font construction `0x51bdc0` (via the `0x30201` handler `0x52cd00`),
+lookup `0x51bd70` with the substitute table `0x7f9184` (38bi falls back to 21i), the per-font
+offset/leading table `0x7f918c`, string layout `0x51c110` with glyph quads `0x51bfc0`, glyph lookup
+`0x4fda70`/`0x6f45b0`, kerning `0x6f45f0`, line width `0x50bce0`, text height `0x50bf40`, line
+count `0x50c080` and `$token$` skipping `0x50ba70`/`0x50bac0`. 'Sj' justification, 'Sl' leading,
+'Sw' wrap width and `^`/newline breaks follow those routines. 'SH' is a string label hash
+(`0x534fc0` passes it to `0x4fe940`), not a font.
+
+Seams: the font list, chunk loading and OpenGL drawing are native; the layout port is behavioural
+and not byte-verified. Glyph UVs are inset by half a texel so bilinear filtering does not reach the
+neighbouring glyphs of the packed texture. The string's size scales its FEng units, glyph colour
+uses the image colour path, and the `0x100` flag argument of the glyph quad is ignored. Only
+English fonts are loaded, so the language-suffix stripping of `0x51bdc0` is not needed. Text is
+8-bit, widened to the retail 16-bit characters. Strings whose font is missing fall back to a system
+italic sans face rasterised with the vendored `imstb_truetype.h` (public domain/MIT);
+`--hud-font PATH` forces that TrueType face for all text.
 
 ## Optional native mods
 
