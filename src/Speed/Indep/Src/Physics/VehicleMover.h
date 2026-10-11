@@ -291,7 +291,12 @@ struct PhysicsTuning {
     int valueE4;
     PhysicsTuning *Construct();
     int CountActive(); // 0x59b0e0
+    bool IsActive(int index); // 0x59b080
+    void ApplyEntry(int index, float *first, float *second); // 0x59b160
     float *GetField(void *record, int index, int component); // 0x59b200
+    double ConvertUnits(int index, float value, bool forward); // 0x59b4a0
+    double GetGearValue(float value, bool inverse); // 0x59b5c0
+    float GetSign(int index); // 0x59b6c0
     void NormalizeEngine(float total); // 0x59b3c0
     double GetValue(int index, int component); // 0x5a7da0
 };

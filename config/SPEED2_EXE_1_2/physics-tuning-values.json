@@ -1,6 +1,6 @@
 {
   "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
-  "note": "GetField and GetValue sizes include their trailing jump tables (0x59b358, 0x5a7f00/0x5a7f14).",
+  "note": "GetField, GetValue and ConvertUnits sizes include their trailing jump tables.",
   "functions": [
     {
       "address": 5877472,
@@ -25,6 +25,63 @@
       "size": 395,
       "sha256": "752955c0bb4874d4a784c49b2e76d52fb204a342a77df6c55395e83d6f8157e8",
       "method": "GetValue"
+    },
+    {
+      "address": 5877632,
+      "size": 91,
+      "sha256": "2fd23e5ad573bcb2b3cd0dbf66dfed522edb760225b9813bd7994bfb765103d7",
+      "method": "SetOffset"
+    },
+    {
+      "address": 5877888,
+      "size": 83,
+      "sha256": "a171ef98f6591fafaad7a23215144a0b638916a43327990ebba7f1ffd6d4d2ca",
+      "method": "IsActive"
+    },
+    {
+      "address": 5878112,
+      "size": 146,
+      "sha256": "d37b00153de19e19684af67ff3c6107f4801b9d6f9bbf3bd6de1be3591baeed6",
+      "method": "ApplyEntry"
+    },
+    {
+      "address": 5878944,
+      "size": 278,
+      "sha256": "c65b5b8073b53ffb133aece80c0b3900b4f4b050d53195e82f92063d27138dbc",
+      "method": "ConvertUnits"
+    },
+    {
+      "address": 5879232,
+      "size": 248,
+      "sha256": "6bab5afa9d3fb0c18be68609a506681a5559af916c4d5afc7673da777e871dea",
+      "method": "GetGearValue"
+    },
+    {
+      "address": 5879488,
+      "size": 46,
+      "sha256": "ba64529f829177c53e928fb370f1d8a92aca72655d6a5e0851c0807f53221368",
+      "method": "GetSign"
+    },
+    {
+      "address": 4198480,
+      "size": 25,
+      "sha256": "7e4e754e0aeafc0db69ced8f48345cf15507a02171388677ade01f16e253d7b1",
+      "method": "EngineMaximum"
+    },
+    {
+      "address": 4198512,
+      "size": 25,
+      "sha256": "1707985bde0df61ced361a9efbace1b42a67933ce1f049abe0fbe4747e683da9",
+      "method": "EngineMinimum"
+    }
+  ],
+  "dependencies": [
+    {
+      "address": 7716564,
+      "size": 117,
+      "sha256": "5333b186c02836974c6f792303aeb2c00d856316b93ccbbe65f51def6ae661b4",
+      "name": "__ftol2",
+      "note": "MSVC runtime; executes on both sides"
     }
   ]
 }

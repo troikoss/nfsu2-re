@@ -5,6 +5,11 @@ float EngineMinimum(float a, float b) {
     return a < b ? a : b;
 }
 
+// Original 0x401050; equal and unordered operands return b.
+float EngineMaximum(float a, float b) {
+    return a > b ? a : b;
+}
+
 float EngineClamp(float value, float minimum, float maximum) {
     float result = value > minimum ? value : minimum;
     return maximum < result ? maximum : result;

@@ -105,6 +105,7 @@ extern float engineSineC7;
 extern float engineSineC9;
 float EngineSpecMaximum(EngineSpec *spec);
 float EngineMinimum(float a, float b);
+float EngineMaximum(float a, float b); // 0x401050
 float EngineClamp(float value, float minimum, float maximum);
 float EngineSineUnits(unsigned int units);
 float EngineSine(float angle);

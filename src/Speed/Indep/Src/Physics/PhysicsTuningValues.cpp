@@ -108,3 +108,105 @@ double PhysicsTuning::GetValue(int index, int component) {
     }
     return value;
 }
+
+extern float physicsTuningRounding;
+extern float physicsTuningHundred;
+extern float physicsTuningHundredth;
+extern float physicsTuningInchesPerMetre;
+extern float physicsTuningMetresPerInch;
+extern float physicsTuningThousand;
+extern float physicsTuningThousandth;
+extern float physicsTuningFootPoundsPerNewtonMetre;
+extern double physicsTuningNewtonMetresPerFootPound;
+extern double physicsTuningThousandthDouble;
+extern float physicsTuningKphPerMps;
+extern float physicsTuningMpsPerKph;
+extern float physicsTuningMphPerMps;
+extern float physicsTuningMpsPerMph;
+extern float physicsTuningRpmScale;
+extern float physicsTuningLowerBlend;
+extern float physicsTuningUpperBlend;
+
+// 0x59af80, receiver is tuning +0x14. The scaled value is truncated by
+// __ftol2 after adding 100.5, then clamped to 0..200 before the byte store.
+void PhysicsTuningValues::SetOffset(float value, int index, int component) {
+    int stored = (int)((double)value * physicsTuningHundred + physicsTuningRounding);
+    if (stored <= 0) stored = 0;
+    else if (stored > 200) stored = 200;
+    if (index < 23) values0[index] = (unsigned char)stored;
+    else if (index == 23) values0[23 + component] = (unsigned char)stored;
+    else if (index == 24) values0[32 + component] = (unsigned char)stored;
+}
+
+// 0x59b080 is the per-kind test used by CountActive; kind -1 skips lookup.
+bool PhysicsTuning::IsActive(int index) {
+    bool active = index != -1 && FindPhysicsTuningEntry(index, selection8) != 0;
+    if (index >= 10 && index <= 15)
+        return active && index - 8 < recordC->drivetrain1B0.unidentified18 + 2;
+    return active;
+}
+
+// 0x59b160. Entry kinds 2/3 interpolate across the pair with an unspilled
+// range; 0/1 offset both values; 4 narrows them with 0x401070/0x401050.
+void PhysicsTuning::ApplyEntry(int index, float *first, float *second) {
+    PhysicsTuningEntry *entry = FindPhysicsTuningEntry(index, selection8);
+    if (entry == 0) return;
+    unsigned char kind = entry->kind6;
+    if (kind == 2 || kind == 3) {
+        double range = (double)*second - *first;
+        *first = (float)(range * entry->value8 + *first);
+        *second = (float)(range * entry->valueC + *second);
+    } else if (kind == 0 || kind == 1) {
+        *first = (float)((double)entry->value8 + *first);
+        *second = (float)((double)entry->valueC + *second);
+    } else if (kind == 4) {
+        *first = EngineMinimum(*first, entry->value8);
+        *second = EngineMaximum(*second, entry->valueC);
+    }
+}
+
+// 0x59b4a0. Selection +4 equal to one chooses the first scale set. Products
+// are returned unspilled; the imperial torque path multiplies binary64 constants.
+// MSVC 7.1 reorders unparenthesized constant chains, so grouping is explicit.
+double PhysicsTuning::ConvertUnits(int index, float value, bool forward) {
+    switch (index) {
+    case 3: case 7:
+        if (value4 == 1) return forward ? (double)value * physicsTuningHundred : (double)value * physicsTuningHundredth;
+        return forward ? (double)value * physicsTuningInchesPerMetre : (double)value * physicsTuningMetresPerInch;
+    case 10: case 11: case 12: case 13: case 14: case 15:
+        if (value4 == 1) return forward ? (double)value * physicsTuningKphPerMps : (double)value * physicsTuningMpsPerKph;
+        return forward ? (double)value * physicsTuningMphPerMps : (double)value * physicsTuningMpsPerMph;
+    case 23: case 24:
+        if (value4 == 1) return forward ? (double)value * physicsTuningThousand : (double)value * physicsTuningThousandth;
+        if (forward) return ((double)value * physicsTuningThousand) * physicsTuningFootPoundsPerNewtonMetre;
+        return ((double)value * physicsTuningNewtonMetresPerFootPound) * physicsTuningThousandthDouble;
+    }
+    return value;
+}
+
+// 0x59b5c0. Record +0x1c0 selects or blends record +0x50/+0x80; NaN leaves
+// zero. The scaled +0x1f4 value is spilled to binary32, the blend is not.
+double PhysicsTuning::GetGearValue(float value, bool inverse) {
+    float *record = reinterpret_cast<float *>(recordC);
+    double blend = 0.0;
+    float scaled = (float)((double)record[0x1f4 / 4] * physicsTuningRpmScale);
+    float ratio = record[0x1b8 / 4];
+    float selector = record[0x1c0 / 4];
+    if (selector < physicsTuningLowerBlend) blend = record[0x50 / 4];
+    else if (selector > physicsTuningUpperBlend) blend = record[0x80 / 4];
+    else if (selector >= physicsTuningLowerBlend && selector <= physicsTuningUpperBlend)
+        blend = (1.0 - record[0x1c0 / 4]) * record[0x50 / 4] + (double)record[0x80 / 4] * record[0x1c0 / 4];
+    if (inverse) {
+        if (value == 0.0f) return 0.0;
+        return blend * (scaled / ((double)ratio * value));
+    }
+    if (value == 0.0f) return 0.0;
+    return ((double)scaled / ratio) * (blend / value);
+}
+
+// 0x59b6c0 ignores its receiver; kinds 3, 7 and 9 have a negative sense.
+float PhysicsTuning::GetSign(int index) {
+    float sign = 1.0f;
+    if (index == 3 || index == 7 || index == 9) return physicsTuningMinimum;
+    return sign;
+}

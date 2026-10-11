@@ -204,26 +204,43 @@ application `0x5b4780` and its bounds/setter helpers:
   component 0; 23 subtracts the matching +0x224 sample; others read the
   addressed field.
 
+Seven further leaves of the `0x5b4780` call tree are recovered in the same
+unit:
+
+- Offset store `0x59af80` (91 bytes), the inverse of `0x59aee0`:
+  `__ftol2(value * 100 + 100.5)` clamped to 0..200 and stored in the same
+  byte slots.
+- Active test `0x59b080` (83 bytes), CountActive's per-kind predicate; kind
+  -1 never looks up an entry and gear kinds use the record gear count.
+- Entry application `0x59b160` (146 bytes) on a value pair. The lookup entry
+  is now laid out as kind byte +6 and floats +8/+0xc. Kinds 2/3 interpolate
+  with an unspilled range, 0/1 add, and 4 narrows the pair with minimum
+  `0x401070` and maximum `0x401050` (now recovered in `EngineMath.cpp`).
+- Unit conversion `0x59b4a0` (240 bytes plus jump tables): selection +4 equal
+  to one selects the first scale set; kinds 3/7, 10..15 and 23/24 use
+  length, speed and torque scales. Products are returned unspilled. MSVC 7.1
+  reorders unparenthesized constant chains even under `/Op`, so the source
+  groups them explicitly to keep the original multiplication order.
+- Gear value `0x59b5c0` (248 bytes): record +0x1c0 selects +0x50 below 0.2,
+  +0x80 above 0.8 and blends between them; NaN yields zero. Record +0x1f4
+  scaled by `0x7a1d38` is spilled to binary32 and divided by +0x1b8.
+- Sign `0x59b6c0` (46 bytes): -1 for kinds 3, 7 and 9, otherwise 1. Its
+  receiver is ignored.
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
-`tools/verify_pc_physics_tuning_values.py` fingerprints the four bodies and
-jump tables in `physics-tuning-values.json` and the seven constants. On
-2026-10-11, **94,722 comparisons** were bit-identical: 56,832 offset queries
-(all 256 byte values in every slot, kinds -2..27, components 0..8, x87
-precision control 24/53/64-bit), 594 field-address cases (kinds -3..27 and
-both 32-bit extremes, components -1..9, arbitrary receivers), 1,200
-normalizations (signed zero, ±2^24/2^50 cancellation, ±3.4e38, three
-precisions) and 36,096 value reads (46 retail rows as sources and perturbed
-records, random extra flag masks, depths 0/1/3/-1, every valid kind and
-component, signed-zero/cancellation fixtures). Float returns are compared as
-80-bit stores; full guarded state, stack cleanup, x87 stack depth and preserved
-registers also match. Removal/application execute as original code on one side
-and recovered source on the other; there are no controlled interfaces. Two
-source mutations (sign of the source-relative difference, reapplication depth
-test) were each detected. Kinds outside 0..24 make the original reader
-dereference null and are not exercised; NaNs are excluded. Byte matching is
-not established. Results stay in `build/analysis/physics-tuning-values/`.
+The verifier now covers these routines with the same manifest. On 2026-10-11
+**169,550 comparisons** were bit-identical: the 94,722 cases above plus
+13,764 offset stores (rounding/clamp boundaries, ±1e10 and NaN through
+original `__ftol2`), 1,536 active tests and 6,144 entry applications (every
+kind byte, signed priorities, gear counts, distinct and aliased pairs),
+47,520 conversions (four selection values, kinds -2..27, low-byte flags,
+specials and NaN), 4,914 gear values (selectors adjacent to both thresholds,
+NaN/infinity, zero divisors), 68 sign and 882 minimum/maximum cases. The
+lookup and minimum helper execute as recovered source on the rebuilt side;
+`__ftol2` is original runtime code on both sides. Mutations of the gear blend
+upper bound and offset-store clamps were each detected.
 
 ## Mode variants
 
