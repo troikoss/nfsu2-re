@@ -10,6 +10,14 @@ float EngineMaximum(float a, float b) {
     return a > b ? a : b;
 }
 
+// Original 0x401790: clamp to the input range, then map it linearly. The
+// result is returned unspilled; grouping keeps MSVC from reordering it.
+double EngineRemapClamped(float value, float inMinimum, float inMaximum, float outMinimum, float outMaximum) {
+    float clamped = value > inMinimum ? value : inMinimum;
+    clamped = inMaximum < clamped ? inMaximum : clamped;
+    return (((double)clamped - inMinimum) / ((double)inMaximum - inMinimum)) * ((double)outMaximum - outMinimum) + outMinimum;
+}
+
 float EngineClamp(float value, float minimum, float maximum) {
     float result = value > minimum ? value : minimum;
     return maximum < result ? maximum : result;

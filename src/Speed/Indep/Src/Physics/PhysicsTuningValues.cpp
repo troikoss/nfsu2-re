@@ -210,3 +210,93 @@ float PhysicsTuning::GetSign(int index) {
     if (index == 3 || index == 7 || index == 9) return physicsTuningMinimum;
     return sign;
 }
+
+extern float physicsTuningHalf;
+
+// 0x591320 widens a two-float range; unordered comparisons take the value.
+// A replaced maximum is copied as raw bits.
+void ExpandPhysicsTuningRange(float *range, float value) {
+    range[0] = range[0] < value ? range[0] : value;
+    if (!(range[1] > value))
+        *reinterpret_cast<unsigned int *>(range + 1) = *reinterpret_cast<unsigned int *>(&value);
+}
+
+// 0x5a79f0. Kinds 0/4, 2/6, 3/7 and 21/22 are linked; others read only
+// themselves. Negative-sense kinds take the minimum, others the maximum.
+float PhysicsTuning::GetLinkedExtreme(int index, int component) {
+    int linked[2];
+    linked[1] = -1;
+    switch (index) {
+    case 0: case 4: linked[0] = 0; linked[1] = 4; break;
+    case 2: case 6: linked[0] = 2; linked[1] = 6; break;
+    case 21: case 22: linked[0] = 21; linked[1] = 22; break;
+    case 3: case 7: linked[0] = 3; linked[1] = 7; break;
+    default: linked[0] = index; break;
+    }
+    float result = -10000000.0f;
+    if (index == 3 || index == 7 || index == 9) result = 10000000.0f;
+    for (int i = 0; i < 2; ++i) {
+        int kind = linked[i];
+        if (kind == -1) continue;
+        float value = 0.0f;
+        if (kind < 23) value = values40[kind];
+        else if (kind == 23) value = values9C[component];
+        else if (kind == 24) value = valuesC0[component];
+        if (index == 3 || index == 7 || index == 9) {
+            if (!(result < value)) result = value;
+        } else if (!(result > value)) result = value;
+    }
+    return result;
+}
+
+// 0x5a7b80: stock bounds for kinds 19/20 come from CarTypeInfo +0x1ec/+0x65c
+// pairs and are adjusted by the selected entries before selection/averaging.
+void PhysicsTuning::GetBalanceRange(int index, int component, bool average, float *minimum, float *maximum) {
+    float *source = reinterpret_cast<float *>(carTypeInfoTable + value0 * 0x890 + 0x110);
+    float minima[4];
+    float maxima[4];
+    minima[0] = source[0xdc / 4];
+    maxima[0] = source[0x54c / 4];
+    ApplyEntry(19, &minima[0], &maxima[0]);
+    minima[1] = source[0xe0 / 4];
+    maxima[1] = source[0x550 / 4];
+    ApplyEntry(19, &minima[1], &maxima[1]);
+    minima[2] = source[0xfc / 4];
+    maxima[2] = source[0x56c / 4];
+    ApplyEntry(20, &minima[2], &maxima[2]);
+    minima[3] = source[0x100 / 4];
+    maxima[3] = source[0x570 / 4];
+    ApplyEntry(20, &minima[3], &maxima[3]);
+    int pair = index != 19;
+    if (average) {
+        *minimum = (float)(((double)minima[pair * 2 + 1] + minima[pair * 2]) * physicsTuningHalf);
+        *maximum = (float)(((double)maxima[pair * 2 + 1] + maxima[pair * 2]) * physicsTuningHalf);
+    } else {
+        *minimum = minima[component + pair * 2];
+        *maximum = maxima[component + pair * 2];
+    }
+}
+
+// 0x5a7cb0: the same range selection for kinds 1/5 from CarTypeInfo
+// +0x288/+0x6d8 and +0x2a8/+0x6f8, built per component.
+void PhysicsTuning::GetPairRange(int index, int component, bool average, float *minimum, float *maximum) {
+    float *source = reinterpret_cast<float *>(carTypeInfoTable + value0 * 0x890 + 0x110);
+    float minima[4];
+    float maxima[4];
+    for (int i = 0; i < 2; ++i) {
+        minima[i] = source[0x178 / 4 + i];
+        maxima[i] = source[0x5c8 / 4 + i];
+        ApplyEntry(1, &minima[i], &maxima[i]);
+        minima[2 + i] = source[0x198 / 4 + i];
+        maxima[2 + i] = source[0x5e8 / 4 + i];
+        ApplyEntry(5, &minima[2 + i], &maxima[2 + i]);
+    }
+    int pair = index != 1;
+    if (average) {
+        *minimum = (float)(((double)minima[pair * 2 + 1] + minima[pair * 2]) * physicsTuningHalf);
+        *maximum = (float)(((double)maxima[pair * 2 + 1] + maxima[pair * 2]) * physicsTuningHalf);
+    } else {
+        *minimum = minima[component + pair * 2];
+        *maximum = maxima[component + pair * 2];
+    }
+}

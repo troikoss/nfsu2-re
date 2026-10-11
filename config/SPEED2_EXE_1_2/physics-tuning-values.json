@@ -1,6 +1,6 @@
 {
   "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
-  "note": "GetField, GetValue and ConvertUnits sizes include their trailing jump tables.",
+  "note": "GetField, GetValue, ConvertUnits and GetLinkedExtreme sizes include their trailing jump tables.",
   "functions": [
     {
       "address": 5877472,
@@ -73,6 +73,36 @@
       "size": 25,
       "sha256": "1707985bde0df61ced361a9efbace1b42a67933ce1f049abe0fbe4747e683da9",
       "method": "EngineMinimum"
+    },
+    {
+      "address": 5929456,
+      "size": 391,
+      "sha256": "52e39d57cba00a72d7c9e1cb49b467a28c410049c40f10c305bd8bfe42e1f3e7",
+      "method": "GetLinkedExtreme"
+    },
+    {
+      "address": 5929856,
+      "size": 289,
+      "sha256": "620adc5ac8578591c3abfca88c15376d131d89be386ea0debb928029fee0e0ef",
+      "method": "GetBalanceRange"
+    },
+    {
+      "address": 5930160,
+      "size": 227,
+      "sha256": "7e7ae096810a297003626105dd9504674498fdc4692b5b8c285e4fd2af5b6753",
+      "method": "GetPairRange"
+    },
+    {
+      "address": 5837600,
+      "size": 53,
+      "sha256": "df8962998268a299110d6de686e31ee3dff3565913c9ef4fbdbaf1b5e1af6e8c",
+      "method": "ExpandPhysicsTuningRange"
+    },
+    {
+      "address": 4200336,
+      "size": 73,
+      "sha256": "1974914d384552f5518b573f5bee951ac4c2f874a278552c126f222adaa8a7b7",
+      "method": "EngineRemapClamped"
     }
   ],
   "dependencies": [

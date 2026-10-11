@@ -227,6 +227,19 @@ unit:
 - Sign `0x59b6c0` (46 bytes): -1 for kinds 3, 7 and 9, otherwise 1. Its
   receiver is ignored.
 
+Range and limit helpers used by the tuning bounds code are also recovered:
+
+- Linked extreme `0x5a79f0` (345 bytes plus jump tables): kinds 0/4, 2/6,
+  3/7 and 21/22 are read together from tuning +0x40 (+0x9c/+0xc0 for kinds
+  23/24 by component). Negative-sense kinds 3/7/9 start at 1e7 and take the
+  minimum; the rest start at -1e7 and take the maximum.
+- Balance range `0x5a7b80` (289 bytes) for kinds 19/20 and pair range
+  `0x5a7cb0` (227 bytes) for kinds 1/5 copy stock bounds from the CarTypeInfo
+  row, apply the selected entries through `0x59b160`, then return one
+  component or the binary32 average of both.
+- Range widening `0x591320` (53 bytes) and the shared clamped linear remap
+  `0x401790` (73 bytes, `EngineMath.cpp`, also used outside tuning).
+
 Native CarTypeInfo table installation is still absent, so these helpers are
 not called by the native demo yet.
 
@@ -237,10 +250,17 @@ original `__ftol2`), 1,536 active tests and 6,144 entry applications (every
 kind byte, signed priorities, gear counts, distinct and aliased pairs),
 47,520 conversions (four selection values, kinds -2..27, low-byte flags,
 specials and NaN), 4,914 gear values (selectors adjacent to both thresholds,
-NaN/infinity, zero divisors), 68 sign and 882 minimum/maximum cases. The
+NaN/infinity, zero divisors), 68 sign and 882 minimum/maximum cases. A
+further 13,733 cases cover the range helpers: 1,968 linked extremes (every
+kind and component, ties and NaN), 2,268 each for balance and pair ranges on
+46 retail rows with entries for kinds 1/5/19/20, 729 range widenings and
+4,500 clamped remaps (equal and inverted ranges). Range selection is checked
+for components 0/1 only, because larger components read adjacent stack
+slots. The total is **183,283** bit-identical comparisons. The
 lookup and minimum helper execute as recovered source on the rebuilt side;
 `__ftol2` is original runtime code on both sides. Mutations of the gear blend
-upper bound and offset-store clamps were each detected.
+upper bound, offset-store clamps, a balance-range entry kind and the
+linked-extreme comparison were each detected.
 
 ## Mode variants
 

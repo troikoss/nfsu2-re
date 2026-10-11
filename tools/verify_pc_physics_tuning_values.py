@@ -20,10 +20,12 @@ CONTROLS = (0x027f, 0x037f, 0x007f)  # 53-, 64- and 24-bit x87 precision
 SAVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 
 
-FLOATING = ('GetOffset', 'GetValue', 'ConvertUnits', 'GetGearValue', 'GetSign', 'EngineMaximum', 'EngineMinimum')
+FLOATING = ('GetOffset', 'GetValue', 'ConvertUnits', 'GetGearValue', 'GetSign', 'EngineMaximum', 'EngineMinimum',
+            'GetLinkedExtreme', 'EngineRemapClamped')
 # Bytes of stack arguments removed by the callee.
 CLEANUP = dict(GetOffset=8, GetField=12, NormalizeEngine=4, GetValue=8, SetOffset=12, IsActive=4, ApplyEntry=12,
-               ConvertUnits=12, GetGearValue=8, GetSign=4, EngineMaximum=0, EngineMinimum=0)
+               ConvertUnits=12, GetGearValue=8, GetSign=4, EngineMaximum=0, EngineMinimum=0, GetLinkedExtreme=8,
+               GetBalanceRange=20, GetPairRange=20, ExpandPhysicsTuningRange=0, EngineRemapClamped=0)
 
 
 def original_symbols():
@@ -294,6 +296,54 @@ def main():
             compare('EngineMaximum', state, (bits(a), bits(b)), 0)
             compare('EngineMinimum', state, (bits(a), bits(b)), 0)
 
+    # Shared range helpers: specials, NaN, equal and inverted input ranges.
+    rng = random.Random(0x401790)
+    floats = specials + [nan] + [rng.uniform(-50, 50) for _ in range(6)]
+    for low in floats:
+        for value in floats:
+            state = bytearray(0x8000)
+            struct.pack_into('<ff', state, OUT - 0x100 - BASE, low, rng.choice(floats))
+            compare('ExpandPhysicsTuningRange', state, (OUT - 0x100, bits(value)), 0)
+    for control in CONTROLS:
+        for trial in range(1500):
+            args = [rng.choice(floats) if trial % 2 else rng.uniform(-10, 10) for _ in range(5)]
+            if trial % 7 == 0:
+                args[2] = args[1]
+            compare('EngineRemapClamped', bytearray(0x8000), tuple(bits(v) for v in args), 0, control)
+
+    # Linked extremes: every kind, component and tie/NaN pattern.
+    rng = random.Random(0x5a79f0)
+    for trial in range(24):
+        state = bytearray(0x8000)
+        for i in range(41):
+            value = rng.choice(specials + [nan, 1e7, -1e7, 1.0]) if trial % 2 else rng.uniform(-2e7, 2e7)
+            struct.pack_into('<f', state, TUNING - BASE + 0x40 + 4 * i, value)
+        for index in list(range(-3, 31)) + [0x7fffffff, -0x80000000]:
+            for component in (range(9) if index in (23, 24) else (0, 3)):
+                if index in (0x7fffffff, -0x80000000):
+                    continue  # the original reads values40[index] out of bounds
+                compare('GetLinkedExtreme', state, (index, component), TUNING)
+
+    # Balance/pair ranges: retail CarTypeInfo rows and entries for kinds 1/5/19/20.
+    rng = random.Random(0x5a7b80)
+    for trial, row in enumerate(rows):
+        state = bytearray(b'\xa5' * 0x8000)
+        state[ROWS - BASE + 0x890 + 0x110:ROWS - BASE + 0x890 + 0x890] = row
+        for i in range(68):
+            state[SELECTION - BASE + 0x50 + i] = rng.randrange(2)
+        for i in range(12):
+            struct.pack_into('<ibbBBff', state, ROWS - BASE + 0x1800 + 0x890 + i * 0x18, i % 68, rng.randrange(-2, 3),
+                             (1, 5, 19, 20)[i % 4], rng.choice((0, 1, 2, 3, 4, 7)), 0xa5,
+                             rng.choice(specials[:8] + [rng.uniform(-1, 1)]), rng.choice(specials[:8] + [rng.uniform(-1, 1)]))
+        struct.pack_into('<iiII', state, TUNING - BASE, 1, 0, SELECTION, RECORD)
+        for index in (1, 5, 19, 20, 0, -1, 24):
+            for component in (0, 1):
+                for average in (0, 1, 0x100):
+                    for method in ('GetBalanceRange', 'GetPairRange'):
+                        for control in (CONTROLS if trial < 4 else CONTROLS[:1]):
+                            compare(method, state, (index, component, average, OUT - 0x100, OUT - 0xfc), TUNING, control,
+                                    table=ROWS + 0x1800 + 0x890, count=12 if trial % 5 else 0)
+
     report = dict(executable_sha256=manifest['exe_sha256'], bit_identical_cases=counts,
                   byte_matching='not established', controlled_interfaces=[],
                   executed_callees=['0x599d90 RemoveExtra, 0x5997e0 ApplyExtra, 0x59ae40 lookup and 0x401070 minimum: recovered source on the rebuilt side',
@@ -302,6 +352,7 @@ def main():
                                'Indices outside 0..24 make 0x5a7da0 dereference null in the original; not exercised.',
                                'Return values compared as 80-bit x87 stores under 24/53/64-bit precision control.',
                                'NaN appears only in offset stores, conversions, gear values and min/max, not in value reads.',
+                               'Range selection uses components 0/1 only; larger components read caller stack slots.',
                                'Full tuning application 0x5b4780 and its remaining callees are not yet recovered.'])
     (BUILD / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))

@@ -691,3 +691,4 @@ physicsTuningMpsPerMph = 0x7842a8;
 physicsTuningRpmScale = 0x7a1d38;
 physicsTuningLowerBlend = 0x784554;
 physicsTuningUpperBlend = 0x7850ec;
+physicsTuningHalf = 0x784260;
