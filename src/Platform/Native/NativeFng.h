@@ -8,6 +8,7 @@
 //
 // Coordinates are the 640x480 FEng screen with its origin at the screen centre, y down.
 #include "NativeScene.h"
+#include "../../Speed/Indep/Src/Hud/HudVisibility.h"
 
 #include <GL/gl.h>
 #include <string>
@@ -16,16 +17,15 @@
 // Original 0x505450: case-insensitive h = h * 33 + c from 0xffffffff.
 unsigned int FengHash(const char *text);
 
-struct FengObject {
-    int type;                // 1 image, 2 string, 5 group
+struct FengObject : HudVisibilityObject {
+    // Recovered prefix: type18 (1 image, 2 string, 5 group), flags1C, child list.
     unsigned int hash;       // ObjD 'Oh'
     unsigned int guid;       // ObjD 'OP' +0
-    unsigned int flags;      // ObjD 'OP' +8; bit 0 = hidden (0x50ca00/0x50ca50)
     unsigned int parentGuid; // ObjD 'PA'
     int resource;            // ObjD 'OP' +0xc (index into the resource table)
     unsigned int textureHash;  // 0 for untextured images
     unsigned int colour[4];  // state block dwords 0..3: B, G, R, A
-    float pivot[3];          // 4..6
+    float pivot[3];          // 4..6: rotation pivot relative to the object centre
     float position[3];       // 7..9
     float rotation[4];       // 10..13 quaternion
     float size[3];           // 14..16
@@ -36,11 +36,12 @@ struct FengObject {
     unsigned int font;       // 'SH'
     // Set by FengPackage
     FengObject *parent;
+    FengObject *imageMask;    // native render seam: alpha silhouette used to clip this image
     std::vector<FengObject *> children;
     float angle;             // rotation about z in degrees (radians * 180 / pi), screen y down
     float depth;             // accumulated z for sorting
 
-    bool Hidden() const { return (flags & 1) != 0; }
+    bool Hidden() const { return (flags1C & 1) != 0; }
 };
 
 class NativeFont;
@@ -65,6 +66,10 @@ public:
     static void SetRotation(FengObject *object, float degrees);  // 0x51ced0
     static void SetColour(FengObject *object, unsigned int argb);  // 0x51d7f0
     static void SetTexture(FengObject *object, unsigned int hash); // 0x50c990
+    static void SetPosition(FengObject *object, float x, float y);
+    static void GetPosition(FengObject *object, float *x, float *y);
+    static void GetSize(FengObject *object, float *x, float *y);
+    static void SetState(FengObject *object, int key, const float *value);
     static void SetText(FengObject *object, const char *text);     // 0x537be0
 
 private:

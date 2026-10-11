@@ -378,8 +378,8 @@ int main(int argc, char **argv) {
     if (!placeholder && !noHud) {
         haveHud = hud.Load(game, &textures, hudFont, error, sizeof(error));
         if (!haveHud) fprintf(stderr, "ug2demo: %s; HUD disabled\n", error);
-        else hud.Configure(&vehicle, hudSkin);
         if (haveHud && getenv("UG2_DEBUG_HUD")) hud.Describe();
+        if (haveHud) hud.Configure(&vehicle, hudSkin);
     }
     float lastGood[4] = {spawn[0], spawn[1], spawn[2], spawn[3]};
     int airborneFrames = 0;

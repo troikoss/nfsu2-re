@@ -111,13 +111,14 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                         if (id3 == 0xea624f46) {
                             FengObject *object = new FengObject;
                             memset(object->colour, 0, sizeof(object->colour));
-                            object->type = 0;
-                            object->hash = object->guid = object->flags = object->parentGuid = 0;
+                            memset(static_cast<HudVisibilityObject *>(object), 0, sizeof(HudVisibilityObject));
+                            object->hash = object->guid = object->flags1C = object->parentGuid = 0;
                             object->resource = -1;
                             object->textureHash = 0;
                             object->justification = 0;
                             object->font = 0;
                             object->parent = 0;
+                            object->imageMask = 0;
                             object->angle = 0;
                             object->depth = 0;
                             for (int i = 0; i < 3; ++i) object->pivot[i] = object->position[i] = 0, object->size[i] = 1;
@@ -138,11 +139,11 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         unsigned int len = Rd16(data + t + 2);
                                         const unsigned char *pl = data + t + 4;
                                         switch (tag) {
-                                        case 0x744f: object->type = (int)Rd32(pl); break;  // 'Ot'
+                                        case 0x744f: object->type18 = (int)Rd32(pl); break;  // 'Ot'
                                         case 0x684f: object->hash = Rd32(pl); break;       // 'Oh'
                                         case 0x504f:                                       // 'OP'
                                             object->guid = Rd32(pl);
-                                            object->flags = Rd32(pl + 8);
+                                            object->flags1C = Rd32(pl + 8);
                                             object->resource = (short)Rd32(pl + 12);
                                             break;
                                         case 0x4150: object->parentGuid = Rd32(pl); break;  // 'PA'
@@ -214,7 +215,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                     for (int i = 0; i < 4; ++i) object->uv[i] = RdF(st + 68 + i * 4);
                                 }
                             }
-                            if (object->type == 1 && object->resource >= 0 &&
+                            if (object->type18 == 1 && object->resource >= 0 &&
                                 object->resource < (int)resourceHashes.size()) {
                                 object->textureHash = resourceHashes[object->resource];
                             }
@@ -244,6 +245,14 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         }
         if (!object->parent) roots_.push_back(object);
     }
+    // Native loader seam: build the original FEng child-chain prefix from PA links.
+    for (size_t i = 0; i < objects_.size(); ++i) {
+        FengObject *object = objects_[i];
+        object->childCount60 = (int)object->children.size();
+        object->firstChild64 = object->children.empty() ? 0 : object->children[0];
+        for (size_t j = 0; j < object->children.size(); ++j)
+            object->children[j]->next4 = j + 1 < object->children.size() ? object->children[j + 1] : 0;
+    }
     return !objects_.empty();
 }
 
@@ -257,21 +266,15 @@ FengObject *FengPackage::Find(unsigned int hash) {
 void FengPackage::Describe() const {
     for (size_t i = 0; i < objects_.size(); ++i) {
         const FengObject *o = objects_[i];
-        fprintf(stderr, "#%zu type %d hash %08x guid %x flags %08x pos %.0f,%.0f,%.1f size %.1f,%.1f tex %08x\n", i,
-                o->type, o->hash, o->guid, o->flags, o->position[0], o->position[1], o->position[2], o->size[0],
-                o->size[1], o->textureHash);
+        fprintf(stderr, "#%zu type %d hash %08x guid %x parent %x flags %08x pos %.0f,%.0f,%.1f size %.1f,%.1f tex %08x pivot %.1f,%.1f angle %.1f\n", i,
+                o->type18, o->hash, o->guid, o->parentGuid, o->flags1C, o->position[0], o->position[1], o->position[2], o->size[0],
+                o->size[1], o->textureHash, o->pivot[0], o->pivot[1], o->angle);
     }
 }
 
-void FengPackage::Hide(FengObject *object) {
-    if (!object) return;
-    object->flags |= 0x400001;
-}
+void FengPackage::Hide(FengObject *object) { HudHideObject(object); }
 
-void FengPackage::Show(FengObject *object) {
-    if (!object) return;
-    object->flags = (object->flags & ~1u) | 0x400000;
-}
+void FengPackage::Show(FengObject *object) { HudShowObject(object); }
 
 void FengPackage::SetRotation(FengObject *object, float degrees) {
     if (object) object->angle = degrees;
@@ -289,6 +292,33 @@ void FengPackage::SetTexture(FengObject *object, unsigned int hash) {
     if (object) object->textureHash = hash;
 }
 
+void FengPackage::SetPosition(FengObject *object, float x, float y) {
+    if (!object) return;
+    object->position[0] = x;
+    object->position[1] = y;
+}
+
+void FengPackage::GetPosition(FengObject *object, float *x, float *y) {
+    if (!object) return;
+    *x = object->position[0];
+    *y = object->position[1];
+}
+
+void FengPackage::GetSize(FengObject *object, float *x, float *y) {
+    if (!object) return;
+    *x = object->size[0];
+    *y = object->size[1];
+}
+
+void FengPackage::SetState(FengObject *object, int key, const float *value) {
+    if (!object) return;
+    if (key == 5 || key == 6) {
+        int offset = key == 5 ? 0 : 2;
+        object->uv[offset] = value[0];
+        object->uv[offset + 1] = value[1];
+    }
+}
+
 void FengPackage::SetText(FengObject *object, const char *text) {
     if (object) object->text = text;
 }
@@ -298,8 +328,12 @@ void FengPackage::Gather(FengObject *object, const float *parent, float parentAl
     float a = parent[0], b = parent[1], c = parent[2], d = parent[3], tx = parent[4], ty = parent[5];
     float rad = object->angle * 3.14159265f / 180.0f;
     float cs = cosf(rad), sn = sinf(rad);
-    // Local: translate(position) * rotate(angle). Rotation is clockwise for positive angles with y down.
-    float px = object->position[0], py = object->position[1];
+    // Rotate about the FEng pivot relative to the object's centre. The north
+    // marker's (0, 72) pivot puts its rotation centre at the minimap centre.
+    // Positive angles rotate clockwise in the screen's y-down coordinates.
+    float pivotX = object->pivot[0], pivotY = object->pivot[1];
+    float px = object->position[0] + pivotX - cs * pivotX + sn * pivotY;
+    float py = object->position[1] + pivotY - sn * pivotX - cs * pivotY;
     float m[6];
     m[0] = a * cs + c * sn;
     m[1] = b * cs + d * sn;
@@ -308,7 +342,7 @@ void FengPackage::Gather(FengObject *object, const float *parent, float parentAl
     m[4] = a * px + c * py + tx;
     m[5] = b * px + d * py + ty;
     float alpha = parentAlpha * (float)object->colour[3] / 255.0f;
-    if (object->type == 5) {
+    if (object->type18 == 5) {
         // Groups scale their children by their size.
         float child[6];
         child[0] = m[0] * object->size[0];
@@ -369,7 +403,7 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
         float ma = item.matrix[0] * scale, mb = item.matrix[1] * scale, mc = item.matrix[2] * scale,
               md = item.matrix[3] * scale;
         float mtx = item.matrix[4] * scale + width * 0.5f, mty = item.matrix[5] * scale + height * 0.5f;
-        if (o->type == 1) {
+        if (o->type18 == 1) {
             bool alpha = false;
             GLuint tex = o->textureHash ? textures->Get(o->textureHash, &alpha) : 0;
             if (tex) glBindTexture(GL_TEXTURE_2D, tex);
@@ -383,14 +417,61 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
             float xs[4] = {-hw, hw, hw, -hw}, ys[4] = {-hh, -hh, hh, hh};
             float us[4] = {o->uv[0], o->uv[2], o->uv[2], o->uv[0]};
             float vs[4] = {o->uv[1], o->uv[1], o->uv[3], o->uv[3]};
+            bool masked = false;
+            if (tex && o->imageMask) {
+                for (size_t mi = 0; mi < items.size(); ++mi) {
+                    const DrawItem &mask = items[mi];
+                    if (mask.object != o->imageMask) continue;
+                    GLuint maskTexture = textures->Get(mask.object->textureHash, 0);
+                    if (!maskTexture) break;
+                    // Native render seam: TRACKMAP4000's DXT3 alpha is zero; its
+                    // observed TextureInfo blend byte is 5. Sample its RGB through
+                    // the retail Minimap_Mask silhouette, without claiming D3D parity.
+                    glPushAttrib(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_ENABLE_BIT | GL_TEXTURE_BIT);
+                    glEnable(GL_STENCIL_TEST);
+                    glStencilMask(0xff);
+                    glClearStencil(0);
+                    glClear(GL_STENCIL_BUFFER_BIT);
+                    glStencilFunc(GL_ALWAYS, 1, 0xff);
+                    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+                    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+                    glEnable(GL_ALPHA_TEST);
+                    glAlphaFunc(GL_GREATER, 0.01f);
+                    glBindTexture(GL_TEXTURE_2D, maskTexture);
+                    glBegin(GL_QUADS);
+                    for (int k = 0; k < 4; ++k) {
+                        float x = (k == 0 || k == 3 ? -0.5f : 0.5f) * mask.object->size[0];
+                        float y = (k < 2 ? -0.5f : 0.5f) * mask.object->size[1];
+                        glTexCoord2f(mask.object->uv[k == 0 || k == 3 ? 0 : 2],
+                                     mask.object->uv[k < 2 ? 1 : 3]);
+                        glVertex2f((mask.matrix[0] * x + mask.matrix[2] * y + mask.matrix[4]) * scale + width * 0.5f,
+                                   (mask.matrix[1] * x + mask.matrix[3] * y + mask.matrix[5]) * scale + height * 0.5f);
+                    }
+                    glEnd();
+                    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+                    glDisable(GL_ALPHA_TEST);
+                    glStencilFunc(GL_EQUAL, 1, 0xff);
+                    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+                    glBindTexture(GL_TEXTURE_2D, tex);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB, GL_PRIMARY_COLOR);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PRIMARY_COLOR);
+                    masked = true;
+                    break;
+                }
+            }
             glBegin(GL_QUADS);
             for (int k = 0; k < 4; ++k) {
                 glTexCoord2f(us[k], vs[k]);
                 glVertex2f(ma * xs[k] + mc * ys[k] + mtx, mb * xs[k] + md * ys[k] + mty);
             }
             glEnd();
+            if (masked) glPopAttrib();
             if (!tex) glEnable(GL_TEXTURE_2D);
-        } else if (o->type == 2 && font && font->Ready() && !o->text.empty()) {
+        } else if (o->type18 == 2 && font && font->Ready() && !o->text.empty()) {
             glColor4f(R, G, B, item.alpha);
             glPushMatrix();
             float m16[16] = {ma, mb, 0, 0, mc, md, 0, 0, 0, 0, 1, 0, mtx, mty, 0, 1};

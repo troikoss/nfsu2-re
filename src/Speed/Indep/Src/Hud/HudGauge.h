@@ -19,6 +19,11 @@ struct HudObjectOps {
     void (*setColour)(void *object, unsigned int argb);  // 0x51d7f0
     void (*setTexture)(void *object, unsigned int hash); // 0x50c990
     void (*setText)(void *object, const char *text);     // 0x537be0 with a printf-style result
+    void (*setPosition)(void *object, float x, float y);   // 0x51d4d0
+    void (*getPosition)(void *object, float *x, float *y); // 0x51d620
+    void (*getSize)(void *object, float *x, float *y);     // 0x51d730
+    // 0x5179d0 with no relative flag: state key 5 is the top-left UV pair, 6 the bottom-right.
+    void (*setState)(void *object, int key, const float *value);
 };
 
 // The texture hashes 0x5ed9b0 produces for a dial skin (output +0 .. +0x1c).

@@ -6,7 +6,7 @@
 // recovered feature in Speed/Indep/Src/Hud/HudGauge.cpp.
 #include "NativeFng.h"
 #include "NativeVehicle.h"
-#include "../../Speed/Indep/Src/Hud/HudGauge.h"
+#include "../../Speed/Indep/Src/Hud/HudMinimap.h"
 
 class NativeHud {
 public:
@@ -25,6 +25,14 @@ private:
     NativeFont font_;
     NativeTextureCache *textures_;
     HudGauge gauge_;
+    HudMinimap minimap_;
+    HudFeatureVisibility mapVisibility_;
+    HudFeatureObjectNode mapVisibilityNodes_[7];
+    HudMinimapIndicator playerIndicator_;
+    HudIndicatorSlot playerSlot_;
+    HudPlayerSlot player_;
+    std::vector<unsigned char> trackInfo_;
+    bool minimapReady_;
     std::vector<unsigned char> language_;
     bool loaded_;
 };
