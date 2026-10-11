@@ -663,3 +663,4 @@ physicsVariant3Rows = 0x7fc2e4;
 physicsVariant10Rows = 0x7fc33c;
 physicsVariant2Rows = 0x7fc394;
 physicsUpgradeGradeScale = 0x787adc;
+physicsUpgradeRounding = 0x784260;

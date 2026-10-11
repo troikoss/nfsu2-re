@@ -87,6 +87,28 @@ preserves that observed 53-bit value for the later original record modifiers.
 These helpers await the enclosing upgrade/record-composition chain before native
 use; native construction only calls the previously recovered clearing path.
 
+## Per-upgrade record modifiers
+
+`PhysicsRecordUpgrades.cpp` recovers nine original methods on the CarTypeInfo
++0x110 source subobject: `0x5a6b50`, `0x5a6bd0`, `0x5a6d00`, `0x5a6e30`,
+`0x5a6fa0`, `0x5a7140`, `0x5a71c0`, `0x5a7360`, `0x5a74a0`. The source covers
+the remaining 0x780 bytes of the original 0x890-byte row; unknown fields remain
+explicit offset accesses. Fraction calls use the recovered source chain.
+
+These methods retain centre/mass/inertia adjustments, drivetrain variant copying
+and ratio scanning, engine sample additions, secondary engine-curve interpolation,
+suspension/axle/wheel-height adjustments, brake-bias updates, engine range changes,
+limit removal and drag modifiers. In particular, drivetrain application writes
+the counted gears back into the **source variant**, rather than only changing
+the destination. Upgrade 4 always adds the old secondary curve even at zero
+fraction. Upgrade 7 removes the +0x290 limit when selected flags at +0x7d/+0x7e/
++0x83 are nonzero, before its fraction-dependent branch. Arithmetic retains the
+original unrounded intermediates and field write order.
+
+These methods await enclosing record composition `0x5ac4f0` and parameter
+composition `0x5b4dc0` before native use. Nitro application occurs inline in the
+original record composer rather than in a tenth standalone method.
+
 ## Mode variants
 
 `PhysicsVariants.cpp` recovers shared application `0x5a7530` (540 bytes) and
@@ -110,6 +132,7 @@ mode integration.
 build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_variants.py
+build/venv/bin/python tools/verify_pc_physics_record_upgrades.py
 cmake --build build/native -j2
 python tools/smoke_native_driving.py
 ```
@@ -169,6 +192,18 @@ passes and 2,304 default-count entries, with 3,294 selected component writes.
 All covered callees execute recovered source, with no controlled interfaces.
 Fixtures exclude malformed counts/indices, cyclic prerequisites, NaNs and
 alternate FPU precision; finite coverage is not full upgrade-composition proof.
+
+The record-modifier verifier and `physics-record-upgrades.json` pin all nine
+methods and validate their fraction/lookup/accumulation dependencies. On
+2026-10-11, **3,312 bit-identical comparisons** passed (368 per method) using all
+46 retail source rows and eight finite weight/selection patterns. Full guarded
+source, destination, selection and descriptor buffers, stack cleanup and preserved
+registers agree. Original branch counters record 272 gear-variant copies, 270
+engine-range selections, 316 limit removals and 2,430 fraction clamp passes.
+There are no controlled interfaces; original `__ftol2` remains an analysis runtime
+dependency for conversions. MSVC uses `/Ox /Op /Ob0`. Generated results remain in
+`build/analysis/physics-record-upgrades/`. Retail rows with synthetic descriptors
+do not prove actual chunk loading, the enclosing composer or native integration.
 
 Native build and forward/reverse driving smoke checks pass with the recovered
 constructor and curve builder integrated. Finite stock fixtures do not cover arbitrary upgrade combinations,

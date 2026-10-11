@@ -1,0 +1,59 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 5925712,
+      "size": 116,
+      "sha256": "e31293bcd07c9e6f553d1645a0d1de5487730ec043c9760ac1220587b9a11e3e",
+      "method": "ApplyUpgrade0"
+    },
+    {
+      "address": 5925840,
+      "size": 304,
+      "sha256": "9a45ff0a2f4d9de13af5955d106acb08a1175ef1745d72e27ff4ff81f32825d2",
+      "method": "ApplyUpgrade1"
+    },
+    {
+      "address": 5926144,
+      "size": 290,
+      "sha256": "d5bce474a9cd7ea901f97b88a41d918c22c7a59e7423c75aa888bc03a5d7de32",
+      "method": "ApplyUpgrade3"
+    },
+    {
+      "address": 5926448,
+      "size": 353,
+      "sha256": "9d8f029474eea8e8596271512dcca971821400d13261c11b5f9d117ca2c383ee",
+      "method": "ApplyUpgrade4"
+    },
+    {
+      "address": 5926816,
+      "size": 404,
+      "sha256": "e9158bbd285ca88b7aab1566f564078f51887cf326b977f6d8378b183e1fb263",
+      "method": "ApplyUpgrade5"
+    },
+    {
+      "address": 5927232,
+      "size": 124,
+      "sha256": "8638ffb234a2b8de8e48f02bdc4607b77563edbbd44f9bf7a28da2ce6cff9673",
+      "method": "ApplyUpgrade6"
+    },
+    {
+      "address": 5927360,
+      "size": 413,
+      "sha256": "ae3f555f48e64c088a4d7ad3912a5e76178629801bc388e79dee763765fcbc08",
+      "method": "ApplyUpgrade7"
+    },
+    {
+      "address": 5927776,
+      "size": 310,
+      "sha256": "7a0a16f902794af51144dd359fb3e81702ad1193b3641cfcb79baf36854307e1",
+      "method": "ApplyUpgrade8"
+    },
+    {
+      "address": 5928096,
+      "size": 134,
+      "sha256": "6b2044ee22f5611abf23c0e027ef48eed194ce69a85ebcdb0a7b9ad401da1184",
+      "method": "ApplyUpgrade9"
+    }
+  ]
+}
