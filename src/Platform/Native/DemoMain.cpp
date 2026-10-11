@@ -3,6 +3,7 @@
 // from the recovered UG2 sources through NativeVehicle.
 #include "NativeVehicle.h"
 #include "NativeWorld.h"
+#include "NativeScene.h"
 
 #include <SDL2/SDL.h>
 #include <GL/gl.h>
@@ -212,6 +213,58 @@ void DrawWheel(DrivetrainWheel *wheel) {
     glPopMatrix();
 }
 
+// Render frames from the exported vehicle state: the car origin (0x592400) with the body
+// orientation, and the wheel frames written by 0x5921b0.
+void DrawCarModel(NativeCarModel *model, NativeVehicle *vehicle) {
+    MoverBody *body = vehicle->mover->body20;
+    CarPhysicsRecord *record = vehicle->mover->record54;
+    DrivetrainAuxiliary *state = vehicle->owner->State();
+    float frame[16];
+    memcpy(frame, body->matrixD0.elements, sizeof(frame));
+    frame[12] = state->origin10.x;
+    frame[13] = state->origin10.y;
+    frame[14] = state->origin10.z;
+    float wheels[4][16], spins[4][16];
+    bool mirrored[4];
+    for (int i = 0; i < 4; ++i) {
+        DrivetrainWheel *wheel = vehicle->mover->wheels38[i];
+        float *spin = wheel->matrix30.elements, *world = wheel->matrix70.elements;
+        memcpy(wheels[i], world, sizeof(wheels[i]));
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                float sum = 0.0f;
+                for (int k = 0; k < 4; ++k) sum += spin[r * 4 + k] * world[k * 4 + c];
+                spins[i][r * 4 + c] = sum;
+            }
+        }
+        mirrored[i] = record->wheels10[i].position0.y < 0.0f;
+    }
+    GLfloat light[4] = {0.35f, 0.25f, 0.9f, 0.0f};
+    // Scaffold lighting roughly matching the night-time baked colours of the track.
+    GLfloat ambient[4] = {0.22f, 0.22f, 0.27f, 1.0f};
+    GLfloat diffuse[4] = {0.5f, 0.48f, 0.45f, 1.0f};
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glLightfv(GL_LIGHT0, GL_POSITION, light);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+    glEnable(GL_NORMALIZE);
+    glEnable(GL_ALPHA_TEST);
+    glAlphaFunc(GL_GREATER, 0.02f);
+    model->Draw(frame, wheels, spins, mirrored, false);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+    model->Draw(frame, wheels, spins, mirrored, true);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    glDisable(GL_ALPHA_TEST);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_COLOR_MATERIAL);
+}
+
 void SaveScreenshot(const char *path, int width, int height) {
     unsigned char *pixels = (unsigned char *)malloc(width * height * 3);
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
@@ -232,12 +285,16 @@ int main(int argc, char **argv) {
     int frames = 0;
     const char *screenshot = 0;
     bool scripted = false;
+    bool placeholder = false;
+    float orbit = -1.0f;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--game") && i + 1 < argc) game = argv[++i];
         else if (!strcmp(argv[i], "--car") && i + 1 < argc) car = argv[++i];
         else if (!strcmp(argv[i], "--frames") && i + 1 < argc) frames = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--screenshot") && i + 1 < argc) screenshot = argv[++i];
         else if (!strcmp(argv[i], "--scripted")) scripted = true;
+        else if (!strcmp(argv[i], "--placeholder")) placeholder = true;
+        else if (!strcmp(argv[i], "--orbit") && i + 1 < argc) orbit = (float)atof(argv[++i]);
     }
     unsigned short control = 0x027f;
     __asm__ volatile("fldcw %0" : : "m"(control));
@@ -271,9 +328,26 @@ int main(int argc, char **argv) {
         return 1;
     }
     SDL_GLContext context = SDL_GL_CreateContext(window);
-    SDL_GL_SetSwapInterval(1);
+    SDL_GL_SetSwapInterval(frames ? 0 : 1);
     glEnable(GL_DEPTH_TEST);
     GLuint worldList = BuildWorldList();
+    NativeTextureCache textures;
+    NativeTrackModel trackModel;
+    bool haveTrack = false;
+    if (!placeholder) {
+        haveTrack = trackModel.Load(game, "L4RA", &textures, error, sizeof(error));
+        if (!haveTrack) fprintf(stderr, "ug2demo: %s; drawing collision polygons\n", error);
+        else fprintf(stderr, "ug2demo: L4RA scenery: %d instances of %d solids\n", trackModel.InstanceCount(),
+                     trackModel.SolidCount());
+    }
+    NativeCarModel carModel;
+    bool haveModel = false;
+    if (!placeholder) {
+        haveModel = carModel.Load(game, car, &textures, error, sizeof(error));
+        if (!haveModel) fprintf(stderr, "ug2demo: %s; drawing placeholder car\n", error);
+        else fprintf(stderr, "ug2demo: %s model: %d solids, %d of %d parts textured, %d textures\n", car,
+                     carModel.SolidCount(), carModel.TexturedParts(), carModel.Parts(), (int)textures.Count());
+    }
     float lastGood[4] = {spawn[0], spawn[1], spawn[2], spawn[3]};
     int airborneFrames = 0;
     Camera camera = {{-8.0f, 0.0f, 3.0f}, {0.0f, 0.0f, 0.5f}};
@@ -347,6 +421,14 @@ int main(int argc, char **argv) {
             forward[1] /= length;
         }
         float desired[3] = {m[12] - forward[0] * 7.5f, m[13] - forward[1] * 7.5f, m[14] + 2.6f};
+        if (orbit >= 0.0f) {
+            // Inspection camera for screenshots: fixed angle around the car.
+            float a = atan2f(forward[1], forward[0]) + orbit * 3.14159265f / 180.0f;
+            desired[0] = m[12] + cosf(a) * 5.0f;
+            desired[1] = m[13] + sinf(a) * 5.0f;
+            desired[2] = m[14] + 1.6f;
+            if (frame == 0 || frames) memcpy(camera.position, desired, sizeof(desired));
+        }
         float blend = 1.0f - expf(-duration * 4.0f);
         for (int i = 0; i < 3; ++i) camera.position[i] += (desired[i] - camera.position[i]) * blend;
         camera.target[0] = m[12];
@@ -363,10 +445,21 @@ int main(int argc, char **argv) {
         glLoadIdentity();
         float up[3] = {0.0f, 0.0f, 1.0f};
         LookAt(camera.position, camera.target, up);
-        glCallList(worldList);
+        if (haveTrack) {
+            float view[3] = {camera.target[0] - camera.position[0], camera.target[1] - camera.position[1],
+                             camera.target[2] - camera.position[2]};
+            float norm = sqrtf(view[0] * view[0] + view[1] * view[1] + view[2] * view[2]);
+            for (int i = 0; i < 3; ++i) view[i] /= norm > 1e-3f ? norm : 1.0f;
+            trackModel.Draw(camera.position, view, 700.0f);
+        }
+        else glCallList(worldList);
         DrawSkidMarks();
-        DrawBody(&vehicle);
-        for (int i = 0; i < 4; ++i) DrawWheel(vehicle.mover->wheels38[i]);
+        if (haveModel) {
+            DrawCarModel(&carModel, &vehicle);
+        } else {
+            DrawBody(&vehicle);
+            for (int i = 0; i < 4; ++i) DrawWheel(vehicle.mover->wheels38[i]);
+        }
 
         DrivetrainAuxiliary *state = vehicle.owner->State();
         float rpm = vehicle.mover->engine48->state14 * engineValueScale;

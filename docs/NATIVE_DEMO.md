@@ -64,6 +64,50 @@ collision, is trapped. Barrier (car-versus-wall) collision `0x5ae930` is not rec
 so the demo respawns the car at its last grounded position after it leaves the
 collision coverage; this respawn is scaffolding.
 
+## Original assets (third pass)
+
+The demo now draws UG2's own car and track data from the player's installation instead of
+placeholder boxes and collision polygons.
+
+Recovered and behaviour-verified (`tools/verify_pc_compression.py`): the bWare
+decompressors in `src/Speed/Indep/Libs/bWare/Compression.cpp`, namely dispatcher
+`0x574670`, JDLZ `0x573700`, HUFF wrapper `0x5744c0` with the EA Huffman decoder
+`0x573840`, and RAWW `0x5744f0`. All 2,404 compressed slots of the Skyline, shared car and
+Skyline vinyl texture packs decode byte-for-byte like the original running in Unicorn,
+including 64 guard bytes after each output. The sources compile with MSVC 7.1; they are not
+counted as byte-matching. The COMP decoder `0x574530` is not recovered.
+
+Asset reading and drawing (`NativeAssets.cpp`, `NativeScene.cpp`) is platform scaffolding.
+The original loaders (`0x493bb0`, `0x494ea0`, `0x5cc280`) are not recovered. The data
+layouts used, checked on the retail files:
+
+- Solid (`0x80134010`): header `0x134011` with the full-name hash at `+0x10` (stored names
+  are cut to 27 characters, so parts are matched by hash) and bounds at `+0x20`/`+0x30`;
+  texture slots `0x134012`; platform info `0x134900` with the vertex count at `+0x34`;
+  vertices `0x134b01` (128-aligned, 36-byte position/normal/colour/UV on cars, 24-byte
+  position/colour/UV on 98% of track solids); 60-byte draw records `0x134b02` (index count
+  `+0xc`, texture slot `+0x1c`, start `+0x34`, flags `+0x38`); 16-bit indices `0x134b03`.
+- Texture pack (`0xb3300000`): `0x33310004` holds 0x7c-byte TextureInfo records after a
+  fixed 12-byte pad (name, hash `+0x18`, data offset `+0x24`, palette offset `+0x28`, size
+  `+0x2c`, width/height `+0x38`, compression `+0x3e`: 0x08 palette, 0x20 BGRA, 0x22/0x24/
+  0x26 DXT1/3/5). Pixel data starts at the `0x33320002` payload aligned to 0x80. Car packs
+  instead list 24-byte `0x33310003` slots (hash, file offset, packed size, size, TextureInfo
+  distance from the end) of JDLZ/HUFF payloads holding pixels followed by the TextureInfo.
+- Scenery section (`0x80034100`): `0x34102` 0x44-byte infos (name, LOD solid hashes at
+  `+0x20`/`+0x24`); `0x34103` 0x40-byte instances (bounds, info index in the low half and
+  flags in the high half of `+0x18`, position `+0x20`, int16 rotation rows at `+0x2c` with
+  0x2000 = 1). All 48,270 L4RA instances resolve to loaded solids.
+
+The stock car is `<CAR>_BASE_A` plus the KIT00 parts of LOD A. The generic texture keys
+those parts use are the replacement keys built by CarRenderInfo `0x638190` and the
+used-texture setup `0x631e20`, resolved with lights off and no damage: `WINDOW_*`,
+`DRIVER` → `DRIVER_MALE` (the in-game branch of `0x638190`), `BRAKELIGHT_LEFT/RIGHT` →
+`<CAR>_KIT00_BRAKELIGHT_OFF`, `BRAKELIGHT_CENTRE` → `<CAR>_CENTRE_BRAKELIGHT_OFF`. Scaffold
+choices: windows bind GLOBALB's `WINDOW`; the paint/vinyl layers (`<CAR>_SKIN1` and the
+unnamed body-panel and skirt keys `0x3c84d757`/`0xa7366ae6`) are drawn in a fixed colour;
+lighting is fixed-function OpenGL. The wheel model is drawn at the recovered wheel render
+frames (`0x5921b0`), mirrored for right-side wheels.
+
 ## Platform scaffolding (not original code)
 
 `src/Platform/Native` contains everything that is not recovered UG2 code:
@@ -76,7 +120,9 @@ collision coverage; this respawn is scaffolding.
   standing in for world collision `0x5e72e0`, scaffold race-status/context/random
   objects, keyboard controls, and stock car records copied from GLOBALB.BUN CarTypeInfo
   `+0x110` (upgrade composition `0x5ac4f0`/`0x5997e0` not yet recovered).
-- `DemoMain.cpp`: SDL2/OpenGL window, chase camera and placeholder box/wheel drawing.
+- `DemoMain.cpp`: SDL2/OpenGL window, chase camera, HUD bars; `NativeAssets.cpp`/
+  `NativeScene.cpp` read and draw the original car and scenery assets (see above).
+  `--placeholder` restores the box car and collision-polygon world.
 - Unrecovered routines the demo state should never reach stop the program with a
   message instead of being stubbed (`NativeTrap`).
 
@@ -89,15 +135,19 @@ cmake -S . -B build/native && cmake --build build/native
 build/native/ug2sim "Need for Speed Underground 2" SKYLINE 960   # headless check on L4RA
 build/native/ug2probe -579.8 533.2                                 # collision coverage probe
 build/native/ug2demo --car SKYLINE                                 # W/S/A/D, Space, R, Esc
+build/native/ug2demo --frames 60 --orbit 30 --screenshot car.ppm   # scripted capture
 ```
 
-The headless Skyline run reaches about 127 km/h in eleven seconds with automatic
-shifts near 7,400–7,800 rpm, steers, coasts and brakes to rest, with finite state
-throughout. These are plausibility observations, not equivalence evidence.
+The headless Skyline run accelerates through automatic shifts near 7,800 rpm and reaches
+about 95 km/h when its scripted steering takes it off the road at eight seconds; without
+barrier collision it then leaves the collision coverage and falls. These are plausibility
+observations, not equivalence evidence.
 
 ## Known limitations
 
-- The world is drawn from collision polygons, not UG2's render geometry; the car is a box.
+- All scenery instances are drawn regardless of their unidentified flags, so some LOD or
+  variant pieces overlap; streaming, visibility and the original shaders are not recovered.
+- Paint, vinyls, damage textures and headlight/brakelight switching are not applied.
 - No barrier collision yet (see above); every collision pack is loaded at start-up
   instead of the original streaming, and the spawn point is chosen heuristically.
 - Steering input scaling (±30° road-wheel angle), reverse engagement (hold brake at rest)

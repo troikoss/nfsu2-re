@@ -363,3 +363,4 @@ skidLoadThreshold = 0x7881f4;
 skidMinimumAlignment = 0x7a1b28;
 skidRollingIntensity = 0x786348;
 skidMinimumIntensity = 0x7a1b2c;
+huffExtraBits = 0x8650f8;

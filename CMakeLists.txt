@@ -10,7 +10,8 @@ set(UG2_ARCH_FLAGS -m32 -fno-pie -mfpmath=387 -fno-strict-aliasing -fno-stack-pr
 file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/Physics/*.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/World/*.cpp
-    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Strings.cpp)
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Strings.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Compression.cpp)
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/src/Platform/Native/include)
 add_library(ug2recovered STATIC ${UG2_RECOVERED_SOURCES})
 target_compile_options(ug2recovered PRIVATE ${UG2_ARCH_FLAGS} -O1 -g -w
@@ -32,7 +33,8 @@ target_compile_options(ug2sim PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall
 target_link_libraries(ug2sim -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2sim PRIVATE ${UG2_LINK_FLAGS})
 
-add_executable(ug2demo src/Platform/Native/DemoMain.cpp)
+add_executable(ug2demo src/Platform/Native/DemoMain.cpp src/Platform/Native/NativeAssets.cpp
+    src/Platform/Native/NativeScene.cpp)
 target_compile_options(ug2demo PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall -D_REENTRANT
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_include_directories(ug2demo BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/src/Platform/Native/include /usr/include/SDL2)

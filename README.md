@@ -21,9 +21,12 @@ Do not infer verification status merely because a source file is present.
 ## Native driving demo
 
 A 32-bit Linux build drives a stock UG2 car on the L4RA streets using the recovered
-vehicle and track-collision sources; window, input, placeholder drawing and a few
-documented seams are platform scaffolding. Behavioural verification of the routines
-recovered for the demo is still pending. See [the demo notes](docs/NATIVE_DEMO.md).
+vehicle and track-collision sources. It draws the game's own car model, Bayview scenery
+and textures, read from the player's installation through the recovered bWare
+decompressors, which are behaviour-verified. Window, input, asset reading, OpenGL drawing
+and a few documented seams are platform scaffolding. Behavioural verification of the
+vehicle and collision routines recovered for the demo is still pending. See
+[the demo notes](docs/NATIVE_DEMO.md).
 
 ```sh
 cmake -S . -B build/native && cmake --build build/native
