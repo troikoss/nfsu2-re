@@ -96,7 +96,48 @@ layouts used, checked on the retail files:
 - Scenery section (`0x80034100`): `0x34102` 0x44-byte infos (name, LOD solid hashes at
   `+0x20`/`+0x24`); `0x34103` 0x40-byte instances (bounds, info index in the low half and
   flags in the high half of `+0x18`, position `+0x20`, int16 rotation rows at `+0x2c` with
-  0x2000 = 1). All 48,270 L4RA instances resolve to loaded solids.
+  0x2000 = 1). All 48,270 L4RA instances resolve to loaded solids. The section number
+  is at `0x34101` `+0xc` (letter `n / 100 + 0x40`, number `n % 100`).
+
+### Scenery visibility (fourth pass)
+
+Read from the original and applied by the demo (behaviour, not byte matching):
+
+- Visible sections, `0x5e96b0`: the drivable section whose boundary holds the eye
+  (`0x5e00d0`: bounds test `0x43d410`, even-odd crossing test `0x5d6dd0`) supplies a list
+  of section numbers; the Z sections 2600-2699 (SKYDOME) are always added. With no
+  drivable section the loaded sections numbered below 10 are used. The data is
+  `0x80034150` in `L4RA.BUN`, loaded by `0x5e9c10`: `0x34151` header, `0x34152` boundaries
+  (section `+0x8`, point count `+0xa`, bounds `+0xc`/`+0x14`, x/y points from `+0x24`),
+  `0x34153` 0xa4-byte drivable records (section `+0x8`, count `+0x10`, sections from
+  `+0x14`). The nearest-boundary fallback `0x5db770` is not recovered.
+  Drawing every section put the low-detail panoramas (`PAN_*`, sections X9x) over the
+  detailed scenery: that was the smeared ground and the black rectangle.
+- View flags, view setup `0x4888a0`: `view +0x44` is 0x10 always, 0x08/0x04 by
+  `0x89e7a4` (0 for the forward direction), 0x02 for eView `+4` types 1/2, 0x01 when
+  `0x8707dc` is 3 or 4, 0x40 for 0x1800 (mirror) views, 0x20 for type 3. The per-instance
+  test in `0x5d6570` skips an instance when `(instance +0x1a ^ 0x60) & (byte)view +0x44`;
+  the demo uses 0x18 for the player view. Instances flagged 0x10 (race barriers, shop
+  beams, start/finish graphics) are therefore hidden in every view.
+- Instance flag 0x100 queues the model with no matrix (its vertices are in world space).
+- Scenery is reached through the `0x34104` 0x24-byte tree nodes (bounds, child count
+  `+0x18`, up to five children; negative entries are nodes), traversed by `0x5d69b0`.
+  Every L4RA instance is reachable, so the demo walks the instance array.
+
+Scaffold render states (the D3D renderer is not recovered): TextureInfo `+0x49` reads as
+alpha usage (0 none, 1 punch-through, 2 modulated) and `+0x4a` as blend type (0 none,
+1 blended, 2 additive), judged from how they are spread across L4RA's textures. Blend
+type 0 draws opaque and alpha-tests only punch-through textures, so the alpha of road and
+terrain textures (modulated, used as a mask) is ignored. Types 1 and 2 are drawn after
+the opaque pass without depth writes. Extra texture packs: `TRACKS/LOC4DYNTEX.BIN`
+(SKYDOME), `GLOBAL/InGameCommon.bun` (SFX_LIGHT_BEAMA), `GLOBAL/GLOBALB.BUN` and
+`GLOBAL/GlobalTexturesNA.bin`. The sky dome is drawn scaled about the eye because it is
+wider than the demo's far plane, and the clear colour is a fixed dusk tone.
+
+Debug aids: `UG2_DEBUG_AT="x y"` lists the instances whose bounds hold a point,
+`UG2_DEBUG_PICK="x y"` names the scenery instance drawn at a screenshot pixel (top-left
+origin, final frame; it redraws into the stencil buffer), and `UG2_DEBUG_SECTIONS=1`
+prints the drivable section and its visible list whenever it changes.
 
 The stock car is `<CAR>_BASE_A` plus the KIT00 parts of LOD A. The generic texture keys
 those parts use are the replacement keys built by CarRenderInfo `0x638190` and the

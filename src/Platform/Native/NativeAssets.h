@@ -15,6 +15,8 @@ struct NativeImage {
     int width;
     int height;
     bool alpha;
+    int alphaUsage;  // TextureInfo +0x49: 0 none, 1 punch-through, 2 modulated (survey of L4RA)
+    int alphaBlend;  // TextureInfo +0x4a: 0 none, 1 blended, 2 additive (survey of L4RA)
     std::vector<unsigned char> rgba;
 };
 
@@ -47,9 +49,20 @@ struct NativeInstance {
     unsigned int solidHash;
     unsigned int flags;
     std::string infoName;
+    int section;  // 0x34101 header +0xc: letter (n / 100 + 0x40) and number (n % 100)
     float minimum[3];
     float maximum[3];
     float matrix[16];
+};
+
+// One 0x34153 drivable visible section (0xa4 bytes) joined with its 0x34152 boundary
+// (point count +0xa, bounds +0xc/+0x14, x/y points from +0x24).
+struct NativeDrivableSection {
+    int section;              // +0x8
+    std::vector<short> visible;  // +0x10 count, +0x14 section numbers
+    float minimum[2];
+    float maximum[2];
+    std::vector<float> points;
 };
 
 unsigned int NativeStringHash(const char *text);
@@ -58,6 +71,8 @@ bool ReadNativeFile(const std::string &path, std::vector<unsigned char> *data);
 void LoadNativeSolids(const unsigned char *data, size_t size, std::vector<NativeSolid> *solids);
 // Walks every 0x80034100 scenery section in the buffer.
 void LoadNativeInstances(const unsigned char *data, size_t size, std::vector<NativeInstance> *instances);
+// Reads the 0x80034150 visible-section pack (loader 0x5e9c10).
+void LoadNativeDrivableSections(const unsigned char *data, size_t size, std::vector<NativeDrivableSection> *sections);
 // Reads every 0xb3300000 texture pack (plain or slot-compressed) in the buffer.
 void LoadNativeTextures(const unsigned char *data, size_t size, NativeImageMap *images);
 

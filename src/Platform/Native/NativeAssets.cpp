@@ -124,6 +124,8 @@ bool DecodeImage(const unsigned char *info, const unsigned char *pixels, size_t 
     image->hash = Get32(info + 0x18);
     image->width = Get16(info + 0x38);
     image->height = Get16(info + 0x3a);
+    image->alphaUsage = info[0x49];
+    image->alphaBlend = info[0x4a];
     int type = info[0x3e];
     int width = image->width, height = image->height;
     if (width <= 0 || height <= 0 || width > 4096 || height > 4096) return false;
@@ -355,7 +357,9 @@ void LoadNativeInstances(const unsigned char *data, size_t size, std::vector<Nat
         std::vector<Chunk> inner;
         Children(data, chunks[i].begin, chunks[i].end, &inner);
         const Chunk *infos = 0, *placements = 0;
+        int section = -1;
         for (size_t j = 0; j < inner.size(); ++j) {
+            if (inner[j].id == 0x34101) section = (int)Get32(data + Align(inner[j].begin, 16) + 0xc);
             if (inner[j].id == 0x34102) infos = &inner[j];
             if (inner[j].id == 0x34103) placements = &inner[j];
         }
@@ -374,6 +378,7 @@ void LoadNativeInstances(const unsigned char *data, size_t size, std::vector<Nat
             instance.infoName = name;
             instance.solidHash = Get32(info + 0x20);
             instance.flags = word >> 16;
+            instance.section = section;
             for (int k = 0; k < 3; ++k) {
                 instance.minimum[k] = GetFloat(record + 4 * k);
                 instance.maximum[k] = GetFloat(record + 0xc + 4 * k);
@@ -387,6 +392,46 @@ void LoadNativeInstances(const unsigned char *data, size_t size, std::vector<Nat
             }
             instance.matrix[15] = 1.0f;
             instances->push_back(instance);
+        }
+    }
+}
+
+void LoadNativeDrivableSections(const unsigned char *data, size_t size, std::vector<NativeDrivableSection> *sections) {
+    std::vector<Chunk> chunks;
+    Children(data, 0, size, &chunks);
+    for (size_t i = 0; i < chunks.size(); ++i) {
+        if (chunks[i].id != 0x80034150) continue;
+        std::vector<Chunk> inner;
+        Children(data, chunks[i].begin, chunks[i].end, &inner);
+        std::map<int, const unsigned char *> boundaries;
+        for (size_t j = 0; j < inner.size(); ++j) {
+            if (inner[j].id != 0x34152) continue;
+            for (size_t p = inner[j].begin; p + 0x24 <= inner[j].end;) {
+                boundaries[(short)Get16(data + p + 8)] = data + p;
+                p += 0x24 + (short)Get16(data + p + 0xa) * 8;
+            }
+        }
+        for (size_t j = 0; j < inner.size(); ++j) {
+            if (inner[j].id != 0x34153) continue;
+            for (size_t p = inner[j].begin; p + 0xa4 <= inner[j].end; p += 0xa4) {
+                const unsigned char *record = data + p;
+                NativeDrivableSection section;
+                section.section = (short)Get16(record + 8);
+                int count = (int)Get32(record + 0x10);
+                for (int k = 0; k < count && 0x14 + 2 * k < 0xa4; ++k) {
+                    section.visible.push_back((short)Get16(record + 0x14 + 2 * k));
+                }
+                std::map<int, const unsigned char *>::iterator found = boundaries.find(section.section);
+                if (found == boundaries.end()) continue;
+                const unsigned char *boundary = found->second;
+                for (int k = 0; k < 2; ++k) {
+                    section.minimum[k] = GetFloat(boundary + 0xc + 4 * k);
+                    section.maximum[k] = GetFloat(boundary + 0x14 + 4 * k);
+                }
+                int points = (short)Get16(boundary + 0xa);
+                for (int k = 0; k < points * 2; ++k) section.points.push_back(GetFloat(boundary + 0x24 + 4 * k));
+                sections->push_back(section);
+            }
         }
     }
 }

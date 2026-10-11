@@ -320,6 +320,7 @@ int main(int argc, char **argv) {
     }
     const int width = 1280, height = 720;
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_Window *window = SDL_CreateWindow("UG2 recovered vehicle demo", SDL_WINDOWPOS_CENTERED,
                                           SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL);
@@ -339,6 +340,12 @@ int main(int argc, char **argv) {
         if (!haveTrack) fprintf(stderr, "ug2demo: %s; drawing collision polygons\n", error);
         else fprintf(stderr, "ug2demo: L4RA scenery: %d instances of %d solids\n", trackModel.InstanceCount(),
                      trackModel.SolidCount());
+        if (haveTrack && getenv("UG2_DEBUG_AT")) {
+            float x = spawn[0], y = spawn[1];
+            sscanf(getenv("UG2_DEBUG_AT"), "%f %f", &x, &y);
+            fprintf(stderr, "ug2demo: instances at %.1f %.1f (spawn z %.1f)\n", x, y, spawn[2]);
+            trackModel.DebugAt(x, y);
+        }
     }
     NativeCarModel carModel;
     bool haveModel = false;
@@ -436,7 +443,9 @@ int main(int argc, char **argv) {
         camera.target[2] = m[14] + 0.6f;
 
         glViewport(0, 0, width, height);
-        glClearColor(0.45f, 0.62f, 0.85f, 1.0f);
+        // Scaffold horizon colour sampled from the SKY_SUNRISE dome; the time-of-day clear and
+        // fog colours are not recovered.
+        glClearColor(haveTrack ? 0.15f : 0.45f, haveTrack ? 0.12f : 0.62f, haveTrack ? 0.10f : 0.85f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -450,7 +459,7 @@ int main(int argc, char **argv) {
                              camera.target[2] - camera.position[2]};
             float norm = sqrtf(view[0] * view[0] + view[1] * view[1] + view[2] * view[2]);
             for (int i = 0; i < 3; ++i) view[i] /= norm > 1e-3f ? norm : 1.0f;
-            trackModel.Draw(camera.position, view, 700.0f);
+            trackModel.Draw(camera.position, view, 2800.0f);
         }
         else glCallList(worldList);
         DrawSkidMarks();
@@ -491,6 +500,22 @@ int main(int argc, char **argv) {
         glEnd();
         glEnable(GL_DEPTH_TEST);
         if (screenshot && frames && frame == frames - 1) SaveScreenshot(screenshot, width, height);
+        if (haveTrack && frames && frame == frames - 1 && getenv("UG2_DEBUG_PICK")) {
+            // "x y" in screenshot pixels, top-left origin.
+            int px = 0, py = 0;
+            sscanf(getenv("UG2_DEBUG_PICK"), "%d %d", &px, &py);
+            glMatrixMode(GL_PROJECTION);
+            glLoadIdentity();
+            Perspective(60.0f, (float)width / height, 0.3f, 3000.0f);
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+            LookAt(camera.position, camera.target, up);
+            float view[3] = {camera.target[0] - camera.position[0], camera.target[1] - camera.position[1],
+                             camera.target[2] - camera.position[2]};
+            float norm = sqrtf(view[0] * view[0] + view[1] * view[1] + view[2] * view[2]);
+            for (int i = 0; i < 3; ++i) view[i] /= norm > 1e-3f ? norm : 1.0f;
+            trackModel.DebugPick(camera.position, view, 2800.0f, px, height - 1 - py);
+        }
         SDL_GL_SwapWindow(window);
     }
     SDL_GL_DeleteContext(context);

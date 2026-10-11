@@ -68,19 +68,32 @@ public:
     void Draw(const float *eye, const float *forward, float range);
     int InstanceCount() const { return (int)instances_.size(); }
     int SolidCount() const { return (int)solids_.size(); }
+    // Prints the instances whose bounds contain (x, y) with their solids and textures.
+    void DebugAt(float x, float y) const;
+    // Redraws the scenery into the stencil buffer and prints the instance drawn at window
+    // pixel (x, y). Needs a stencil buffer and the frame's projection and view matrices.
+    void DebugPick(const float *eye, const float *forward, float range, int x, int y);
 
 private:
     struct Placed {
-        GLuint list;
+        GLuint lists[3];  // opaque, blended, additive parts
         float centre[3];
         float radius;
         const float *matrix;
         bool sky;
+        int instance;
+        int section;
     };
-    GLuint Build(const NativeSolid &solid);
+    GLuint Build(const NativeSolid &solid, int pass);
+    void DrawPlaced(const float *eye, const float *forward, float range, int pickShift, int pass);
+    void PrintInstance(size_t index) const;
+    void SelectSections(const float *eye);
     std::vector<NativeSolid> solids_;
     std::vector<NativeInstance> instances_;
     std::vector<Placed> placed_;
+    std::vector<NativeDrivableSection> drivable_;
+    std::vector<bool> visible_;  // by section number
+    int currentSection_;
     NativeTextureCache *textures_;
 };
 

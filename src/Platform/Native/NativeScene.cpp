@@ -221,12 +221,26 @@ void NativeCarModel::Draw(const float *body, const float wheels[4][16], const fl
     }
 }
 
-GLuint NativeTrackModel::Build(const NativeSolid &solid) {
-    for (size_t p = 0; p < solid.parts.size(); ++p) textures_->Get(solid.parts[p].textureHash, 0);
+GLuint NativeTrackModel::Build(const NativeSolid &solid, int pass) {
+    // Scaffold render states from the texture's alpha fields (the D3D renderer is not
+    // recovered): blend type 0 draws opaque, alpha-tested only for punch-through usage, so
+    // the alpha of modulated road and terrain textures is not treated as coverage; blend
+    // type 1 is alpha blended and 2 additive, both after the opaque pass.
+    bool any = false;
+    for (size_t p = 0; p < solid.parts.size(); ++p) {
+        textures_->Get(solid.parts[p].textureHash, 0);
+        const NativeImage *image = textures_->Find(solid.parts[p].textureHash);
+        int blend = image && image->alpha ? image->alphaBlend : 0;
+        if ((blend > 2 ? 1 : blend) == pass) any = true;
+    }
+    if (!any) return 0;
     GLuint list = glGenLists(1);
     glNewList(list, GL_COMPILE);
     for (size_t p = 0; p < solid.parts.size(); ++p) {
         const NativeMeshPart &part = solid.parts[p];
+        const NativeImage *image = textures_->Find(part.textureHash);
+        int blend = image && image->alpha ? image->alphaBlend : 0;
+        if ((blend > 2 ? 1 : blend) != pass) continue;
         GLuint texture = textures_->Get(part.textureHash, 0);
         if (texture) {
             glEnable(GL_TEXTURE_2D);
@@ -234,17 +248,22 @@ GLuint NativeTrackModel::Build(const NativeSolid &solid) {
         } else {
             glDisable(GL_TEXTURE_2D);
         }
+        if (pass == 0 && image && image->alpha && image->alphaUsage == 1) glEnable(GL_ALPHA_TEST);
+        else glDisable(GL_ALPHA_TEST);
         glBegin(GL_TRIANGLES);
         for (int k = 0; k < part.count; ++k) {
             int v = solid.indices[part.start + k];
-            // Vertex colours are D3D ARGB words holding baked lighting.
+            // Vertex colours are D3D ARGB words holding baked lighting; their alpha only
+            // enters the blended passes.
             unsigned int colour = solid.colours[v];
-            glColor4ub((GLubyte)(colour >> 16), (GLubyte)(colour >> 8), (GLubyte)colour, (GLubyte)(colour >> 24));
+            glColor4ub((GLubyte)(colour >> 16), (GLubyte)(colour >> 8), (GLubyte)colour,
+                       pass == 0 ? 255 : (GLubyte)(colour >> 24));
             glTexCoord2fv(&solid.uvs[v * 2]);
             glVertex3fv(&solid.positions[v * 3]);
         }
         glEnd();
     }
+    glDisable(GL_ALPHA_TEST);
     glDisable(GL_TEXTURE_2D);
     glEndList();
     return list;
@@ -265,21 +284,42 @@ bool NativeTrackModel::Load(const char *gameDirectory, const char *region, Nativ
         }
         LoadNativeSolids(&data[0], data.size(), &solids_);
         LoadNativeInstances(&data[0], data.size(), &instances_);
+        LoadNativeDrivableSections(&data[0], data.size(), &drivable_);
         NativeImageMap images;
         LoadNativeTextures(&data[0], data.size(), &images);
         textures->Add(images);
     }
-    std::map<unsigned int, GLuint> lists;
+    // Shared packs the scenery draws from: location dynamic textures ("TRACKS\LOC%dDYNTEX.BIN",
+    // SKYDOME), the in-game common pack (SFX_LIGHT_BEAMA), GLOBALB (neon signs) and the
+    // regional global textures (billboards; the NA variant of "GLOBAL\GLOBALTEXTURESNA.BIN").
+    const char *shared[] = {"/TRACKS/LOC4DYNTEX.BIN", "/GLOBAL/InGameCommon.bun", "/GLOBAL/GLOBALB.BUN",
+                            "/GLOBAL/GlobalTexturesNA.bin"};
+    for (int i = 0; i < 4; ++i) {
+        std::vector<unsigned char> data;
+        if (!ReadNativeFile(game + shared[i], &data)) continue;
+        NativeImageMap images;
+        LoadNativeTextures(&data[0], data.size(), &images);
+        textures->Add(images);
+    }
+    std::map<unsigned int, std::vector<GLuint> > lists;
     std::map<unsigned int, const NativeSolid *> byHash;
     for (size_t i = 0; i < solids_.size(); ++i) byHash[solids_[i].hash] = &solids_[i];
+    // View flags as the view setup 0x4888a0 builds them for the player view: 0x10 always,
+    // 0x08 while 0x89e7a4 (race direction) is 0. Bits 0x02/0x01 come from eView +4 and
+    // 0x8707dc, which are not recovered, and are left clear. The instance test is the one
+    // in 0x5d6570: (instance +0x1a ^ 0x60) & (byte)view +0x44 skips the instance.
+    const unsigned int viewFlags = 0x10 | 0x08;
     for (size_t i = 0; i < instances_.size(); ++i) {
         const NativeInstance &instance = instances_[i];
+        if (((instance.flags ^ 0x60) & viewFlags & 0xff) != 0) continue;
         std::map<unsigned int, const NativeSolid *>::iterator solid = byHash.find(instance.solidHash);
         if (solid == byHash.end()) continue;
-        GLuint &list = lists[instance.solidHash];
-        if (!list) list = Build(*solid->second);
+        std::vector<GLuint> &list = lists[instance.solidHash];
+        if (list.empty()) {
+            for (int pass = 0; pass < 3; ++pass) list.push_back(Build(*solid->second, pass));
+        }
         Placed placed;
-        placed.list = list;
+        for (int pass = 0; pass < 3; ++pass) placed.lists[pass] = list[pass];
         placed.radius = 0.0f;
         for (int k = 0; k < 3; ++k) {
             placed.centre[k] = (instance.minimum[k] + instance.maximum[k]) * 0.5f;
@@ -287,48 +327,177 @@ bool NativeTrackModel::Load(const char *gameDirectory, const char *region, Nativ
             placed.radius += half * half;
         }
         placed.radius = sqrtf(placed.radius);
-        placed.matrix = instance.matrix;
+        // Instance flag 0x100 (0x5d6570, +0x1b & 1) queues the model with no matrix: the
+        // solid's vertices are already in world space.
+        static const float identity[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+        placed.matrix = (instance.flags & 0x100) ? identity : instance.matrix;
         placed.sky = instance.infoName.compare(0, 7, "SKYDOME") == 0;
+        placed.instance = (int)i;
+        placed.section = instance.section;
         placed_.push_back(placed);
     }
     if (placed_.empty()) {
         snprintf(error, errorSize, "no scenery instances in %s", region);
         return false;
     }
+    currentSection_ = -2;
     return true;
 }
 
+namespace {
+
+// Even-odd crossing test over the boundary points, edge by edge from the last point, as in
+// 0x5d6dd0 (after the 0x43d410 bounds test with zero margin).
+bool InsideBoundary(const NativeDrivableSection &section, float x, float y) {
+    if (x < section.minimum[0] || x > section.maximum[0] || y < section.minimum[1] || y > section.maximum[1])
+        return false;
+    size_t count = section.points.size() / 2;
+    if (count < 4) return false;
+    bool inside = false;
+    for (size_t i = 0, j = count - 1; i < count; j = i++) {
+        const float *a = &section.points[i * 2], *b = &section.points[j * 2];
+        if ((a[1] <= y && y < b[1]) || (b[1] <= y && y < a[1])) {
+            if ((y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) + a[0] > x) inside = !inside;
+        }
+    }
+    return inside;
+}
+
+}  // namespace
+
+void NativeTrackModel::SelectSections(const float *eye) {
+    // Visible-section choice of 0x5e96b0 for the player view: the drivable section whose
+    // boundary holds the eye (0x5e00d0) gives its list; the Z sections 2600-2699 are always
+    // drawn. Without a drivable section the game draws the loaded sections numbered below
+    // 10 in their letter. The nearest-boundary fallback 0x5db770 is not recovered.
+    int found = -1;
+    for (size_t i = 0; i < drivable_.size() && found < 0; ++i) {
+        if (InsideBoundary(drivable_[i], eye[0], eye[1])) found = (int)i;
+    }
+    int section = found < 0 ? -1 : drivable_[found].section;
+    if (section == currentSection_) return;
+    currentSection_ = section;
+    visible_.assign(2700, false);
+    for (int z = 2600; z < 2700; ++z) visible_[z] = true;
+    if (found >= 0) {
+        const std::vector<short> &list = drivable_[found].visible;
+        for (size_t i = 0; i < list.size(); ++i) {
+            if (list[i] >= 0 && list[i] < 2700) visible_[list[i]] = true;
+        }
+    } else {
+        for (int n = 0; n < 2600; ++n) visible_[n] = n % 100 < 10;
+    }
+    if (getenv("UG2_DEBUG_SECTIONS")) {
+        fprintf(stderr, "ug2demo: eye %.1f %.1f in section %d (%c%d)\n", eye[0], eye[1], section,
+                section < 0 ? '-' : section / 100 + 0x40, section < 0 ? 0 : section % 100);
+        for (size_t i = 0; found >= 0 && i < drivable_[found].visible.size(); ++i)
+            fprintf(stderr, " %d", drivable_[found].visible[i]);
+        fprintf(stderr, "\n");
+    }
+}
+
 void NativeTrackModel::Draw(const float *eye, const float *forward, float range) {
-    // Sky first, centred on the viewer, without depth.
+    SelectSections(eye);
+    // Sky first, centred on the viewer, without depth. The dome is ~19 km wide, beyond the
+    // demo's far plane, so it is drawn scaled down about the eye.
+    const float skyScale = 0.1f;
     glDepthMask(GL_FALSE);
     glDisable(GL_DEPTH_TEST);
     for (size_t i = 0; i < placed_.size(); ++i) {
         if (!placed_[i].sky) continue;
         float m[16];
         memcpy(m, placed_[i].matrix, sizeof(m));
+        for (int k = 0; k < 12; ++k) m[k] *= skyScale;
         m[12] = eye[0];
         m[13] = eye[1];
-        m[14] = eye[2] - 60.0f;
+        m[14] = eye[2] - 60.0f * skyScale;
         glPushMatrix();
         glMultMatrixf(m);
-        glCallList(placed_[i].list);
+        for (int pass = 0; pass < 3; ++pass) {
+            if (placed_[i].lists[pass]) glCallList(placed_[i].lists[pass]);
+        }
         glPopMatrix();
     }
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
-    glEnable(GL_ALPHA_TEST);
     glAlphaFunc(GL_GREATER, 0.5f);
+    DrawPlaced(eye, forward, range, -1, 0);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    DrawPlaced(eye, forward, range, -1, 1);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    DrawPlaced(eye, forward, range, -1, 2);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+}
+
+void NativeTrackModel::DrawPlaced(const float *eye, const float *forward, float range, int pickShift, int pass) {
     for (size_t i = 0; i < placed_.size(); ++i) {
         const Placed &placed = placed_[i];
-        if (placed.sky) continue;
+        if (!placed.lists[pass]) continue;
+        if (placed.sky || placed.section < 0 || placed.section >= (int)visible_.size() || !visible_[placed.section])
+            continue;
         float dx = placed.centre[0] - eye[0], dy = placed.centre[1] - eye[1], dz = placed.centre[2] - eye[2];
         float limit = range + placed.radius;
         if (dx * dx + dy * dy + dz * dz > limit * limit) continue;
         if (dx * forward[0] + dy * forward[1] + dz * forward[2] < -placed.radius) continue;
+        if (pickShift >= 0) glStencilFunc(GL_ALWAYS, ((int)i + 1) >> pickShift & 0xff, 0xff);
         glPushMatrix();
         glMultMatrixf(placed.matrix);
-        glCallList(placed.list);
+        glCallList(placed.lists[pass]);
         glPopMatrix();
     }
-    glDisable(GL_ALPHA_TEST);
+}
+
+void NativeTrackModel::DebugPick(const float *eye, const float *forward, float range, int x, int y) {
+    // One pass per byte of (placed index + 1); depth is cleared each pass so the same
+    // instance wins every time.
+    int picked = 0;
+    glEnable(GL_STENCIL_TEST);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    for (int shift = 0; shift < 24; shift += 8) {
+        glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        DrawPlaced(eye, forward, range, shift, 0);
+        GLubyte value = 0;
+        glReadPixels(x, y, 1, 1, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, &value);
+        picked |= value << shift;
+    }
+    glDisable(GL_STENCIL_TEST);
+    if (!picked) {
+        fprintf(stderr, "ug2demo: no scenery at pixel %d %d\n", x, y);
+        return;
+    }
+    const Placed &placed = placed_[picked - 1];
+    fprintf(stderr, "ug2demo: pixel %d %d shows\n", x, y);
+    PrintInstance(placed.instance);
+}
+
+void NativeTrackModel::PrintInstance(size_t i) const {
+    const NativeInstance &instance = instances_[i];
+    const NativeSolid *solid = 0;
+    for (size_t k = 0; k < solids_.size() && !solid; ++k) {
+        if (solids_[k].hash == instance.solidHash) solid = &solids_[k];
+    }
+    fprintf(stderr, "%6d %-32s sec %4d flags %04x min %.1f %.1f %.1f max %.1f %.1f %.1f solid %s\n", (int)i,
+            instance.infoName.c_str(), instance.section, instance.flags, instance.minimum[0], instance.minimum[1], instance.minimum[2],
+            instance.maximum[0], instance.maximum[1], instance.maximum[2], solid ? solid->name.c_str() : "(missing)");
+    if (!solid) return;
+    for (size_t p = 0; p < solid->parts.size(); ++p) {
+        const NativeMeshPart &part = solid->parts[p];
+        const NativeImage *image = textures_->Find(part.textureHash);
+        fprintf(stderr, "         part %d tris %d flags %08x texture %08x %s %dx%d\n", (int)p, part.count / 3, part.flags,
+                part.textureHash, image ? image->name.c_str() : "(missing)", image ? image->width : 0,
+                image ? image->height : 0);
+    }
+}
+
+void NativeTrackModel::DebugAt(float x, float y) const {
+    for (size_t i = 0; i < instances_.size(); ++i) {
+        const NativeInstance &instance = instances_[i];
+        if (x < instance.minimum[0] || x > instance.maximum[0] || y < instance.minimum[1] || y > instance.maximum[1])
+            continue;
+        PrintInstance(i);
+    }
 }
