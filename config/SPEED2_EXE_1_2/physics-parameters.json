@@ -28,6 +28,13 @@
       "size": 138,
       "kind": "dependency",
       "sha256": "0b2593774ad52b8e54ebad8bb77708fa9e7b72f5c1805b7614866eea8bece4c7"
+    },
+    {
+      "method": "Refresh",
+      "address": 5984192,
+      "size": 140,
+      "sha256": "0d95ea0c753ff2eeabf14bec4ac13335a0da625784ff35cecf9050f269d6b6e9",
+      "kind": "function"
     }
   ]
 }

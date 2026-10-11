@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify original physics drive-curve/speed helpers with local retail records."""
+import itertools
 import hashlib
 import json
 import re
@@ -47,7 +48,7 @@ def main():
     BUILD.mkdir(parents=True, exist_ok=True)
     source = BUILD / 'physics-analysis.cpp'
     source.write_text(''.join('#include "' + str(ROOT / 'src/Speed/Indep/Src/Physics' / (unit + '.cpp')) + '"\n'
-                              for unit in ('EngineCurve', 'DrivetrainSetup', 'PhysicsDriveCurve')))
+                              for unit in ('EngineCurve', 'DrivetrainSetup', 'PhysicsDriveCurve', 'PhysicsRefresh')))
     obj = BUILD / 'physics-analysis.obj'
     subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo',
                     '/c', '/Ox', '/Op', '/Ob0', '/Z7', '/EHsc', '/Fo' + str(obj.relative_to(ROOT)),
@@ -55,8 +56,7 @@ def main():
     globals_ = {name: int(address, 16) for name, address in re.findall(r'^(\w+) = (0x[0-9a-f]+);',
                 (ROOT / 'src/Platform/Native/OriginalSymbols.ld').read_text(), re.M)}
     externals = {'__ftol2': CONVERSION[0], '__fltused': BASE + 0x8000,
-                 '?Compose@PhysicsParameters@@QAEXHDD@Z': 0x5b4dc0,
-                 '?Refresh@PhysicsParameters@@QAEXHHD@Z': 0x5b4fc0,
+                 '?Compose@PhysicsParameters@@QAEXHHH@Z': 0x5b4dc0,
                  # These link otherwise unused methods in DrivetrainSetup.cpp.
                  # Execution guards reject them: they are not test boundaries.
                  '?RefreshVariations@Drivetrain@@QAEXXZ': 0x594710, '_nfs_strcpy': 0x43dbd0}
@@ -91,7 +91,7 @@ def main():
         def hook(machine, address, size, user, side=side):
             if address == STOP:
                 return
-            if address in (0x5b4dc0, 0x5b4fc0):
+            if address == 0x5b4dc0:
                 assert controlled[0], hex(address)
                 sp = machine.reg_read(UC_X86_REG_ESP)
                 args = bytes(machine.mem_read(sp + 4, 12))
@@ -112,10 +112,12 @@ def main():
     exact = dict(counts)
     maximum_error = 0.0
 
-    def compare(method):
+    def compare(method, refresh_args=None):
         states, scratch = [], []
         for side, uc in enumerate(machines):
             args = struct.pack('<II', BASE + 0x55c, BASE) if method == 'BuildPhysicsDriveCurve' else b''
+            if method == 'Refresh':
+                args = struct.pack('<III', *(a & 0xffffffff for a in refresh_args))
             uc.mem_write(STACK, struct.pack('<I', STOP) + args)
             uc.reg_write(UC_X86_REG_ESP, STACK)
             uc.reg_write(UC_X86_REG_ECX, BASE)
@@ -124,7 +126,7 @@ def main():
             traces[side] = []
             uc.emu_start(methods[method][side], STOP, count=1000000)
             assert uc.reg_read(UC_X86_REG_EIP) == STOP, method
-            assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4, method
+            assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4 + (12 if method == 'Refresh' else 0), method
             # BuildPhysicsDriveCurve is cdecl: the caller retains its two arguments.
             for reg in (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP):
                 assert uc.reg_read(reg) == 0x12345678, method
@@ -183,14 +185,22 @@ def main():
                 for uc in machines:
                     for address in mode_flags:
                         uc.mem_write(address, bytes(1 if address in (0x89e7d8, 0x89e7d9, 0x89e7e3) else 4))
+    controlled[0] = True
+    for mask, car, select, refresh, flag in itertools.product(range(128), (-1, 0),
+            (0, 1, -1, 256), (0, -1, 0x12345678), (0, -1, 0x12345678)):
+        for uc in machines:
+            uc.mem_write(BASE, struct.pack('<i', car))
+            for i, address in enumerate(mode_flags):
+                uc.mem_write(address, struct.pack('<I', (mask >> i) & 1)[:1 if address in (0x89e7d8, 0x89e7d9, 0x89e7e3) else 4])
+        compare('Refresh', (refresh, flag, select))
     report = dict(executable_sha256=manifest['exe_sha256'], retail_records=[name for name, _ in records],
                   cases=counts, bit_identical_state_cases=exact, maximum_absolute_float_error=maximum_error,
                   byte_matching='not established',
-                  controlled_interfaces=['Compose 0x5b4dc0 and Refresh 0x5b4fc0 only in explicit sentinel cases; calls traced and caller registers clobbered'],
+                  controlled_interfaces=['Compose 0x5b4dc0 only in explicit sentinel/refresh cases; full arguments traced and caller registers clobbered'],
                   limitations=['Finite stock records/output sizes and speed limits; full upgrades and steering integration not established.',
                                'MSVC /Op preserves arithmetic order; original x87 unrounded loop comparison is explicit.',
                                'Original __ftol2 executes as an analysis runtime dependency.',
-                               'Computed shift points and curve lookup execute recovered source in rebuilt cases.'])
+                               'Computed shift points, curve lookup and Refresh execute recovered source in rebuilt cases.'])
     (BUILD / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

@@ -312,7 +312,7 @@ struct PhysicsParameters {
     float curveSamples45C[64];
     EngineCurve driveCurve55C;
     PhysicsParameters *Construct(); // 0x5ac6e0
-    void Compose(int mode, char refresh, char flag);
+    void Compose(int mode, int refresh, int flag);
     void Refresh(int refresh, int flag, char select);
     float GetPhysicsSpeed(); // 0x5b5930
 };

@@ -178,8 +178,7 @@ unsigned int bGetTicker() {
 }
 
 // Unrecovered original routines. The demo state never reaches them; if it does, stop.
-void PhysicsParameters::Compose(int, char, char) { NativeTrap("car record composer 0x5b4dc0"); }
-void PhysicsParameters::Refresh(int, int, char) { NativeTrap("car record refresh 0x5b4fc0"); }
+void PhysicsParameters::Compose(int, int, int) { NativeTrap("car record composer 0x5b4dc0"); }
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
 // Skid-mark trail methods belong to the skid-mark renderer (0x5e6e70/0x5d3230).
 // Scaffold: record segments for the demo renderer instead of the original effect.

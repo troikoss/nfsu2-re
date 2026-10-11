@@ -54,8 +54,13 @@ belongs at parameter +0x2e0, and the 0xe8-byte tuning object at +0x374.
 
 Native construction now calls the recovered constructor before loading its stock
 record, then the recovered drive-curve builder. The physics speed method is not
-yet called by steering. Record/upgrade composition `0x5b4dc0`, refresh `0x5b4fc0`,
-tuning application and mode variants remain unresolved. Native still copies a
+yet called by steering. Record/upgrade composition `0x5b4dc0`, tuning application and mode variants remain
+unresolved. The refresh wrapper `0x5b4fc0` (140 bytes) is recovered in
+`PhysicsRefresh.cpp` and replaces its native trap. It suppresses composition
+when the car index is -1, uses only the low byte of the select argument, chooses
+modes 0/3/10/2 with the original flag precedence, and forwards the first two
+arguments as complete dwords. The composer declaration retains those dwords
+rather than truncating them prematurely to chars. Native still copies a
 stock record and assigns index zero as a documented construction seam; its GLOBAL
 loader does not yet install upgrade descriptors. The constructor recovery does
 not establish full original record composition. Native traps retain the unresolved
@@ -80,9 +85,14 @@ On 2026-10-11, all **184 drive-curve and 736 physics-speed comparisons** were
 bit-identical across 46 retail records, output counts 2/9/16/64, three speed-limit
 fixtures, mode-selection flags and invalid-index cases. Full compared state,
 guarded scratch samples, floating returns, stack cleanup, preserved registers
-and call traces agree. Compose/Refresh are controlled interfaces only in explicit
-invalid-index fixtures; they do not mutate the object, and their caller registers
-are clobbered. Their mechanics are not verified by this test. Generated results
+and call traces agree. Refresh executes recovered source on the rebuilt side, including the speed
+helper's invalid-index cases. A further **9,216 refresh comparisons** pass with
+bit-identical state and composition-call traces: all 128 combinations of seven
+mode flags, valid/-1 car indices, select arguments 0/1/-1/256, and complete dword
+forwarding of 0/-1/0x12345678 in the first two arguments. Compose alone is a
+controlled interface in explicit sentinel/refresh fixtures; it does not mutate
+the object, and its caller registers are clobbered. Its mechanics are not verified
+by this test. Generated results
 stay under `build/analysis/physics-parameters/`.
 
 The constructor/upgrade verifier pins nine original function bodies in
