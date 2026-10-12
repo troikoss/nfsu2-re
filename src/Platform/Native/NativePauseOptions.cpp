@@ -57,7 +57,6 @@ std::map<UIProgressBar *, Bar> bars;
 std::map<OptionsScrollerFNGObject *, List> lists;
 std::map<unsigned int, unsigned int> frontendTrackColours;
 Audio82B884 nativeAudio;
-Player8900AC nativePlayer;
 
 FengObject *Object(void *p) { return static_cast<FengObject *>(p); }
 FengObject *Named(const char *package, const char *prefix, int index) {
@@ -372,16 +371,6 @@ void SetPresetDisplayLevelFromLevelOfDetailAndLimit() {} // native renderer has 
 void SaveRegistrySettings() { fprintf(stderr, "ug2demo: display settings are session-only; registry persistence is not recovered\n"); }
 void Value5CEC90() { fprintf(stderr, "ug2demo: retail display reset is not recovered; native renderer unchanged\n"); }
 void Replay8650B8::Value578EF0(int, int, int, bool) {} // no replay recorder
-int Player8900AC::Value5F2FA0(int step) {
-    // Native camera seam. Original 0x5f2fa0 delegates to profile/camera helpers, still unrecovered.
-    int &camera = playerSettings83AA64[PlayerSlot()].value10;
-    // 0x502540 as read: four ordinary camera choices, fifth for drift/special tracks.
-    int limit = (hudDrift89E7D9 || hudDriftOverride890104 ||
-        (trackNumber89E7A0 > 0x104d && trackNumber89E7A0 < 0x1054)) ? 4 : 3;
-    if (step == 1) { if (++camera > limit) camera = 0; }
-    else if (step == -1) { if (--camera < 0) camera = limit; }
-    return DriveCameraTypeForOption(camera);
-}
 void NativePauseOptionsLoad(const char *gameDirectory) {
     // Read the frontend track tint from the player's assets rather than invent a replacement sprite.
     std::vector<unsigned char> frontend;
@@ -408,8 +397,6 @@ void NativePauseOptionsLoad(const char *gameDirectory) {
         }
     }
     audio82B884 = &nativeAudio;
-    // HUD normally installs slot 0. Supply one for --no-hud as well, without replacing it.
-    if (!players8900AC[0]) { memset(&nativePlayer, 0, sizeof(nativePlayer)); players8900AC[0] = &nativePlayer; }
     for (int i = 0; i < 7; ++i) volumes83AA28[i] = 1.0f;
     levelOfDetail87099C = 3; resolution870D1C = 1;
     for (int i = 0; i < 6; ++i) resolutions86E880[i] = 1;

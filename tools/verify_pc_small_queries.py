@@ -15,7 +15,8 @@ from pc_coff import link_objects, read_object
 
 BUILD = ROOT / "build/analysis/small-queries"
 SOURCES = ["src/Speed/Indep/Src/Physics/Collision/CollisionNotify.cpp",
-           "src/Speed/Indep/Src/Frontend/ProfileQueries.cpp"]
+           "src/Speed/Indep/Src/Frontend/ProfileQueries.cpp",
+           "src/Speed/Indep/Src/Frontend/PlayerCamera.cpp"]
 FUNCTIONS = {
     "?RegisterCollision@Audio82B884@": (0x483e20, 20),
     "?UnregisterCollision@Audio82B884@": (0x483e40, 20),
@@ -23,13 +24,19 @@ FUNCTIONS = {
     "?Value5B8240@": (0x5b8240, 6),
     "?Value5026F0@Settings83AAB4@": (0x5026f0, 24),
     "?Value502FE0@MemoryCard83A9E0@": (0x502fe0, 4),
+    "?CycleCamera@PlayerSettings83AA64@": (0x502540, 97),
+    "?Value5F2FA0@Player8900AC@": (0x5f2fa0, 98),
 }
 GLOBALS = {"audioEnabled7FAAA8": 0x7faaa8, "gameMessagePool883E38": 0x883e38, "gameMessageCount876DC8": 0x876dc8,
-           "gameMessages800ECC": 0x800ecc, "feedbackDevice87078C": 0x87078c}
+           "gameMessages800ECC": 0x800ecc, "feedbackDevice87078C": 0x87078c,
+           "playerSettings83AA64": 0x83aa64, "hudDrift89E7D9": 0x89e7d9, "hudDriftOverride890104": 0x890104,
+           "trackNumber89E7A0": 0x89e7a0, "viewMode8707DC": 0x8707dc}
 # Original bOMalloc 0x440e50 -> 0x440d40 runs on both sides (verified by verify_pc_bslotpool.py).
-RETAINED = {"?bOMalloc@": 0x440e50}
-RETAINED_RANGES = [(0x440e50, 0x440e59), (0x440d40, 0x440d9a)]
-INTERFACES = {"Add481CD0": 0x481cd0, "Remove481E50": 0x481e50}
+RETAINED = {"?bOMalloc@": 0x440e50, "?DriveCameraTypeForOption@": 0x502500}
+RETAINED_RANGES = [(0x440e50, 0x440e59), (0x440d40, 0x440d9a), (0x502500, 0x50252b)]
+# Camera table lookup: original 0x441140 (type) reads the view mode itself; the rebuilt call
+# passes it (CameraSettingsTable::Find). Both are traced with a scripted result.
+INTERFACES = {"Add481CD0": 0x481cd0, "Remove481E50": 0x481e50, "Find": 0x441140, "SetType20": None}
 ARENA, STACK, STOP = 0x2000000, 0x200f000, 0x2100000
 
 
@@ -73,7 +80,7 @@ def main():
         uc.mem_map(linked["address"], linked["allocation"])
         for address, body in linked["blocks"]:
             uc.mem_write(address, body)
-        hooks = {(STOP + 0x100 + 0x10 * i if rebuilt else a): n for i, (n, a) in enumerate(INTERFACES.items())}
+        hooks = {(STOP + 0x100 + 0x10 * i if rebuilt or a is None else a): n for i, (n, a) in enumerate(INTERFACES.items())}
         own = linked["ranges"] if rebuilt else [(a, a + n) for a, n in FUNCTIONS.values()]
         ranges = own + RETAINED_RANGES
 
@@ -83,8 +90,15 @@ def main():
             if address in hooks:
                 sp = uc.reg_read(UC_X86_REG_ESP)
                 ret, arg = struct.unpack("<II", uc.mem_read(sp, 8))
-                state["trace"].append((hooks[address], uc.reg_read(UC_X86_REG_ECX), arg))
-                uc.reg_write(UC_X86_REG_ESP, sp + 8)
+                name = hooks[address]
+                state["trace"].append((name, uc.reg_read(UC_X86_REG_ECX), arg))
+                cleanup = 8
+                if name == "Find":
+                    if address != 0x441140:  # rebuilt passes the view mode read by 0x5b98a0
+                        assert struct.unpack("<i", uc.mem_read(sp + 8, 4))[0] == struct.unpack("<i", uc.mem_read(0x8707dc, 4))[0]
+                        cleanup = 12
+                    uc.reg_write(UC_X86_REG_EAX, state["found"])
+                uc.reg_write(UC_X86_REG_ESP, sp + cleanup)
                 uc.reg_write(UC_X86_REG_EIP, ret)
                 return
             assert any(a <= address < b for a, b in ranges), ("unexpected execution", hex(address))
@@ -94,7 +108,7 @@ def main():
     counts = dict.fromkeys(FUNCTIONS, 0)
     rng = random.Random(0x5e0360)
 
-    def compare(prefix, memory, globals_, args=b"", this=0, cleanup=0, mask=0xffffffff):
+    def compare(prefix, memory, globals_, args=b"", this=0, cleanup=0, mask=0xffffffff, found=0):
         outputs = []
         for rebuilt, uc in zip((False, True), machines):
             uc.mem_write(ARENA, bytes(memory))
@@ -106,6 +120,7 @@ def main():
             for reg in (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP):
                 uc.reg_write(reg, 0x12345678)
             state["trace"] = []
+            state["found"] = found
             uc.emu_start(entries[prefix] if rebuilt else FUNCTIONS[prefix][0], STOP, count=10000)
             assert uc.reg_read(UC_X86_REG_EIP) == STOP
             assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4 + cleanup, (prefix, rebuilt)
@@ -150,11 +165,33 @@ def main():
         card = ARENA + 0x7000
         memory[0x7020] = rng.choice((0, 1, 2, 0x80, 0xff))
         compare("?Value502FE0@MemoryCard83A9E0@", memory, [], this=card, mask=0xff)
+    for trial in range(3000):
+        memory = bytearray(rng.randbytes(0x10000))
+        player, car, cartype, camera, vtable = ARENA + 0x100, ARENA + 0x1000, ARENA + 0x2000, ARENA + 0x3000, ARENA + 0x3100
+        index = rng.choice((0, 1))
+        struct.pack_into("<I", memory, 0x104, car)
+        struct.pack_into("<i", memory, 0x110, index)
+        struct.pack_into("<I", memory, 0x100 + 0x238, rng.choice((0, camera)))
+        struct.pack_into("<I", memory, 0x100c, cartype)
+        struct.pack_into("<I", memory, 0x3000, vtable)
+        struct.pack_into("<I", memory, 0x3120, STOP + 0x100 + 0x10 * list(INTERFACES).index("SetType20"))
+        rows = bytearray(rng.randbytes(0x50))
+        for row in range(2):
+            struct.pack_into("<i", rows, row * 0x28 + 0x10, rng.choice((-2, -1, 0, 1, 2, 3, 4, 5, 6)))
+        g = [(0x83aa64, rows), (0x89e7d9, bytes([rng.choice((0, 0, 1))])),
+             (0x890104, struct.pack("<i", rng.choice((0, 0, 1)))),
+             (0x89e7a0, struct.pack("<i", rng.choice((4000, 0x104d, 0x104e, 0x1050, 0x1053, 0x1054)))),
+             (0x8707dc, struct.pack("<i", rng.choice((1, 3))))]
+        step = rng.choice((1, -1, 0, 2, -2))
+        found = rng.choice((0, cartype + 0x730))
+        compare("?Value5F2FA0@Player8900AC@", memory, g, struct.pack("<i", step), player, cleanup=4, found=found)
+        compare("?CycleCamera@PlayerSettings83AA64@", memory, g, struct.pack("<i", step), 0x83aa64 + 0x28 * index,
+                cleanup=4, mask=0)
     report = dict(executable_sha256=hashlib.sha256(raw).hexdigest(), comparisons=counts,
                   functions={p: dict(address=hex(a), size=n,
                                      sha256=hashlib.sha256(image[a - 0x400000:a - 0x400000 + n]).hexdigest())
                              for p, (a, n) in FUNCTIONS.items()},
-                  traced_interfaces={n: hex(a) for n, a in INTERFACES.items()},
+                  traced_interfaces={n: hex(a) if a else "vtable +0x20" for n, a in INTERFACES.items()},
                   retained_original=["bOMalloc 0x440e50/0x440d40"], byte_matching="Not established")
     (BUILD / "verification.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(counts, indent=2))

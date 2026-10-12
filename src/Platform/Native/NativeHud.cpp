@@ -95,24 +95,6 @@ const char *HudLocalisedText(unsigned int hash) {
 void HudObjectScript(void *o, const char *name, int restart) {
     FengPackage::PlayScript(static_cast<FengObject *>(o), name, restart != 0);
 }
-NativeChaseCameraMover::NativeChaseCameraMover() {
-    memset(unidentified4, 0, sizeof(unidentified4));
-    kindC = 1;
-    value10 = 0;
-    active14 = 1;
-}
-void NativeChaseCameraMover::Virtual00() { NativeTrap("camera mover slot +0x00"); }
-void NativeChaseCameraMover::Virtual04() { NativeTrap("camera mover slot +0x04"); }
-void NativeChaseCameraMover::Virtual08() { NativeTrap("camera mover slot +0x08"); }
-void NativeChaseCameraMover::Virtual0C() { NativeTrap("camera mover slot +0x0c"); }
-void NativeChaseCameraMover::Virtual10() { NativeTrap("camera mover slot +0x10"); }
-void NativeChaseCameraMover::Virtual14() { NativeTrap("camera mover slot +0x14"); }
-void NativeChaseCameraMover::Virtual18() { NativeTrap("camera mover slot +0x18"); }
-void NativeChaseCameraMover::Virtual1C() { NativeTrap("camera mover slot +0x1c"); }
-void NativeChaseCameraMover::Virtual20() { NativeTrap("camera mover slot +0x20"); }
-void NativeChaseCameraMover::Virtual24() { NativeTrap("camera mover slot +0x24"); }
-// Original 0x404800, the kind-1 chase mover's slot +0x28.
-bool NativeChaseCameraMover::Query28() { return false; }
 
 // HUD features dispatched by 0x4ec5a0 that the native HUD never attaches.
 void HudUnrecoveredFeature::Update4C7090(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4c7090"); }
@@ -252,7 +234,6 @@ NativeHud::NativeHud() : textures_(0), minimapReady_(false), loaded_(false) {
     memset(mapVisibilityNodes_, 0, sizeof(mapVisibilityNodes_));
     memset(&playerIndicator_, 0, sizeof(playerIndicator_));
     memset(&playerSlot_, 0, sizeof(playerSlot_));
-    memset(&player_, 0, sizeof(player_));
 }
 
 bool NativeHud::Load(const char *gameDirectory, NativeTextureCache *textures, const char *fontPath, char *error,
@@ -429,13 +410,6 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     // Every feature was just applied with masks 0/0; recovered 0x600090 supplies the rest.
     controller_.current8 = 0;
     controller_.currentC = 0;
-    player_.record.car4 = vehicle->owner;
-    player_.record.camera238 = &camera_;
-    HudPlayerSlot *slot = reinterpret_cast<HudPlayerSlot *>(&player_.record);
-    hudPlayerSlots8900AC[0] = slot;
-    // Native session seam: one local player in both original player tables.
-    players8900B4[0] = &player_.record;
-    playerCount8900BC = 1;
     minimap_.map8 = package_.Find(0x90fe80f3u);
     minimap_.maskC = package_.Find(0x40cdc515u);
     minimap_.north10 = package_.Find(0xf2a54430u);
@@ -505,17 +479,17 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     // Recovered 0x600090 produces the masks; 0x4ca090 applies the transitions. The original
     // caller 0x600590 passes the player for the rear-view mirror bit (0x5f1e10, not
     // recovered); the native seam passes none, so that view is not created.
-    unsigned long long mask = player_.record.GetHudMask();
+    unsigned long long mask = nativePlayer.record.GetHudMask();
     controller_.ApplyMasks(0, (unsigned int)mask, (unsigned int)(mask >> 32));
     // Native option seam: the demo's metric choice is the profile option at 0x83aa1a.
     units83AA1A = metric ? 1 : 0;
-    controller_.UpdateFeatures(reinterpret_cast<HudPlayerSlot *>(&player_.record), vehicle->owner); // 0x4ec5a0
+    controller_.UpdateFeatures(reinterpret_cast<HudPlayerSlot *>(&nativePlayer.record), vehicle->owner); // 0x4ec5a0
     package_.AdvanceScripts(seconds);
 }
 
 void NativeHud::SetCareerHudState(int balance, unsigned int regionHash) {
     careerBank861E74.balance0 = balance;
-    player_.region.region9B8 = regionHash;
+    nativePlayer.region.region9B8 = regionHash;
     // Region/cash/reward visibility follows the 0x600090 masks applied by the controller.
     controller_.feature74 = &region_;
     controller_.current8 &= ~1u; // Reapply bit 0 to the newly attached region feature.

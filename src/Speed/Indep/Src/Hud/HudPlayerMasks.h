@@ -17,7 +17,7 @@ public:
     virtual void Virtual14() = 0;
     virtual void Virtual18() = 0;
     virtual void Virtual1C() = 0;
-    virtual void Virtual20() = 0;
+    virtual void SetType20(int type) = 0; // slot +0x20, 0x5f2ff7
     virtual void Virtual24() = 0;
     virtual bool Query28() = 0;
     char unidentified4[8];

@@ -1,4 +1,5 @@
 #include "NativeVehicle.h"
+#include "NativePlayer.h"
 #ifdef UG2_ENABLE_MODDING
 #include "NativeModBridge.h"
 #endif
@@ -496,6 +497,9 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     vehicle->info = info;
     vehicle->carInfo = carInfo;
     snprintf(vehicle->carName, sizeof(vehicle->carName), "%s", carName);
+    // Car +0xc is the car's CarTypeInfo record (camera table at +0x720) in the original table.
+    owner->valueC = reinterpret_cast<char *>(carTypeInfoTable + carIndex * 0x890);
+    BindNativePlayer(vehicle);
 #ifdef UG2_ENABLE_MODDING
     NativeModsVehicleCreated(vehicle);
     if (NativeModsFailed()) { snprintf(error, errorSize, "mod provider initialization failed"); return false; }
@@ -538,4 +542,38 @@ float StepNativeVehicle(NativeVehicle *vehicle, float duration) {
 #endif
     float result = 0.0f;
     return result;
+}
+
+NativePlayerStorage nativePlayer;
+NativeChaseCameraMover nativeChaseCamera;
+extern HudPlayerSlot *hudPlayerSlots8900AC[];
+extern PlayerRecord *players8900B4[2];
+extern int playerCount8900BC;
+
+NativeChaseCameraMover::NativeChaseCameraMover() {
+    memset(unidentified4, 0, sizeof(unidentified4));
+    kindC = 1;
+    value10 = 0;
+    active14 = 1;
+}
+void NativeChaseCameraMover::Virtual00() { NativeTrap("camera mover slot +0x00"); }
+void NativeChaseCameraMover::Virtual04() { NativeTrap("camera mover slot +0x04"); }
+void NativeChaseCameraMover::Virtual08() { NativeTrap("camera mover slot +0x08"); }
+void NativeChaseCameraMover::Virtual0C() { NativeTrap("camera mover slot +0x0c"); }
+void NativeChaseCameraMover::Virtual10() { NativeTrap("camera mover slot +0x10"); }
+void NativeChaseCameraMover::Virtual14() { NativeTrap("camera mover slot +0x14"); }
+void NativeChaseCameraMover::Virtual18() { NativeTrap("camera mover slot +0x18"); }
+void NativeChaseCameraMover::Virtual1C() { NativeTrap("camera mover slot +0x1c"); }
+// The native drive camera rebuilds itself from the profile option 0x83aa74 that 0x5f2fa0 just set.
+void NativeChaseCameraMover::SetType20(int) {}
+void NativeChaseCameraMover::Virtual24() { NativeTrap("camera mover slot +0x24"); }
+// Original 0x404800, the kind-1 chase mover's slot +0x28.
+bool NativeChaseCameraMover::Query28() { return false; }
+
+void BindNativePlayer(NativeVehicle *vehicle) {
+    nativePlayer.record.car4 = vehicle->owner;
+    nativePlayer.record.camera238 = &nativeChaseCamera;
+    hudPlayerSlots8900AC[0] = reinterpret_cast<HudPlayerSlot *>(&nativePlayer.record);
+    players8900B4[0] = &nativePlayer.record;
+    playerCount8900BC = 1;
 }

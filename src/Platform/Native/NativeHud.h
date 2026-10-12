@@ -9,25 +9,7 @@
 #include "../../Speed/Indep/Src/Hud/HudFreeroam.h"
 #include "../../Speed/Indep/Src/Hud/HudController.h"
 #include "../../Speed/Indep/Src/Hud/HudPlayerMasks.h"
-
-// Native camera seam: the demo's camera is native, so the player's camera mover (+0x238)
-// is this stand-in reporting the attached chase mover the original installs (kind 1 from
-// 0x451660 after 0x444040). Slot +0x28 is the kind-1 method 0x404800 (returns false).
-class NativeChaseCameraMover : public CameraMover {
-public:
-    NativeChaseCameraMover();
-    void Virtual00();
-    void Virtual04();
-    void Virtual08();
-    void Virtual0C();
-    void Virtual10();
-    void Virtual14();
-    void Virtual18();
-    void Virtual1C();
-    void Virtual20();
-    void Virtual24();
-    bool Query28();
-};
+#include "NativePlayer.h"
 
 // English.bin lookup by string hash (chunk 0x39000, sorted (hash, offset) table).
 std::string LookupNativeString(const std::vector<unsigned char> &language, unsigned int hash);
@@ -70,13 +52,6 @@ private:
     HudFeatureObjectNode mapVisibilityNodes_[7];
     HudMinimapIndicator playerIndicator_;
     HudIndicatorSlot playerSlot_;
-    // Native storage for the player record published at 0x8900ac/0x8900b4: recovered HUD code
-    // reads the PlayerRecord prefix and the region hash at +0x9b8 of the same object.
-    union {
-        PlayerRecord record;
-        HudRegionPlayer region;
-    } player_;
-    NativeChaseCameraMover camera_;
     std::vector<unsigned char> trackInfo_;
     bool minimapReady_;
     std::vector<unsigned char> language_;

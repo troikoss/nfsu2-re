@@ -55,6 +55,7 @@ struct PlayerSettings83AA64 {
     unsigned char value15; // Transmission
     unsigned char value16; // Stability Control
     char unidentified17[0x11];
+    void CycleCamera(int step); // 0x502540
 };
 UG2_CHECK_OFFSET(PlayerSettings83AA64, value10, 0x10);
 UG2_CHECK_OFFSET(PlayerSettings83AA64, value16, 0x16);

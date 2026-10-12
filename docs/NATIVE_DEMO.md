@@ -239,9 +239,11 @@ compile with MSVC 7.1 `/Ox /Ob0`):
 Scaffolding in this pass: the FEng object model and renderer (`NativeFng.cpp`), UI text (see
 [UI fonts](#ui-fonts)), the acceleration vector at car
 `+0x80` (its original producer is not recovered; it is the change of the exported velocity per second,
-inferred from its camera use and from `0x5ec3a0` dotting it with the forward axis), the HUD player
-record and its camera mover (native storage at `0x8900ac`/`0x8900b4` with one player; a
-stand-in kind-1 chase mover at `+0x238` because the camera is native), and the controller
+inferred from its camera use and from `0x5ec3a0` dotting it with the forward axis), the player
+record and its camera mover (`NativePlayer.h`: one player bound at vehicle creation in
+`0x8900ac`/`0x8900b4`, car `+0xc` set to its CarTypeInfo record; a stand-in kind-1 chase mover
+at `+0x238` because the camera is native, whose type-change slot `+0x20` leaves the switch to the
+native camera), and the controller
 call without a player argument (so the rear-view mirror view `0x5f1e10` is not created).
 Recovered `0x600090` produces the masks and recovered `0x4ca090` applies them; laps and
 `tach_fill` colouring remain seams.
