@@ -162,9 +162,9 @@ handbrake lock above 0.6 in session group 3, and updates per-wheel control.
 The native demo now calls `HumanDriverInput::Update` each frame instead of the
 pedal routine alone. SDL writes the action fields the original input event
 handlers write (pedals, handbrake, raw -1..1 steering axis at +0x2c8); the
-native partial constructor mirrors `0x425fc0`/`0x423330` (using recovered
-`0x405c60` and `0x4076c0`; route reset `0x41d160` is unrecovered), selects
-device slot 0 (assigned in the retail image) and, as the free-drive entry
+native vehicle now calls the recovered constructors (see "Input constructors
+and route" below), selects device slot 0 (assigned in the retail image) and,
+as the free-drive entry
 seam, releases the pre-race brake hold +0x2b4 that the constructor sets
 outside race phase 4. Static initializer `0x77a7e0` now builds recovery
 curve `0x81e5b0`. Driving checks pass; the scripted 0.3 steering input now
@@ -192,3 +192,24 @@ and verified. Native uses the corrected +0x10 parameter subobject and 0x580-byte
 allocation. The parameter constructor and refresh wrapper `0x5b4fc0` are recovered and
 integrated. Composition `0x5b4dc0` and tuning application remain unresolved. Recover and populate that original composition before integrating
 the full steering chain.
+
+## Input constructors and route
+
+`MoverInputRoute.cpp` recovers the base input constructor `0x423330`, human
+input constructor `0x425fc0` (normal path), and the route subobject at
+input +0x10: up to 20 trail points with per-point values, a cone index and
+length. Routines: distance `0x43ce10` (returned unspilled), length
+`0x405270`, cone index `0x404ef0` (first point beyond sqrt(`0x827a20`) inside
+the heading cone, cosine `0x7837c4` above speed 30 or `0x7837c8`, cached per
+tick), front removal `0x40f7a0`, lookahead `0x415590`, trim/advance
+`0x41d160` (drops points behind the car's velocity, keeps points up to the
+distance ahead, resets when empty, non-positive or disabled) and car getters
+`0x401890`/`0x4018a0`. `0x43ce50` (2D normalize, `WCollision.cpp`) now has
+external linkage for it. Native C++ placement construction supplies the
+input vtable, so the original vtable identity writes and the SEH frame are not
+modelled; the native seams that remain are device slot 0 and the free-drive
+brake release. The verifier adds 2,500 cases each for the route routines and
+getters and 60 per constructor (vtable dword masked; allocation traces
+compared), with stationary and moving cars. Mutations of the cone selection,
+the velocity test boundary and the reset flag were detected. Driving smoke is
+unchanged.

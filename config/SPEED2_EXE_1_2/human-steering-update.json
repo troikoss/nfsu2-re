@@ -150,6 +150,66 @@
       "size": 1,
       "sha256": "ae3f4619b0413d70d3004b9131c3752153074e45725be13b9a148978895e359e",
       "method": "HumanInputHook4022C0"
+    },
+    {
+      "address": 4215408,
+      "size": 65,
+      "sha256": "0dd8c73d951ad10807eb7674879c81831ff2753ac25e0166d97b52a3652adc83",
+      "method": "UpdateLength"
+    },
+    {
+      "address": 4214512,
+      "size": 298,
+      "sha256": "bc7478a265dee9bacf97e9fcfe9fabc8fc2ad5d877752fa255258d638cc42fd0",
+      "method": "FindIndex"
+    },
+    {
+      "address": 4257696,
+      "size": 237,
+      "sha256": "57a19640ab96225f9431b712ad7d00e7ab0713e8ae2203cafd3f4fecb1ed5923",
+      "method": "RemoveFront"
+    },
+    {
+      "address": 4281744,
+      "size": 146,
+      "sha256": "dbda4188b1f88e29808c501455df4076a5fb42ea82f321d8d0d1ac33d7e0436e",
+      "method": "FindPointAhead"
+    },
+    {
+      "address": 4313440,
+      "size": 295,
+      "sha256": "2a2c796cc0370f32c6a22cdeeb81101e57a40eda7bc8936c8bcd75fdb5eeb91a",
+      "method": "Advance@InputRoute"
+    },
+    {
+      "address": 4443664,
+      "size": 49,
+      "sha256": "7896819648156c4858f29179bd2f15579ecdf16652d6d9cdf3bdf1e5f8b44b17",
+      "method": "bDistance"
+    },
+    {
+      "address": 4200592,
+      "size": 4,
+      "sha256": "6190ecb884fca2374de848dc0b07613e47aec92a4db2acca9511a2831eb8e648",
+      "method": "GetPosition"
+    },
+    {
+      "address": 4200608,
+      "size": 4,
+      "sha256": "f5b9d7385c09f9d310fbd9c5b7d7a59e9d0aa483ec3265c47c4d76513a80fd36",
+      "method": "GetVelocity"
+    },
+    {
+      "address": 4338480,
+      "size": 135,
+      "sha256": "11e96a4ddbca72746eacc5d2252c0683eb8a9259b291f3dc40d3be9b94997d7e",
+      "method": "ConstructBase"
+    },
+    {
+      "address": 4349888,
+      "size": 228,
+      "sha256": "c195a3fb2df8730ce30b1cdcf61435ea7444638a0f5833441af563416a604d37",
+      "method": "ConstructHuman"
     }
   ]
 }

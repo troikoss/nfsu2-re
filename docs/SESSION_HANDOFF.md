@@ -83,9 +83,9 @@ probe wrapper at the same address for a different target; also reset FPTAG.
    loader, tuning-table (`0x86b340`) loader and the caller binding tuning to
    its car; recover them to make native tuning run.
 4. Human steering and input update are recovered and integrated
-   (`tools/verify_pc_human_steering_update.py`). Remaining: constructors
-   `0x425fc0`/`0x423330` with route reset `0x41d160`, the input event
-   handlers that write action fields. The bWare slot pool is recovered
+   (`tools/verify_pc_human_steering_update.py`), including constructors
+   and the input route. Remaining: the input event handlers that write action
+   fields. The bWare slot pool is recovered
    (`docs/pc-bware-slotpool.md`); the bWare heap stays a platform seam.
 5. Follow the audit inventory through vehicle/session construction, complete
    update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/

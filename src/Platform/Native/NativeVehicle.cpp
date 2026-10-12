@@ -432,18 +432,10 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     owner->moverType28 = 1;
     NativeControls *controls = static_cast<NativeControls *>(calloc(1, sizeof(NativeControls)));
     new (controls) NativeControls;
-    // Partial constructor seam mirroring human input constructor 0x425fc0 and
-    // base 0x423330 (whose route subobject reset 0x41d160 is unrecovered):
-    // fields are set as those constructors set them, using recovered
-    // steering construction 0x405c60 and action reset 0x4076c0.
-    controls->gearRequest1E4 = 1;
-    controls->directGear1E8 = 1;
-    controls->steering220.Construct(owner);
-    controls->car2A8 = owner;
-    controls->ClearActions();
-    controls->flag2B4 = !(raceState890118 && *raceState890118 == 4);
-    controls->clutch2F4 = 1.0f;
-    controls->steeringEnabled2F8 = 1;
+    // Recovered human input constructor 0x425fc0 (with base 0x423330 and route
+    // reset 0x41d160); C++ placement construction above supplies the native
+    // vtable in place of the original identity writes, and SEH is not modelled.
+    controls->ConstructHuman(owner);
     // Native device seam: the original profile/controller setup assigns a
     // device slot; slot 0 is assigned in the retail image (0x864788).
     controls->device2AC = 0;

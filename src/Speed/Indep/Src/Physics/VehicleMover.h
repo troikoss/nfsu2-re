@@ -237,7 +237,30 @@ public:
     virtual void UnknownSlot6C() = 0; virtual void UnknownSlot70() = 0; virtual void UnknownSlot74() = 0;
     virtual void UnknownSlot78() = 0; virtual void UnknownSlot7C() = 0; virtual void UnknownSlot80() = 0;
     virtual unsigned short GetGuideHeading() = 0;
-    char unidentified4[0x1dc];
+    char unidentified4[0xc];
+    struct InputRoute {
+        signed char count0;
+        unsigned char flag1;
+        char unidentified2[0xe];
+        float points10[20][4];
+        short values150[20];
+        short values178[20];
+        unsigned char values1A0[20];
+        signed char index1B4;
+        char unidentified1B5[3];
+        int tick1B8;
+        int value1BC;
+        int tick1C0;
+        float length1C4;
+        unsigned char flag1C8;
+        unsigned char flag1C9;
+        char unidentified1CA[6];
+        void UpdateLength(); // 0x405270
+        int FindIndex(float speed, WheelVector *position, WheelVector *velocity); // 0x404ef0
+        void RemoveFront(int count, bool recompute); // 0x40f7a0
+        int FindPointAhead(struct MoverModeOwner *car, float distance); // 0x415590
+        void Advance(struct MoverModeOwner *car, float distance); // 0x41d160
+    } route10;
     unsigned short steering1E0;
     char unidentified1E2[2];
     int gearRequest1E4;
@@ -250,10 +273,12 @@ public:
     void SetBrake(float value);
     void SetHandbrake(float value);
     void SetThrottle(float value);
+    MoverInput *ConstructBase(); // 0x423330 without its vtable identity write
 };
 
 UG2_CHECK_OFFSET(MoverAero, force20, 0x20);
 UG2_CHECK_OFFSET(MoverAero, value34, 0x34);
+UG2_CHECK_OFFSET(MoverInput, route10, 0x10);
 UG2_CHECK_OFFSET(MoverInput, steering1E0, 0x1e0);
 UG2_CHECK_OFFSET(MoverInput, gearRequest1E4, 0x1e4);
 UG2_CHECK_OFFSET(MoverInput, directGear1E8, 0x1e8);
@@ -461,6 +486,8 @@ struct MoverModeOwner {
     char unidentified97C[0x1c];
     unsigned char effectsSuppressed998;
     bool HasPendingShift(); // 0x5ecd70
+    WheelVector *GetPosition(); // 0x401890
+    WheelVector *GetVelocity(); // 0x4018a0
     int GetWheelState(int wheel); // 0x5ed470
     struct WCollider *Collider() { return reinterpret_cast<struct WCollider *>(reinterpret_cast<char *>(this) + 0x5c4); }
     DrivetrainAuxiliary *State() {

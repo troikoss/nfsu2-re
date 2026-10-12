@@ -61,7 +61,7 @@ static int InsideBounds(float *minimum, float *maximum, float *point, float marg
 }
 
 // Original 0x43ce50: 2D normalize; a zero vector becomes (1, 0).
-static void Normalize2(float *output, float *input) {
+void Normalize2(float *output, float *input) {
     float length = (float)sqrt(input[0] * input[0] + input[1] * input[1]);
     if (length != 0.0f) {
         float y = input[1];

@@ -27,7 +27,8 @@ MALLOC, FREE = 0x75c6c8, 0x75c6da
 CONTROLLED = {'?GetSlipAngle@DrivetrainAuxiliary@@QAEMXZ': 0x591d90,
               '?GetPhysicsSpeed@PhysicsParameters@@QAEMXZ': 0x5b5930,
               '?WheelLength@@YAMPAUWheelVector@@@Z': 0x440f70,
-              '?bIsSlotPoolFull@@YAHPAX@Z': 0x43cd10, '?bSlotPoolAllocate@@YAPAXPAX@Z': 0x43f8f0}
+              '?bIsSlotPoolFull@@YAHPAX@Z': 0x43cd10, '?bSlotPoolAllocate@@YAPAXPAX@Z': 0x43f8f0,
+              '?Normalize2@@YAXPAM0@Z': 0x43ce50}
 # Unrecovered force-feedback manager methods: hooked on both sides, which
 # record each call and return scripted answers. Values are argument counts.
 FF_METHODS = {0x5bfd70: 1, 0x5bfd90: 2, 0x5bfe00: 1, 0x5bfe70: 1, 0x5c9150: 4, 0x5c9040: 2, 0x5c9550: 3,
@@ -35,13 +36,15 @@ FF_METHODS = {0x5bfd70: 1, 0x5bfd90: 2, 0x5bfe00: 1, 0x5bfe70: 1, 0x5c9150: 4, 0
               0x5cda10: 1, 0x5cdbb0: 1,
               0x407a30: 1}  # pedals 0x407a30 (verified separately) are traced, not executed
 FF_MANAGER = 0x2100f00
-FLOATING = ('CalculateMaximum', 'UpdateKeyboard', 'UpdateAnalog', 'GetSteeringSlip', 'UpdateAlternate', 'Invert')
+FLOATING = ('CalculateMaximum', 'UpdateKeyboard', 'UpdateAnalog', 'GetSteeringSlip', 'UpdateAlternate', 'Invert', 'bDistance')
 CLEANUP = dict(CalculateMaximum=12, UpdateKeyboard=12, UpdateAnalog=12, GetSteeringSlip=0, IsAnalogInputDevice=0,
                UpdateAlternate=12, Invert=4, UpdateForceFeedback=8, GetBlendedBasis=4, QueryFlag5EB420=0, Query4018F0=0,
                **{'Update@HumanSteering': 12, 'Update@HumanDriverInput': 4, 'ClearActions': 0, 'CanUseWheelControl': 4,
                   'UpdateWheelControl': 4, 'IsInputDeviceAssigned': 0, 'SetClutchInput': 4, 'HasPendingShift': 0,
                   'GetWheelState': 4, 'Query401950': 0, 'UpdateColliderFaceRecords': 0, 'TrackColliderFace': 0,
-                  'Initialise@ColliderFaceRecord': 8, 'HumanInputHook4022C0': 0})
+                  'Initialise@ColliderFaceRecord': 8, 'HumanInputHook4022C0': 0, 'UpdateLength': 0, 'FindIndex': 12,
+                  'RemoveFront': 8, 'FindPointAhead': 8, 'Advance@InputRoute': 8, 'bDistance': 0, 'GetPosition': 0, 'GetVelocity': 0,
+                  'ConstructBase': 0, 'ConstructHuman': 4})
 SAVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 FLAGS8 = (0x89e7d8, 0x89e7d9, 0x89e7e2)
 FLAGS32 = (0x890100, 0x890104, 0x890108, 0x890110, 0x890114)
@@ -91,7 +94,8 @@ def main():
                                          'src/Speed/Indep/Src/Physics/HumanSteeringFeedback.cpp',
                                          'src/Speed/Indep/Src/Physics/HumanDriverUpdate.cpp',
                                          'src/Speed/Indep/Src/Physics/DrivetrainClutchInput.cpp',
-                                         'src/Speed/Indep/Src/World/WColliderFaceRecords.cpp'), True)]
+                                         'src/Speed/Indep/Src/World/WColliderFaceRecords.cpp',
+                                         'src/Speed/Indep/Src/Physics/MoverInputRoute.cpp'), True)]
     externals_extra = {'?UpdatePedals@HumanDriverInput@@QAEXM@Z': 0x407a30}
     globals_ = {name: int(address, 16) for name, address in re.findall(r'^(\w+) = (0x[0-9a-f]+);',
                 (ROOT / 'src/Platform/Native/OriginalSymbols.ld').read_text(), re.M)}
@@ -179,7 +183,7 @@ def main():
         assert uc.reg_read(UC_X86_REG_EIP) == STOP
         assert all(uc.reg_read(reg) == 0x12345678 for reg in SAVED)
 
-    def compare(method, state, globals_state, args, receiver=STEERING):
+    def compare(method, state, globals_state, args, receiver=STEERING, mask=None):
         outcomes = []
         traces[0][:], traces[1][:] = [], []
         for side, (uc, wrappers) in enumerate(machines):
@@ -196,14 +200,19 @@ def main():
                 run(uc, entries[method][side], [STOP] + words, receiver)
                 assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4 + CLEANUP[method], method
                 widths = {'QueryFlag5EB420': 0xffffffff, 'IsInputDeviceAssigned': 0xffffffff, 'GetWheelState': 0xffffffff,
+                          'FindIndex': 0xffffffff, 'FindPointAhead': 0xffffffff, 'GetPosition': 0xffffffff,
+                          'GetVelocity': 0xffffffff, 'ConstructBase': 0xffffffff, 'ConstructHuman': 0xffffffff,
                           'Update@HumanSteering': 0xffff, 'Initialise@ColliderFaceRecord': 0xffffffff}
                 result = uc.reg_read(UC_X86_REG_EAX) & widths.get(method, 0xff)
                 if method in ('UpdateForceFeedback', 'GetBlendedBasis', 'Update@HumanDriverInput', 'ClearActions',
                               'UpdateWheelControl', 'SetClutchInput', 'UpdateColliderFaceRecords', 'TrackColliderFace',
-                              'HumanInputHook4022C0'):
+                              'HumanInputHook4022C0', 'UpdateLength', 'RemoveFront', 'Advance@InputRoute'):
                     result = None
             assert (uc.reg_read(UC_X86_REG_FPSW) >> 11) & 7 == 0, method
-            outcomes.append((bytes(uc.mem_read(BASE, 0x10000)), result))
+            memory = bytearray(uc.mem_read(BASE, 0x10000))
+            if mask is not None:
+                memory[mask - BASE:mask - BASE + 4] = b'\0\0\0\0'  # vtable identity write (native C++)
+            outcomes.append((bytes(memory), result))
         assert traces[0] == traces[1], (method, counts[method], traces)
         assert outcomes[0] == outcomes[1], (method, counts[method], args,
                                             next((hex(BASE + i) for i, (a, b) in enumerate(zip(outcomes[0][0], outcomes[1][0])) if a != b), None),
@@ -429,6 +438,53 @@ def main():
                          (0x883e60, struct.pack('<i', int(trial % 11 != 0))),
                          (0x802040, struct.pack('<i', trial % 2)), (0x7fb720, struct.pack('<i', trial))]
         compare('UpdateColliderFaceRecords', state, globals_state, (CAR + 0x5c4, CAR + 0x60))
+    # Route trimming/lookahead and the input constructors.
+    rng = random.Random(0x41d160)
+    ROUTE = BASE + 0x5000
+    for trial in range(2500):
+        state = bytearray(constructed)
+        r = ROUTE - BASE
+        count = rng.choice((0, 1, 2, 5, 12, 20))
+        struct.pack_into('<bB', state, r, count, rng.randrange(2))
+        x, y = rng.uniform(-50, 50), rng.uniform(-50, 50)
+        for i in range(20):
+            x += rng.uniform(-3, 12)
+            y += rng.uniform(-3, 12)
+            struct.pack_into('<fff', state, r + 0x10 + 16 * i, x, y, rng.uniform(-2, 2))
+            struct.pack_into('<hh', state, r + 0x150 + 2 * i, *(rng.randrange(-30000, 30000) for _ in range(2)))
+            struct.pack_into('<h', state, r + 0x178 + 2 * i, rng.randrange(-30000, 30000))
+            state[r + 0x1a0 + i] = rng.randrange(256)
+        struct.pack_into('<bxxxiiif', state, r + 0x1b4, rng.randrange(-2, 20), rng.choice((0, 4001, 4002)), 7, 9, 3.0)
+        struct.pack_into('<BB', state, r + 0x1c8, rng.randrange(2), int(trial % 4 != 0))
+        car = CAR - BASE
+        struct.pack_into('<f', state, car + 0x42c, rng.choice((0.0, 10.0, 30.0, 45.0, rng.uniform(0, 80))))
+        struct.pack_into('<fff', state, car + 0x60, rng.uniform(-60, 60), rng.uniform(-60, 60), 0.0)
+        struct.pack_into('<fff', state, car + 0x70, *((0.0, 0.0, 0.0) if trial % 7 == 0 else
+                         (rng.choice((0.0, rng.uniform(-30, 30))), rng.uniform(-30, 30), 0.0)))
+        globals_state = [(0x86518c, struct.pack('<i', 4001 + trial % 3)), (0x7837c4, struct.pack('<f', rng.choice((0.7, 0.0, -0.3)))),
+                         (0x7837c8, struct.pack('<f', rng.choice((0.3, 0.0)))), (0x827a20, struct.pack('<f', rng.choice((0.0, 4.0, 100.0))))]
+        distance = rng.choice((0.0, -1.0, 0.0005, 0.002, 5.0, 20.0, 60.0, rng.uniform(0, 100)))
+        dbits = struct.unpack('<I', struct.pack('<f', distance))[0]
+        compare('Advance@InputRoute', state, globals_state, (CAR, dbits), ROUTE)
+        compare('FindPointAhead', state, globals_state, (CAR, dbits), ROUTE)
+        compare('FindIndex', state, globals_state, (struct.unpack('<I', struct.pack('<f', rng.uniform(0, 60)))[0], CAR + 0x60, CAR + 0x70), ROUTE)
+        compare('RemoveFront', state, globals_state, (rng.randrange(0, 22), rng.choice((0, 1, 0x100))), ROUTE)
+        compare('UpdateLength', state, globals_state, (), ROUTE)
+        compare('bDistance', state, globals_state, (ROUTE + 0x10, ROUTE + 0x20))
+        compare('GetPosition', state, globals_state, (), CAR)
+        compare('GetVelocity', state, globals_state, (), CAR)
+    # Constructors: original vtable identity writes at +0 are masked.
+    INPUT2 = BASE + 0x5800
+    for trial in range(60):
+        state = bytearray(constructed)
+        state[INPUT2 - BASE:INPUT2 - BASE + 0x314] = bytes(rng.randrange(256) for _ in range(0x314))
+        race = rng.choice((0, BASE + 0xef00))
+        state[0xef00:0xef04] = struct.pack('<i', rng.choice((0, 4, 3)))
+        globals_state = [(0x890118, struct.pack('<I', race)), (0x86518c, struct.pack('<i', 777 + trial))]
+        cursors[0] = cursors[1] = BASE + 0x7000
+        compare('ConstructHuman', state, globals_state, (CAR,), INPUT2, mask=INPUT2)
+        cursors[0] = cursors[1] = BASE + 0x7000
+        compare('ConstructBase', state, globals_state, (), INPUT2, mask=INPUT2)
     for device in range(-1, 9):
         for present in (0, 1):
             for flag in (0, 1, 0x80):

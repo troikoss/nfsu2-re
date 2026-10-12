@@ -64,6 +64,7 @@ public:
     void SelectForward();
     void UpdatePedals(float duration);
     void Update(float duration); // 0x41e2c0
+    HumanDriverInput *ConstructHuman(MoverModeOwner *car); // 0x425fc0 without vtable/SEH
     void ClearActions(); // 0x4076c0
     bool CanUseWheelControl(bool second); // 0x407370
     void UpdateWheelControl(float duration); // 0x407400
