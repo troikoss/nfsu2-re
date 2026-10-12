@@ -84,12 +84,16 @@ interfaces and retained original helpers `__ftol2` and `0x5947b0`.
 FEng operations, localisation, bank/suppression/language queries, nitrous
 fraction, GPS route queries/event receiver, notification preparation/presentation/sound and controller child-mask application are **controlled interfaces**.
 Their internal behavior is not established by this verifier. Existing visibility
-verification separately covers the real show/hide/mask routines. The shift-light
-comparison enters the original tail and stops before its surrounding epilogue;
-its frame setup and tuning query are controlled. It does not verify the earlier
-replay RPM branch or the complete gauge function.
+verification separately covers the real show/hide/mask routines. The complete gauge
+update `0x4c68d0` (`HudGaugeFeature::Update`) is compared over 1,500 randomised cars
+per control word: replay/override/live RPM selection, metric option `0x5ea8b0`,
+speed and unit text, the needle (`0x4aa0e0`, compiled from `HudGauge.cpp`) or the
+seven multi-player tach bars, gear text/colour, the shift light (with class index
+`0x5b5330` scripted; it is recovered in `PhysicsRefresh.cpp` and verified by
+`verify_pc_physics_parameters.py`) and the missing-skin hides. Three behaviour
+mutations (bar colour threshold, shift-light comparison, replay RPM) are detected.
 
-Report: `build/analysis/freeroam-hud/verification.json`. **10,612 bounded comparisons
+Report: `build/analysis/freeroam-hud/verification.json`. **12,268 bounded comparisons
 pass; byte matching is not established.** Finite synthetic cases do not prove
 complete coverage. Fingerprints below cover the recovered original spans:
 
@@ -114,13 +118,15 @@ complete coverage. Fingerprints below cover the recovered original spans:
 | HudLerpVector3 | 0x505150 | 71 | 640 | `5fca7aecedc1b83239d1edd101b407492a9d8dc8981b96003f3311f205c35501` |
 | HudLerpColour | 0x5051a0 | 190 | 640 | `6f2abd49af5cea01139f4a294aa045848a8de80038d7be8e152d5be8d2447640` |
 | ControllerMasks | 0x4ca090 | 1500 | 2016 | `fc1086f9073018e55ac248fccbc695b4d0c7d11413bde82ad55cbd3311e57d0e` |
-| ShiftLightTail | 0x4c6acf | 126 | 1536 | `1d00c08a2ddd9997b296abbace296a4ac93cd5640601d587b58b9058b1233cca` |
+| GaugeUpdate | 0x4c68d0 | 676 | 3000 | `36e23e98aba5666f4e8f44ed70f2eebad1472d149bb9f94ffa9635d545097fb3` |
+| HudNeedleAngle | 0x4aa0e0 | 124 | 168 | `1c6ee6c1602bf6af3c47bdaaed9455f35d5eaa3f3f98893e4f265283d48bf9aa` |
+| UseMetric5EA8B0 | 0x5ea8b0 | 15 | 24 | `1c1527208d0f30539bdfd2e034977cc48388552bfcca34f9b599ed63bb6402cf` |
 
 ## Native integration and seams
 
 The native demo registers the retail constructor object names/masks using fixed
 node storage, supplies its one-player chase/map context, and uses recovered
-`0x4ca090` transitions. It runs gauges, shift light, turbo, nitrous, region, cash
+`0x4ca090` transitions. It runs the recovered gauge update (with shift light), turbo, nitrous, region, cash
 and reward updates, followed by bounded script playback and the minimap update.
 Parent containers are revealed without recursively showing unrelated siblings.
 Retail authoring sample strings for cash/reward/region are cleared at native

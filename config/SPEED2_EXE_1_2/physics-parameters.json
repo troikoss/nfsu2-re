@@ -35,6 +35,13 @@
       "size": 140,
       "sha256": "0d95ea0c753ff2eeabf14bec4ac13335a0da625784ff35cecf9050f269d6b6e9",
       "kind": "function"
+    },
+    {
+      "method": "GetClassIndex",
+      "address": 5985072,
+      "size": 25,
+      "sha256": "ee627594866d8ff17b977fe7400cdb80f0a75e6936974653056782e778261b84",
+      "kind": "function"
     }
   ]
 }

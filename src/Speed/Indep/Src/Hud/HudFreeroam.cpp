@@ -7,6 +7,15 @@ extern CareerBank861E74 careerBank861E74;
 extern unsigned char hudDrag89E7D8;
 extern int hudDragOverride890108;
 extern int hudPlayerCount89E7C0;
+extern float engineSpeedOverride;        // 0x7fbed8
+extern float engineSpeedOverrideUnset;   // 0x784258
+extern float hudSpeedScaleMetric7904FC;
+extern float hudSpeedScaleImperial78426C;
+extern float hudTachSegments788218;      // -7
+extern signed char hudGearCharacters7F66A4[20];
+extern unsigned char units83AA1A;
+extern "C" double __cdecl fabs(double);
+#pragma intrinsic(fabs)
 extern float hudOne784250;
 extern float hudHalf784260;
 extern float hudZero7D7D3C;
@@ -218,14 +227,73 @@ float HudReadShiftPoint(MoverModeOwner *car, int gear) {
     return hudZero7D7D3C;
 }
 
-// Original 0x4c68d0 tail.
-void HudUpdateShiftLight(MoverModeOwner *car, int tuningIndex, float rpm, HudVisibilityObject *light) {
-    float window = gearboxShiftWeights[car->gear434 + tuningIndex * 9];
-    if (car->moverType28 == 1) window = HudReadShiftWindow(car->mover34->drivetrain4C, car->gear434);
-    if (rpm <= HudReadShiftPoint(car, car->gear434) - gearboxMatchWindow * window) {
-        HudHideObject(light);
+// Original 0x5ea8b0.
+bool UseMetric5EA8B0() {
+    return units83AA1A == 1;
+}
+
+// Original 0x4c68d0: speed, units, needle (or the multi-player tach bars), gear and shift light.
+void HudGaugeFeature::Update(HudPlayerSlot *player) {
+    MoverModeOwner *car = player->car4;
+    MoverContext *context = car->context14;
+    const char *unused = car->valueC + 0x7f0;
+    const EngineSpec *engine = reinterpret_cast<const EngineSpec *>(car->record20->engine1F0);
+    float rpm;
+    if (context->value4 == 1 && !context->flag900 && car->replay968) {
+        rpm = car->replay968->rpm58;
+    } else if (engineSpeedOverride == engineSpeedOverrideUnset) {
+        rpm = car->engineValue440;
     } else {
-        HudShowObject(light);
+        rpm = engineSpeedOverride;
+    }
+    float speed = (float)fabs(car->speed430);
+    if ((current18 & mask10) || (current1C & mask14)) {
+        const char *units;
+        if (UseMetric5EA8B0()) {
+            speed = speed * hudSpeedScaleMetric7904FC;
+            units = HudLocalisedText(0x8569a25fu);
+        } else {
+            speed = speed * hudSpeedScaleImperial78426C;
+            units = HudLocalisedText(0x8569ab44u);
+        }
+        HudTextPrint(speedUnits5C, units);
+        HudTextPrint(speed58, "%3d", (int)speed);
+        if (hudPlayerCount89E7C0 == 1) {
+            HudObjectRotation(needle30, HudNeedleAngle(rpm, sweepC4, engine, unused));
+        } else {
+            int lit = 1 - (int)(rpm / engine->value4 * hudTachSegments788218);
+            for (int i = 0; i < 7; ++i) {
+                unsigned int colour;
+                if (i < lit) colour = i + 1 >= 6 ? 0xffc80b0bu : 0xffccf48au;
+                else colour = i + 1 >= 6 ? 0x7dc80b0bu : 0x64ccf48au;
+                HudObjectColour(segments34[i], colour);
+            }
+        }
+        if (gear64) {
+            int gear = car->gear434;
+            int shifting = car->value448;
+            char text = 'X';
+            for (unsigned int i = 0; i < 10; ++i) {
+                if (gear == hudGearCharacters7F66A4[i * 2]) {
+                    text = hudGearCharacters7F66A4[i * 2 + 1];
+                    break;
+                }
+            }
+            HudTextPrint(gear64, "%c", (int)text);
+            HudObjectColour(gear64, shifting ? 0xffc3c3c3u : 0xffff8040u);
+        }
+        int gear = car->gear434;
+        float window = gearboxShiftWeights[gear + car->physicsInfo10->parameters10.GetClassIndex() * 9];
+        if (car->moverType28 == 1) window = HudReadShiftWindow(car->mover34->drivetrain4C, car->gear434);
+        if (HudReadShiftPoint(car, car->gear434) - gearboxMatchWindow * window < rpm) {
+            HudShowObject(shiftLight78);
+        } else {
+            HudHideObject(shiftLight78);
+        }
+    }
+    if (noSkinC0) {
+        HudHideObject(rpmNumbers50);
+        HudHideObject(redline7C);
     }
 }
 

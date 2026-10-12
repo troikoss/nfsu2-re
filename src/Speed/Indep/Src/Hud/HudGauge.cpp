@@ -12,10 +12,7 @@ extern float hudDialLimit79C434;     // 8000
 extern float hudDialLimit78ABF8;     // 7000
 extern float hudDialLimit7A845C;     // 6500
 extern float hudDialLimit789FE0;     // 6000
-extern float hudSpeedScaleMetric7904FC;
-extern float hudSpeedScaleImperial78426C;
 extern float hudHalfTurn78450C;      // 360
-extern signed char hudGearCharacters7F66A4[20];
 
 
 // Minimal printf replacements: verification compiles run without system include paths.
@@ -35,20 +32,6 @@ static char *AppendTwoDigits(char *out, int value) {
 static void BuildSkinName(char *name, const char *base, int skin) {
     char *out = AppendText(name, base);
     out = AppendTwoDigits(out, skin);
-    *out = 0;
-}
-
-// "%3d": right aligned in three columns.
-static void FormatSpeed(char *out, int value) {
-    if (value < 0) value = 0;
-    char digits[12];
-    int count = 0;
-    do {
-        digits[count++] = (char)('0' + value % 10);
-        value /= 10;
-    } while (value);
-    for (int pad = count; pad < 3; ++pad) *out++ = ' ';
-    while (count) *out++ = digits[--count];
     *out = 0;
 }
 
@@ -92,7 +75,7 @@ int HudDialType(const EngineSpec *engine) {
 }
 
 // Original 0x4aa0e0.
-float HudNeedleAngle(float rpm, float sweep, const EngineSpec *engine) {
+float HudNeedleAngle(float rpm, float sweep, const EngineSpec *engine, const char *) {
     float fraction = rpm / engine->value8;
     if (0.0f <= fraction) {
         if (1.0f < fraction) {
@@ -175,37 +158,4 @@ void HudGauge::Configure(const EngineSpec *engine, int skinIndex) {
         break;
     }
     sweepC4 = (engine->value8 / scale) * hudDialSweep798510;
-}
-
-// Original 0x4c68d0 for an active single-player gauge.
-void HudGauge::Update(MoverModeOwner *car, const EngineSpec *engine, bool metric, const char *unitText) {
-    float rpm = car->engineValue440;
-    float speed = car->speed430;
-    if (speed < 0.0f) {
-        speed = -speed;
-    }
-    char text[16];
-    ops->setText(objects.speedUnits5C, unitText);
-    speed = speed * (metric ? hudSpeedScaleMetric7904FC : hudSpeedScaleImperial78426C);
-    FormatSpeed(text, (int)speed);
-    ops->setText(objects.speed58, text);
-    ops->setRotation(objects.needle30, HudNeedleAngle(rpm, sweepC4, engine));
-    if (objects.gear64) {
-        char gear = 'X';
-        for (int i = 0; i < 10; ++i) {
-            if (car->gear434 == hudGearCharacters7F66A4[i * 2]) {
-                gear = (char)hudGearCharacters7F66A4[i * 2 + 1];
-                break;
-            }
-        }
-        text[0] = gear;
-        text[1] = 0;
-        ops->setText(objects.gear64, text);
-        // 0xffff8040 while the car is not shifting (+0x448), 0xffc3c3c3 during a shift.
-        ops->setColour(objects.gear64, car->value448 == 0 ? 0xffff8040u : 0xffc3c3c3u);
-    }
-    if (noSkinC0) {
-        ops->hide(objects.rpmNumbers50);
-        ops->hide(objects.redline7C);
-    }
 }

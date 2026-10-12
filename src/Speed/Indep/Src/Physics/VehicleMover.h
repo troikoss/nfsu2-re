@@ -376,6 +376,7 @@ struct PhysicsParameters {
     PhysicsParameters *Construct(); // 0x5ac6e0
     void Compose(int mode, int refresh, int flag); // 0x5b4dc0
     void Refresh(int refresh, int flag, char select);
+    signed char GetClassIndex(); // 0x5b5330
     float GetPhysicsSpeed(); // 0x5b5930
     float GetDriveArea(); // 0x59a350
     void SimulatePerformance(); // 0x5b06a0
@@ -428,9 +429,17 @@ struct MoverContext {
     unsigned char flag900;
 };
 
+// Object at car +0x968 read by the HUD gauge 0x4c68d0.
+struct CarReplayState {
+    char unidentified0[0x58];
+    float rpm58;
+};
+
 // The car object; its +0x40 region is DrivetrainAuxiliary.
 struct MoverModeOwner {
-    char unidentified0[0x10];
+    char unidentified0[0xc];
+    char *valueC;         // +0x7f0 is passed to the needle angle 0x4aa0e0 (unread there)
+
     PhysicsInfo *physicsInfo10;
     MoverContext *context14;
     struct MoverRaceEntry *raceEntry18;
@@ -479,7 +488,9 @@ struct MoverModeOwner {
     char unidentified5D0[0x388];
     int forceFeedback958;
     unsigned char mask95C;
-    char unidentified95D[0xf];
+    char unidentified95D[0xb];
+    CarReplayState *replay968; // +0x58 is the replayed engine RPM
+
     int resetRequested96C;
     char unidentified970[4];
     int resetTick974;
@@ -517,6 +528,8 @@ UG2_CHECK_OFFSET(MoverModeOwner, engineValue440, 0x440);
 UG2_CHECK_OFFSET(MoverModeOwner, value4E4, 0x4e4);
 UG2_CHECK_OFFSET(MoverModeOwner, mask95C, 0x95c);
 UG2_CHECK_OFFSET(MoverModeOwner, resetTick974, 0x974);
+UG2_CHECK_OFFSET(MoverModeOwner, replay968, 0x968);
+UG2_CHECK_OFFSET(MoverModeOwner, physicsInfo10, 0x10);
 UG2_CHECK_OFFSET(MoverModeOwner, effectsEnabled550, 0x550);
 UG2_CHECK_OFFSET(MoverModeOwner, colliderPack5CC, 0x5cc);
 UG2_CHECK_OFFSET(MoverModeOwner, effectsSuppressed998, 0x998);

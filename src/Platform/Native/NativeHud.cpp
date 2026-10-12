@@ -15,6 +15,7 @@ extern HudPlayerSlot *hudPlayerSlots8900AC[];
 extern PlayerRecord *players8900B4[2];
 extern CareerBank861E74 careerBank861E74;
 extern int language7F70D0;
+extern unsigned char units83AA1A;
 extern int playerCount8900BC;
 void NativeTrap(const char *what);
 void HudMinimapSeam(const char *what) { NativeTrap(what); }
@@ -130,6 +131,13 @@ void HudTextPrint(void *o, const char *format, ...) {
             for (int at = (int)number.size() - 3; at > (number[0] == '-' ? 1 : 0); at -= 3)
                 number.insert(at, ",");
             text += number;
+        } else if (*p == 'c') {
+            text += (char)va_arg(args, int);
+        } else if (*p >= '1' && *p <= '9' && p[1] == 'd') {
+            char digits[32];
+            snprintf(digits, sizeof(digits), "%*d", *p - '0', va_arg(args, int));
+            text += digits;
+            ++p;
         } else NativeTrap("FEng text format");
     }
     va_end(args);
@@ -346,6 +354,21 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
         "3rdPersonShiftUp", "3rdPersonGear", "OptimalRPM", "GearBkg", "PerfectShift", "MissedShift",
         "Redline", "tach_fill", "Drift_Angle_Backing2", "tach_fill", "Shift_light"};
     RegisterFeature(&package_, &gaugeVisibility_, gaugeVisibilityNodes_, gaugeNames, 18, 0x10000060, 0);
+    // Constructor 0x4f5100 object slots of the 0xc8-byte gauge feature.
+    gaugeVisibility_.needle30 = static_cast<HudVisibilityObject *>(o.needle30);
+    gaugeVisibility_.rpmNumbers50 = static_cast<HudVisibilityObject *>(o.rpmNumbers50);
+    gaugeVisibility_.backing54 = static_cast<HudVisibilityObject *>(o.backing54);
+    gaugeVisibility_.speed58 = static_cast<HudVisibilityObject *>(o.speed58);
+    gaugeVisibility_.speedUnits5C = static_cast<HudVisibilityObject *>(o.speedUnits5C);
+    gaugeVisibility_.gear64 = static_cast<HudVisibilityObject *>(o.gear64);
+    gaugeVisibility_.shiftLight78 = static_cast<HudVisibilityObject *>(o.shiftLight78);
+    gaugeVisibility_.redline7C = static_cast<HudVisibilityObject *>(o.redline7C);
+    gaugeVisibility_.tachFill80 = static_cast<HudVisibilityObject *>(o.tachFill80);
+    gaugeVisibility_.turboLines84 = static_cast<HudVisibilityObject *>(o.turboLines84);
+    gaugeVisibility_.turboFill88 = static_cast<HudVisibilityObject *>(o.turboFill88);
+    gaugeVisibility_.turboDial8C = static_cast<HudVisibilityObject *>(o.turboDial8C);
+    gaugeVisibility_.noSkinC0 = gauge_.noSkinC0;
+    gaugeVisibility_.sweepC4 = gauge_.sweepC4;
     const char *turboNames[] = {"3rdperson_Turbofill", "3rdperson_Turbolines", "3rdperson_TurboDial",
                               "3rdperson_TurboRed_1", "3rdperson_TurboRed_2", "Drift_Angle_Backing2"};
     RegisterFeature(&package_, &turbo_, turboNodes_, turboNames, 6, 0x10000060, 0);
@@ -461,10 +484,9 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     unsigned long long mask = player_.GetHudMask();
     controller_.ApplyMasks(0, (unsigned int)mask, (unsigned int)(mask >> 32));
     const EngineSpec *engine = reinterpret_cast<const EngineSpec *>(vehicle->info->parameters10.record30.engine1F0);
-    std::string units = Localised(metric ? 0x8569a25f : 0x8569ab44);
-    gauge_.Update(vehicle->owner, engine, metric, units.c_str());
-    HudUpdateShiftLight(vehicle->owner, vehicle->mover->drivetrain4C->indexF0,
-                        vehicle->owner->engineValue440, static_cast<FengObject *>(gauge_.objects.shiftLight78));
+    // Native option seam: the demo's metric choice is the profile option at 0x83aa1a.
+    units83AA1A = metric ? 1 : 0;
+    gaugeVisibility_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
     turbo_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
     nitrous_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
     region_.Update(&regionPlayer_);

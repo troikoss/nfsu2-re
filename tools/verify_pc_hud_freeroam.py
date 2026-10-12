@@ -8,6 +8,7 @@ not verification of their internals. Retail arithmetic constants are retained.
 import hashlib
 import itertools
 import json
+import re
 import random
 import struct
 import subprocess
@@ -39,9 +40,12 @@ FUNCTIONS = {
     'HudLerpVector3': (0x505150, 71),
     'HudLerpColour': (0x5051a0, 190),
     'ControllerMasks': (0x4ca090, 1500),
-    'ShiftLightTail': (0x4c6acf, 126),
+    'GaugeUpdate': (0x4c68d0, 676),
+    'HudNeedleAngle': (0x4aa0e0, 124),
+    'UseMetric5EA8B0': (0x5ea8b0, 15),
 }
 GLOBAL_ADDRESSES = {
+    'engineSpeedOverride': 0x7fbed8, 'engineSpeedOverrideUnset': 0x784258,
     'hudGpsReceiver82B884': 0x82b884, 'hudClock86518C': 0x86518c,
     'hudDrag89E7D8': 0x89e7d8, 'hudDragOverride890108': 0x890108,
     'hudPlayerCount89E7C0': 0x89e7c0, 'hudOne784250': 0x784250,
@@ -75,6 +79,7 @@ INTERFACES = {
     'HudGpsMode': (0x501100, 0, 0), 'HudGpsPosition': (0x5010c0, 2, 8),
     'HudObjectTexture': (0x50c900, 2, 0), 'HudObjectPosition': (0x51d4d0, 3, 0),
     'HudGpsEvent': (0x458520, 1, 4),
+    'GetClassIndex': (0x5b5330, 0, 0),
     'HudNotificationTexture': (0x50c990, 2, 0),
     'HudNotificationPrepare': (0x4c8ac0, 0, 0),
     'HudNotificationNormal': (0x4c8b80, 1, 4),
@@ -103,28 +108,35 @@ def main():
     subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe',
                     '/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
                     '/Fo' + str(controller.relative_to(ROOT)), 'src/Speed/Indep/Src/Hud/HudController.cpp'], cwd=ROOT, check=True)
-    symbols = list(read_object(controller)['symbols'].values()) + list(read_object(obj)['symbols'].values()) + list(read_object(animation)['symbols'].values())
+    gauge = BUILD / 'HudGauge.obj'
+    subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe',
+                    '/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
+                    '/Fo' + str(gauge.relative_to(ROOT)), 'src/Speed/Indep/Src/Hud/HudGauge.cpp'], cwd=ROOT, check=True)
+    symbols = [s for o in (controller, obj, animation, gauge) for s in read_object(o)['symbols'].values()]
     externals = {}
+    defined = {symbol['name'] for symbol in symbols if symbol['section'] > 0}
     for symbol in symbols:
-        if symbol['section'] != 0 or not symbol['name'].startswith('?'):
+        if symbol['section'] != 0 or not symbol['name'].startswith('?') or symbol['name'] in defined:
             continue
         short = symbol['name'].split('@')[0][1:]
         if short in GLOBAL_ADDRESSES:
             externals[symbol['name']] = GLOBAL_ADDRESSES[short]
+        elif re.fullmatch(r'[A-Za-z]+[0-9A-F]{6}', short) and short not in INTERFACES:
+            externals[symbol['name']] = int(short[-6:], 16)
         elif short in INTERFACES:
             # Rebuilt interfaces use cdecl wrappers, including bar callbacks.
             externals[symbol['name']] = 0x2110000 + list(INTERFACES).index(short) * 0x100
         else:
             raise AssertionError(symbol['name'])
     externals['__ftol2'] = 0x75bed4
-    linked = link_objects([obj, animation, controller], externals)
+    linked = link_objects([obj, animation, controller, gauge], externals)
     entries = {}
     for name in FUNCTIONS:
-        cls = {'TurboUpdate': 'HudTurboFeature', 'NitrousUpdate': 'HudNitrousFeature',
+        cls = {'TurboUpdate': 'HudTurboFeature', 'GaugeUpdate': 'HudGaugeFeature', 'NitrousUpdate': 'HudNitrousFeature',
                'NotificationUpdate': 'HudNotificationFeature', 'HeatUpdate': 'HudHeatFeature', 'GpsUpdate': 'HudGpsFeature',
                'RegionUpdate': 'HudRegionFeature', 'CashUpdate': 'HudCashFeature',
                'RewardUpdate': 'HudRewardFeature'}.get(name)
-        prefix = '?HudUpdateShiftLight@' if name == 'ShiftLightTail' else '?ApplyMasks@HudController@' if name == 'ControllerMasks' else '?Update@' + cls + '@' if cls else '?' + name + '@'
+        prefix = '?ApplyMasks@HudController@' if name == 'ControllerMasks' else '?Update@' + cls + '@' if cls else '?' + name + '@'
         entries[name] = next(a for s, a in linked['exports'].items() if s.startswith(prefix))
     arena, stack, stop = 0x2000000, 0x200f000, 0x2100000
     state = {}
@@ -145,12 +157,6 @@ def main():
         hooks = {0x2110000 + i * 0x100 if rebuilt else a: (n, count, 8 if rebuilt and n == 'ApplyMasks' else 0 if rebuilt else clean)
                  for i, (n, (a, count, clean)) in enumerate(INTERFACES.items())}
         def hook(uc, address, size, user, rebuilt=rebuilt, hooks=hooks):
-            if not rebuilt and address == 0x5b5330:
-                sp = uc.reg_read(UC_X86_REG_ESP)
-                uc.reg_write(UC_X86_REG_EAX, state['tuning'])
-                uc.reg_write(UC_X86_REG_ESP, sp + 4)
-                uc.reg_write(UC_X86_REG_EIP, u32(uc, sp))
-                return
             if address not in hooks:
                 providers = [(stop + 0x100, stop + 0x107), (stop + 0x200, stop + 0x20b)]
                 retained = [(0x75bed4, 0x75bf49), (0x5947b0, 0x5947bd)]
@@ -162,7 +168,7 @@ def main():
             args = [u32(uc, sp + 4 + i * 4) for i in range(count)]
             if name == 'HudTextPrint':
                 fmt = cstring(uc, u32(uc, sp + 8))
-                count = {'%s': 1, '%$d': 1, '%s %$d': 2, '%s%s: %$d': 3}[fmt]
+                count = {'%s': 1, '%$d': 1, '%s %$d': 2, '%s%s: %$d': 3, 'LOCALISED': 0, '%3d': 1, '%c': 1}[fmt]
                 args = [u32(uc, sp + 4), fmt]
                 for i in range(count):
                     value = u32(uc, sp + 12 + i * 4)
@@ -203,6 +209,7 @@ def main():
             elif name == 'GetLanguage4FF970': result = state['language']
             elif name == 'HudGpsMode': result = state['gps_mode']
             elif name == 'HudPackageScriptActive': result = state['script_active']
+            elif name == 'GetClassIndex': result = state['tuning']
             uc.reg_write(UC_X86_REG_EAX, result)
             uc.reg_write(UC_X86_REG_ESP, sp + 4 + cleanup)
             uc.reg_write(UC_X86_REG_EIP, u32(uc, sp))
@@ -219,7 +226,7 @@ def main():
             uc.mem_write(stop + 0x100, b'\xd9\x05' + struct.pack('<I', arena + 0x9100) + b'\xc3')
             uc.mem_write(stop + 0x200, b'\xd9\x1d' + struct.pack('<I', arena + 0x9200) + b'\xe9' + struct.pack('<i', stop - (stop + 0x20b)))
             machine_args = original_args if not rebuilt and original_args is not None else args
-            floating = name in ('HudTurboAngle', 'HudReadBoost', 'HudReadHeat', 'HudReadShiftWindow', 'HudReadShiftPoint')
+            floating = name in ('HudTurboAngle', 'HudReadBoost', 'HudReadHeat', 'HudReadShiftWindow', 'HudReadShiftPoint', 'HudNeedleAngle')
             uc.mem_write(stack, struct.pack('<I', stop + 0x200 if floating else stop) + machine_args)
             uc.reg_write(UC_X86_REG_ESP, stack)
             uc.reg_write(UC_X86_REG_ECX, this)
@@ -227,21 +234,17 @@ def main():
             uc.reg_write(UC_X86_REG_FPSW, 0)
             uc.reg_write(UC_X86_REG_FPTAG, 0xffff)
             for reg in (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP): uc.reg_write(reg, 0x12345678)
-            if name == 'ShiftLightTail' and not rebuilt:
-                uc.reg_write(UC_X86_REG_ESI, arena + 0x4000)
-                uc.reg_write(UC_X86_REG_EBP, arena)
-                uc.mem_write(stack + 0x10, struct.pack('<f', rpm))
             for a, data in globals_: uc.mem_write(a, bytes(data))
             state.update(trace=[], suppressed=suppressed, balance=balance, language=language, script_active=script_active, tuning=tuning, gps_mode=gps_mode)
-            end = 0x4c6b4d if name == 'ShiftLightTail' and not rebuilt else stop
+            end = stop
             uc.emu_start(entries[name] if rebuilt else FUNCTIONS[name][0], end, count=10000)
             assert uc.reg_read(UC_X86_REG_EIP) == end, (name, hex(uc.reg_read(UC_X86_REG_EIP)))
-            expected_cleanup = 0 if name == 'ShiftLightTail' else len(machine_args) if not rebuilt and name not in ('HudLerpVector3', 'HudLerpColour', 'HudNotificationPriority') or rebuilt and not name.startswith('Hud') else 0
-            assert uc.reg_read(UC_X86_REG_ESP) == (stack if name == 'ShiftLightTail' and not rebuilt else stack + 4 + expected_cleanup), (name, rebuilt, hex(uc.reg_read(UC_X86_REG_ESP)))
+            expected_cleanup = len(machine_args) if not rebuilt and name not in ('HudLerpVector3', 'HudLerpColour', 'HudNotificationPriority', 'HudNeedleAngle') or rebuilt and not name.startswith('Hud') else 0
+            assert uc.reg_read(UC_X86_REG_ESP) == stack + 4 + expected_cleanup, (name, rebuilt, hex(uc.reg_read(UC_X86_REG_ESP)))
             assert uc.reg_read(UC_X86_REG_FPCW) == cw
-            if name != 'ShiftLightTail':
+            if True:
                 assert all(uc.reg_read(r) == 0x12345678 for r in (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP))
-            outputs.append((state['trace'], bytes(uc.mem_read(arena, 0x9000)), bytes(uc.mem_read(arena + 0x9200, 4)) if floating else struct.pack('<I', uc.reg_read(UC_X86_REG_EAX)) if name in ('HudNotificationNext', 'HudNotificationPriority') else b'',
+            outputs.append((state['trace'], bytes(uc.mem_read(arena, 0x9000)), bytes(uc.mem_read(arena + 0x9200, 4)) if floating else struct.pack('<I', uc.reg_read(UC_X86_REG_EAX)) if name in ('HudNotificationNext', 'HudNotificationPriority') else bytes([uc.reg_read(UC_X86_REG_EAX) & 0xff]) if name == 'UseMetric5EA8B0' else b'',
                             bytes(uc.mem_read(0x83649c, 24)), bytes(uc.mem_read(0x8364b0, 4))))
         assert outputs[0] == outputs[1], (name, fraction, cw, outputs[0][0], outputs[1][0], outputs[0][2:], outputs[1][2:])
         counts[name] += 1
@@ -305,16 +308,44 @@ def main():
             m = frame(); struct.pack_into('<i', m, 0x70f0, tuning); struct.pack_into('<f', m, 0x70e4, scale)
             compare('HudReadShiftWindow', m, struct.pack('<II', arena + 0x7000, gear), arena + 0x7000,
                     globals_for(), cw=cw, original_args=struct.pack('<I', gear))
-        for kind, gear, tuning, rpm in itertools.product((0, 1, 3), range(1, 9), range(4), (0., 5999., 6000., 6499., 6500., 6501., 7000., 8000.)):
-            m = frame(); struct.pack_into('<I', m, 0x4028, kind); struct.pack_into('<I', m, 0x4034, arena + 0x5000)
-            struct.pack_into('<I', m, 0x4434, gear); struct.pack_into('<I', m, 0x5024, arena + 0x8000)
-            struct.pack_into('<i', m, 0x70f0, tuning); struct.pack_into('<f', m, 0x70e4, 0.75)
-            struct.pack_into('<I', m, 0x78, arena + 0x1000)
+        for metric, players, override in itertools.product((0, 1, 2), (1, 2), (100., 7250.)):
+            compare('UseMetric5EA8B0', frame(), b'', globals_=[(0x83aa1a, bytes([metric]))], cw=cw)
+        for rpm, sweep, maximum in itertools.product((-100., 0., 3000., 7999., 8000., 9000.), (-235., -0., 0., 120., 235., 359., 400.), (8000., 9500.)):
+            m = frame(); struct.pack_into('<3f', m, 0xb1f0, 7000., 6500., maximum)
+            compare('HudNeedleAngle', m, struct.pack('<ffII', rpm, sweep, arena + 0xb1f0, 0x12345678), globals_=globals_for(), cw=cw)
+        for trial in range(1500):
+            m = frame(rng.random() < 0.85)
+            for k in range(0x30, 0x80, 4): struct.pack_into('<I', m, k, arena + 0x1000 + k * 0x10)
+            if rng.random() < 0.3: struct.pack_into('<I', m, 0x64, 0)
+            m[0xc0] = rng.choice((0, 0, 1)); struct.pack_into('<f', m, 0xc4, rng.choice((235., 180., -20., 0.)))
+            car = 0x4000
+            struct.pack_into('<I', m, 0x3004, arena + car)
+            struct.pack_into('<I', m, car + 0xc, rng.choice((0, arena + 0x9800)))
+            struct.pack_into('<I', m, car + 0x10, arena + 0xa000)
+            struct.pack_into('<I', m, car + 0x14, arena + 0xa100)
+            struct.pack_into('<i', m, 0xa104, rng.choice((0, 1, 1, 2)))
+            m[0xaa00] = rng.choice((0, 0, 1))
+            struct.pack_into('<I', m, car + 0x20, arena + 0xb000)
+            struct.pack_into('<3f', m, 0xb1f0, 7000., rng.choice((6500., 7200., 0.5)), rng.choice((8000., 9500.)))
+            struct.pack_into('<I', m, car + 0x28, rng.choice((0, 1, 1, 3)))
+            struct.pack_into('<I', m, car + 0x34, arena + 0x5000)
+            struct.pack_into('<I', m, 0x5024, arena + 0x8000)
+            gear = rng.choice((-1, 0, 1, 2, 3, 4, 5, 6, 7, 8))
+            struct.pack_into('<f', m, car + 0x430, rng.choice((-55.5, -0., 0., 12.25, 33.3, 90.)))
+            struct.pack_into('<i', m, car + 0x434, gear)
+            rpm = rng.choice((0., 900., 5999., 6400., 6500., 6501., 7000., 8100., 12000.))
+            struct.pack_into('<f', m, car + 0x440, rpm)
+            struct.pack_into('<i', m, car + 0x448, rng.choice((0, 1)))
+            struct.pack_into('<I', m, car + 0x968, rng.choice((0, arena + 0xc800)))
+            struct.pack_into('<f', m, 0xc858, rng.choice((3000., 7600.)))
+            struct.pack_into('<i', m, 0x70f0, rng.randrange(4)); struct.pack_into('<f', m, 0x70e4, 0.75)
             for i in range(9):
-                struct.pack_into('<f', m, 0x7084 + i*4, 6500. + i*50)
-                struct.pack_into('<f', m, 0x819c + i*4, 7500. + i*50)
-            compare('ShiftLightTail', m, struct.pack('<IIfI', arena + 0x4000, tuning, rpm, arena + 0x1000),
-                    globals_=globals_for(), cw=cw, tuning=tuning, rpm=rpm)
+                struct.pack_into('<f', m, 0x7084 + i * 4, 6500. + i * 50)
+                struct.pack_into('<f', m, 0x819c + i * 4, 7500. + i * 50)
+            g = globals_for(players=rng.choice((0, 1, 1, 2, 4))) + [
+                (0x83aa1a, bytes([rng.choice((0, 1, 2))])),
+                (0x7fbed8, struct.pack('<f', rng.choice((100., 100., 6800.))))]
+            compare('GaugeUpdate', m, struct.pack('<I', arena + 0x3000), arena, g, cw=cw, tuning=rng.randrange(4))
         for name in ('HudLerpVector3', 'HudLerpColour'):
             for fraction in (0., 0.125, 0.5, 0.875, 1.):
                 for trial in range(64):
@@ -361,6 +392,7 @@ def main():
               'fingerprints': {n: {'address': hex(a), 'span': size, 'sha256': hashlib.sha256(image[a-0x400000:a-0x400000+size]).hexdigest()} for n, (a, size) in FUNCTIONS.items()},
               'interfaces': INTERFACES, 'byte_matching': False,
               'retained_helpers': ['__ftol2 0x75bed4', 'shift point getter 0x5947b0'],
+              'interfaces_note': 'GetClassIndex 0x5b5330 is scripted; it is recovered in PhysicsRefresh.cpp',
               'execution_guard': True, 'x87_control_words': ['0x027f', '0x037f']}
     (BUILD / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(counts, indent=2)); print('PASS', report['total'], 'comparisons')

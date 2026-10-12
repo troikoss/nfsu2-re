@@ -133,8 +133,37 @@ float HudReadBoost(MoverModeOwner *car, unsigned char *installed); // 0x5ecec0
 float HudReadHeat(MoverModeOwner *car); // 0x5eccd0
 float HudReadShiftPoint(MoverModeOwner *car, int gear); // 0x5ecd30 / 0x5947b0
 float HudReadShiftWindow(Drivetrain *drivetrain, int gear); // 0x594f00
-// 0x4c68d0 tail, retaining 0x594f00/0x5ecd30 calls. Caller supplies the
-// already selected RPM and 0x5b5330 tuning index, as the original gauge does.
-void HudUpdateShiftLight(MoverModeOwner *car, int tuningIndex, float rpm, HudVisibilityObject *light);
+bool UseMetric5EA8B0(); // 0x5ea8b0, option 0x83aa1a
+
+// Tachometer/speedometer feature, 0xc8 bytes (constructor 0x4f5100).
+struct HudGaugeFeature : HudFeatureVisibility {
+    char unidentified20[0x10];
+    HudVisibilityObject *needle30;
+    HudVisibilityObject *segments34[7]; // tach bars used when several players share the screen
+    HudVisibilityObject *rpmNumbers50;
+    HudVisibilityObject *backing54;
+    HudVisibilityObject *speed58;
+    HudVisibilityObject *speedUnits5C;
+    char unidentified60[4];
+    HudVisibilityObject *gear64;
+    char unidentified68[0x10];
+    HudVisibilityObject *shiftLight78;
+    HudVisibilityObject *redline7C;
+    HudVisibilityObject *tachFill80;
+    HudVisibilityObject *turboLines84;
+    HudVisibilityObject *turboFill88;
+    HudVisibilityObject *turboDial8C;
+    char unidentified90[0x30];
+    unsigned char noSkinC0;
+    char unidentifiedC1[3];
+    float sweepC4;
+    void Update(HudPlayerSlot *player); // 0x4c68d0
+};
+UG2_CHECK_OFFSET(HudGaugeFeature, needle30, 0x30);
+UG2_CHECK_OFFSET(HudGaugeFeature, rpmNumbers50, 0x50);
+UG2_CHECK_OFFSET(HudGaugeFeature, gear64, 0x64);
+UG2_CHECK_OFFSET(HudGaugeFeature, shiftLight78, 0x78);
+UG2_CHECK_OFFSET(HudGaugeFeature, noSkinC0, 0xc0);
+UG2_CHECK_SIZE(HudGaugeFeature, 0xc8);
 
 #endif

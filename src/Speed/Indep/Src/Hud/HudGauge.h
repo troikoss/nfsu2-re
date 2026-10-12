@@ -2,12 +2,12 @@
 #define UG2_HUD_GAUGE_H
 
 // Recovered UG2 PC v1.2 HUD tachometer/speedometer feature (HUD_SingleRace.fng objects):
-// skin selection 0x5ed9b0, dial type 0x60fe10, needle angle 0x4aa0e0, per-frame update 0x4c68d0
-// (the feature built by 0x4f5100). The FEng object operations are reached through a small
+// skin selection 0x5ed9b0, dial type 0x60fe10 and needle angle 0x4aa0e0 for the feature built by
+// 0x4f5100. Its per-frame update 0x4c68d0 is HudGaugeFeature::Update (HudFreeroam.cpp). The FEng object operations are reached through a small
 // operations table because the FEng object model itself is not recovered.
 //
-// The recovered shift-light tail and its drivetrain readers live in HudFreeroam.cpp.
-// The replay RPM source (car +0x968) and HUDINDEX skin option remain seams.
+// The gauge update, shift light and drivetrain readers live in HudFreeroam.cpp.
+// The HUDINDEX skin option remains a seam.
 
 #include "../Physics/Engine.h"
 #include "../Physics/VehicleMover.h"
@@ -61,14 +61,12 @@ struct HudGauge {
     unsigned char noSkinC0;  // set when the skin lookup produced no lines texture
     // Constructor tail 0x4f5100: dial type, sweep and skin textures for the car's engine spec.
     void Configure(const EngineSpec *engine, int skinIndex);
-    // 0x4c68d0 with the gauge active. `metric` is option 0x83aa1a, `units` the localised unit text.
-    void Update(MoverModeOwner *car, const EngineSpec *engine, bool metric, const char *units);
 };
 
 // Original 0x60fe10: dial type 0..7 from the engine's redline (+4) and maximum (+8).
 int HudDialType(const EngineSpec *engine);
-// Original 0x4aa0e0.
-float HudNeedleAngle(float rpm, float sweep, const EngineSpec *engine);
+// Original 0x4aa0e0. The gauge passes car +0xc's +0x7f0 as a fourth argument it never reads.
+float HudNeedleAngle(float rpm, float sweep, const EngineSpec *engine, const char *unused);
 // Original 0x5ed9b0 for the non-drag layout.
 void HudSelectDialSkin(HudDialSkin *skin, const EngineSpec *engine, int skinIndex);
 // Original 0x43db50 / 0x43db80: h = h * 33 + c, from 0xffffffff or a given seed.

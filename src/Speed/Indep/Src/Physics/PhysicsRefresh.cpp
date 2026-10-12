@@ -13,3 +13,9 @@ void PhysicsParameters::Refresh(int refresh, int flag, char select) {
     }
     Compose(mode, refresh, flag);
 }
+
+// Original 0x5b5330: the class index, composed on first use.
+signed char PhysicsParameters::GetClassIndex() {
+    if (index4 == -1) Refresh(1, 1, 1);
+    return index4;
+}

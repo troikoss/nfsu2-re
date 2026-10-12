@@ -806,3 +806,4 @@ restartWindow7A5498 = 0x7a5498;
 restartLimit7844F8 = 0x7844f8;
 careerBank861E74 = 0x861e74;
 language7F70D0 = 0x7f70d0;
+hudTachSegments788218 = 0x788218;

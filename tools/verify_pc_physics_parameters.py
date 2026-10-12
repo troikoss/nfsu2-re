@@ -130,6 +130,8 @@ def main():
             # BuildPhysicsDriveCurve is cdecl: the caller retains its two arguments.
             for reg in (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP):
                 assert uc.reg_read(reg) == 0x12345678, method
+            if method == 'GetClassIndex':
+                uc.mem_write(BASE + 0x800, bytes([uc.reg_read(UC_X86_REG_EAX) & 0xff]))
             if method == 'GetPhysicsSpeed':
                 uc.mem_write(STOP, b'\xd9\x1d' + struct.pack('<I', BASE + 0x800))
                 uc.emu_start(STOP, STOP + 6, count=1)
@@ -193,6 +195,11 @@ def main():
             for i, address in enumerate(mode_flags):
                 uc.mem_write(address, struct.pack('<I', (mask >> i) & 1)[:1 if address in (0x89e7d8, 0x89e7d9, 0x89e7e3) else 4])
         compare('Refresh', (refresh, flag, select))
+    for car, index in itertools.product((-1, 0), (-1, 0, 3, 127, -128)):
+        for uc in machines:
+            uc.mem_write(BASE, struct.pack('<i', car))
+            uc.mem_write(BASE + 4, struct.pack('<b', index))
+        compare('GetClassIndex')
     report = dict(executable_sha256=manifest['exe_sha256'], retail_records=[name for name, _ in records],
                   cases=counts, bit_identical_state_cases=exact, maximum_absolute_float_error=maximum_error,
                   byte_matching='not established',

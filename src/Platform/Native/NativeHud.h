@@ -53,7 +53,7 @@ private:
     NativeTextureCache *textures_;
     HudGauge gauge_;
     HudController controller_;
-    HudFeatureVisibility gaugeVisibility_;
+    HudGaugeFeature gaugeVisibility_; // feature 0x4f5100; objects from gauge_ setup
     HudFeatureObjectNode gaugeVisibilityNodes_[18];
     HudTurboFeature turbo_;
     HudFeatureObjectNode turboNodes_[6];

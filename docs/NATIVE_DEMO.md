@@ -228,7 +228,8 @@ compile with MSVC 7.1 `/Ox /Ob0`):
   the resource index, `PA` the parent GUID, flag bit 0 hides (`0x50ca00`/`0x50ca50`). Coordinates are
   640x480 with the origin at the screen centre; lower z draws in front. Object hashes are the case
   folded `h = h * 33 + c` (`0x505450`) of names found in the executable (`3rdPersonNeedle`,
-  `3rdPersonSpeed`, `3rdPersonGear`, ...). The gauge feature is the recovered `0x4f5100`/`0x4c68d0`:
+  `3rdPersonSpeed`, `3rdPersonGear`, ...). The gauge feature is the recovered `0x4f5100`/`0x4c68d0` (`HudGaugeFeature::Update` in
+  `HudFreeroam.cpp`):
   dial type `0x60fe10` (7500..10500 scale), needle sweep `(maximum rpm / scale) * 235` degrees, needle
   angle `0x4aa0e0`, speed `|v| * 2.237` mph or `* 3.6` km/h, gear characters from `0x7f66a4`, gear
   colour while shifting, skin textures `TACH_FILL_CUSTOM_nn`, `3RDPERSON_*LINES_CUSTOM_nn` and
@@ -244,7 +245,8 @@ stand-in kind-1 chase mover at `+0x238` because the camera is native), and the c
 call without a player argument (so the rear-view mirror view `0x5f1e10` is not created).
 Recovered `0x600090` produces the masks and recovered `0x4ca090` applies them; laps and
 `tach_fill` colouring remain seams.
-The shift-light tail, turbo and NOS updates are now recovered. Region/cash/reward
+The full gauge update `0x4c68d0` (speed, needle, gear, shift light), turbo and NOS updates are
+now recovered; the demo's `--metric` choice is written to the profile option `0x83aa1a`. Region/cash/reward
 widgets accept external career state; their visibility follows the recovered masks
 (cash needs career mode `0x850078` = 1, which the demo leaves 0). The bank balance is stored at the
 original `0x861e74` and read by recovered `0x500f90`; the native loader publishes
