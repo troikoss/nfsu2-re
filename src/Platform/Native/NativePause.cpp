@@ -776,7 +776,6 @@ void FngSetControlMask(const char *package, unsigned int mask) {  // 0x537950
     if (screen) screen->controlMask = mask;
 }
 
-unsigned int FngControlMask(int) { return 0; }  // 0x50d2d0
 
 bool FngScriptActive(const char *package, unsigned int object, const char *script) {  // 0x537cc0
     return FngScriptRunning(package, object, FengHash(script));
@@ -879,7 +878,6 @@ void PCHelpBarFNGObject::SyncByMask(int, const char *) {}  // 0x54e6e0, not draw
 void Career85AD40::Value513B30() { NativeTrap("career 0x513b30"); }
 void Career85AD40::Value5139C0() { NativeTrap("career 0x5139c0"); }
 // 0x502ff0: the front-end return package is not modelled (the demo has no front end).
-const char *ProfileData83A9D0::Value502FF0(int) { return 0; }
 bool Network89CF48::Value5F0120() {
     NativeTrap("network 0x5f0120");
     return false;

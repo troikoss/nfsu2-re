@@ -16,7 +16,8 @@ from pc_coff import link_objects, read_object
 BUILD = ROOT / "build/analysis/small-queries"
 SOURCES = ["src/Speed/Indep/Src/Physics/Collision/CollisionNotify.cpp",
            "src/Speed/Indep/Src/Frontend/ProfileQueries.cpp",
-           "src/Speed/Indep/Src/Frontend/PlayerCamera.cpp"]
+           "src/Speed/Indep/Src/Frontend/PlayerCamera.cpp",
+           "src/Speed/Indep/Src/Frontend/FrontendQueries.cpp"]
 FUNCTIONS = {
     "?RegisterCollision@Audio82B884@": (0x483e20, 20),
     "?UnregisterCollision@Audio82B884@": (0x483e40, 20),
@@ -26,11 +27,14 @@ FUNCTIONS = {
     "?Value502FE0@MemoryCard83A9E0@": (0x502fe0, 4),
     "?CycleCamera@PlayerSettings83AA64@": (0x502540, 97),
     "?Value5F2FA0@Player8900AC@": (0x5f2fa0, 98),
+    "?FngControlMask@": (0x50d2d0, 51),
+    "?Value502FF0@ProfileData83A9D0@": (0x502ff0, 71),
 }
 GLOBALS = {"audioEnabled7FAAA8": 0x7faaa8, "gameMessagePool883E38": 0x883e38, "gameMessageCount876DC8": 0x876dc8,
            "gameMessages800ECC": 0x800ecc, "feedbackDevice87078C": 0x87078c,
            "playerSettings83AA64": 0x83aa64, "hudDrift89E7D9": 0x89e7d9, "hudDriftOverride890104": 0x890104,
-           "trackNumber89E7A0": 0x89e7a0, "viewMode8707DC": 0x8707dc}
+           "trackNumber89E7A0": 0x89e7a0, "viewMode8707DC": 0x8707dc,
+           "uiMainFng78F530": 0x78f530, "uiQRModeSelectFng78F398": 0x78f398, "pcOLLobbyFng78F320": 0x78f320}
 # Original bOMalloc 0x440e50 -> 0x440d40 runs on both sides (verified by verify_pc_bslotpool.py).
 RETAINED = {"?bOMalloc@": 0x440e50, "?DriveCameraTypeForOption@": 0x502500}
 RETAINED_RANGES = [(0x440e50, 0x440e59), (0x440d40, 0x440d9a), (0x502500, 0x50252b)]
@@ -187,6 +191,12 @@ def main():
         compare("?Value5F2FA0@Player8900AC@", memory, g, struct.pack("<i", step), player, cleanup=4, found=found)
         compare("?CycleCamera@PlayerSettings83AA64@", memory, g, struct.pack("<i", step), 0x83aa64 + 0x28 * index,
                 cleanup=4, mask=0)
+    for player in list(range(-2, 7)) + [0x7fffffff, -0x80000000]:
+        compare("?FngControlMask@", bytearray(0x10000), [], struct.pack("<i", player))
+    for mode in (0, 1, 2, 3, 4, 8, 0x200, 0x100, -1):
+        for value in (0, 1, -1):
+            compare("?Value502FF0@ProfileData83A9D0@", bytearray(0x10000), [(0x83a9d0 + 0x156a8, struct.pack("<i", mode))],
+                    struct.pack("<i", value), 0x83a9d0, cleanup=4)
     report = dict(executable_sha256=hashlib.sha256(raw).hexdigest(), comparisons=counts,
                   functions={p: dict(address=hex(a), size=n,
                                      sha256=hashlib.sha256(image[a - 0x400000:a - 0x400000 + n]).hexdigest())

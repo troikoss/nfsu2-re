@@ -22,6 +22,7 @@ FUNCTIONS = {
     "?Overflow571830@Replay8650B8@": (0x571830, 21),
     "?ApplyReplayEvent@": (0x4a7b30, 131),
     "?ApplyTransmission@HumanDriverInput@": (0x407280, 140),
+    "?ControlEvent@DrivetrainContext@": (0x578e90, 80),
 }
 ARENA, STACK, STOP = 0x2000000, 0x20ff000, 0x2100000
 SLOT34 = STOP + 0x100
@@ -43,7 +44,7 @@ def main():
           (ROOT / "src/Platform/Native/OriginalSymbols.ld").read_text(), re.M)}
     symbols = [s for o in objects for s in read_object(o)["symbols"].values()]
     defined = {s["name"] for s in symbols if s["section"] > 0}
-    externals = {"__ftol2": 0x75bed4, "__fltused": UNUSED}
+    externals = {"__ftol2": 0x75bed4, "__fltused": UNUSED, "_nfs_strcmp": 0x43dc30}
     for s in symbols:
         name = s["name"]
         if s["section"] != 0 or name in defined or name in externals:
@@ -80,7 +81,7 @@ def main():
                 uc.reg_write(UC_X86_REG_ESP, sp + 8)
                 uc.reg_write(UC_X86_REG_EIP, ret)
                 return
-            assert any(a <= address < b for a, b in own + [(0x75bed4, 0x75bf49)]), ("unexpected", hex(address))
+            assert any(a <= address < b for a, b in own + [(0x75bed4, 0x75bf49), (0x43dc30, 0x43dc5c)]), ("unexpected", hex(address))
         uc.hook_add(UC_HOOK_BLOCK, block)
         machines.append(uc)
 
@@ -156,6 +157,21 @@ def main():
         compare("?ApplyReplayEvent@", memory, globals_, struct.pack("<I", event))
         compare("?ApplyTransmission@HumanDriverInput@", memory, globals_, struct.pack("<i", rng.choice((0, 1, 2, 3, 4, -1))),
                 inputs, cleanup=4, mask=0xff)
+    names = [b"INSTANT_REPLAY", b"INSTANT_REPLAY2", b"INSTANT", b"", b"OTHER_CAMERA"]
+    for trial in range(2000):
+        memory, globals_ = scenario()
+        context = ARENA + 0x8000
+        struct.pack_into("<i", memory, 0x8004, rng.choice((0, 1, 7)))
+        nodes = [ARENA + 0x4000 + i * 0x200 for i in range(rng.randrange(0, 4))]
+        chain = [context + 0x98] + nodes
+        for i, node in enumerate(chain):
+            struct.pack_into("<II", memory, node - ARENA, chain[(i + 1) % len(chain)], chain[i - 1])
+        for node in nodes:
+            name = rng.choice(names)
+            memory[node - ARENA + 8:node - ARENA + 8 + len(name) + 1] = name + b"\0"
+            struct.pack_into("<f", memory, node - ARENA + 0x1d8, rng.choice((0.0, 1.5, -3.25, 1e30)))
+        compare("?ControlEvent@DrivetrainContext@", memory, globals_,
+                struct.pack("<fI", rng.choice((0.0, 0.5, 2.0, -1.0)), 0x784558), context, cleanup=8, mask=0)
     report = dict(executable_sha256=hashlib.sha256(raw).hexdigest(), comparisons=counts,
                   functions={p: dict(address=hex(a), size=n,
                                      sha256=hashlib.sha256(image[a - 0x400000:a - 0x400000 + n]).hexdigest())

@@ -71,3 +71,16 @@ mode mapping are detected.
 | `Overflow571830@Replay8650B8` | 0x571830 | 21 | 4000 | `ef4f04903a7c8219783130ad3eb2ea67835aedb799b5b5f5513477db60116bb7` |
 | `ApplyReplayEvent` | 0x4a7b30 | 131 | 4000 | `c37dd316dfa6fae97a0c42aea656199644c4ccca138ec912c44c421b4da14beb` |
 | `ApplyTransmission@HumanDriverInput` | 0x407280 | 140 | 4000 | `012f844e240996ea5bff9d34ca061831228502e69c56d24e17db615020f046db` |
+
+## Replay camera score, control mask and return package
+
+- `DrivetrainContext::ControlEvent` `0x578e90` is a method of the replay object `*0x8650b8`
+  (the drivetrain's view of it): while `+4` is set it adds the value to `+0x1d8` of every camera
+  node in the list at `+0x98` named `INSTANT_REPLAY` (the name argument is unread). The human
+  pedal update calls it while the handbrake is held at speed. Previously a native no-op.
+- `FngControlMask` `0x50d2d0` (one bit per player 0..3) and the profile's return package
+  `0x502ff0` (`UI_Main.fng`, `UI_QRModeSelect.fng` for mode 4, `PC_OL_Lobby.fng` for modes 8 and
+  `0x200`) replace native stubs returning 0.
+
+Both verifiers above cover them (`verify_pc_replay_events.py` 18,000 and
+`verify_pc_small_queries.py` 18,038 comparisons); mutations are detected.

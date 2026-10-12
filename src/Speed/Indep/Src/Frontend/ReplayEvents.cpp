@@ -1,5 +1,7 @@
 #include "PauseOptions.h"
 #include "../Hud/HudPlayerMasks.h"
+#include "../Physics/Drivetrain.h"
+#include "../../Libs/bWare/Strings.h"
 
 extern int collisionFrame7FB724;
 extern PlayerRecord *playerRecords8900AC[2]; // 0x8900ac
@@ -62,4 +64,14 @@ void Replay8650B8::Value578EF0(int type, int playerIndex, int value, bool record
         }
     }
     ApplyReplayEvent(&event);
+}
+
+// Original 0x578e90 on the replay object *0x8650b8 (the drivetrain's view of it): add `value`
+// to the score of every replay camera node named INSTANT_REPLAY. The name argument is unread.
+void DrivetrainContext::ControlEvent(float value, const char *) {
+    if (value4 == 0) return;
+    for (ReplayCameraNode *node = cameras98.next0; node != reinterpret_cast<ReplayCameraNode *>(&cameras98);
+         node = node->next0) {
+        if (nfs_strcmp(node->name8, "INSTANT_REPLAY") == 0) node->score1D8 = value + node->score1D8;
+    }
 }

@@ -823,3 +823,6 @@ gameMessageCount876DC8 = 0x876dc8;
 gameMessages800ECC = 0x800ecc;
 viewMode8707DC = 0x8707dc;
 playerRecords8900AC = 0x8900ac;
+uiMainFng78F530 = 0x78f530;
+uiQRModeSelectFng78F398 = 0x78f398;
+pcOLLobbyFng78F320 = 0x78f320;

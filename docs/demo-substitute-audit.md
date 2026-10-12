@@ -22,10 +22,8 @@ each checkpoint, and commit and push the verified changes before pauses.
 
 Other explicit native boundaries include slot-pool/list allocation in
 `NativeWorld.cpp`, trace/trap methods in `NativeVehicle.cpp` and `NativeHud.cpp`,
-and mod-provider callbacks. The input event dispatcher `0x578e90` currently drops
-the selected event in the native demo. Its original receiver and arguments are
-retained in the recovered caller and checked at the analysis boundary. It has
-not been proven irrelevant to gameplay.
+and mod-provider callbacks. The replay camera score `0x578e90` reached from the pedal update is recovered
+([evidence](pc-collision-notifications.md)).
 
 ## Implemented driving recovery
 

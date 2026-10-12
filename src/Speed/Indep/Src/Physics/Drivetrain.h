@@ -252,12 +252,26 @@ struct DrivetrainAuxiliary {
     float GetTimer414Seconds(); // 0x401860
 };
 
+// Replay camera node in the list at replay +0x98.
+struct ReplayCameraNode {
+    ReplayCameraNode *next0;
+    ReplayCameraNode *previous4;
+    char name8[0x1d0];
+    float score1D8;
+};
+
+// The replay object at *0x8650b8 as the drivetrain sees it.
 struct DrivetrainContext {
-    char unidentified0[0xa0];
+    char unidentified0[4];
+    int value4;
+    char unidentified8[0x90];
+    struct {
+        ReplayCameraNode *next0;
+        ReplayCameraNode *previous4;
+    } cameras98;
     DrivetrainContextEntry *entryA0;
 
-    // Original 0x578e90; dispatch implementation remains a platform seam.
-    void ControlEvent(float value, const char *name);
+    void ControlEvent(float value, const char *name); // 0x578e90
 };
 
 struct DrivetrainRandom {

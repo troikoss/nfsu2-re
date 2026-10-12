@@ -255,7 +255,6 @@ unsigned short NativeControls::GetGuideHeading() { return 0; }
 
 // 0x578e90 event dispatch remains unrecovered. Native intentionally drops the
 // event; the recovered caller retains its original receiver and arguments.
-void DrivetrainContext::ControlEvent(float, const char *) {}
 
 // ---------------------------------------------------------------------------
 // Runtime and vehicle assembly.
