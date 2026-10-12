@@ -30,7 +30,9 @@ extern ForceFeedbackManager *forceFeedbackManager870760;
 
 // Game session object at 0x89e7a0; only +0x38 is observed here.
 struct GameSession89E7A0 {
-    char unidentified0[0x10];
+    char unidentified0[4];
+    int reversed4;        // 0x89e7a4, selects the Backward* race markers
+    char unidentified8[8];
     int raceType10;       // 0x89e7b0, 0 in free roam
     int value14;
     char unidentified18[4];

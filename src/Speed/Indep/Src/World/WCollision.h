@@ -168,6 +168,7 @@ struct WCollider {
     int value30C;
     int value310;
     void Construct();
+    void Destruct(); // 0x5e0bf0
     void ReleaseArea();
     void Release();
     void SetPack(WCollisionPack *pack);

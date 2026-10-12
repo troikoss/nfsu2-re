@@ -19,7 +19,6 @@ extern unsigned char units83AA1A;
 extern HudMinimap *hudMinimap8364D4;
 extern int playerCount8900BC;
 void NativeTrap(const char *what);
-void HudMinimapSeam(const char *what) { NativeTrap(what); }
 
 namespace {
 NativeHud *activeHud = 0;

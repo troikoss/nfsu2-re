@@ -32,14 +32,15 @@ def main():
         assert all(math.isfinite(value) for row in rows for value in row), name
         gears = {int(row[6]) for row in rows}
         maximum = max(row[4] for row in rows)
-        assert maximum > 30, (name, maximum)
+        assert maximum > (30 if name == 'skyline' else 12), (name, maximum)
         displacement = rows[-1][1] - rows[0][1]
-        # This L4RA spawn faces mostly +X. Check movement direction as well as
-        # ratio selection; a finite idle/neutral run must not pass this check.
+        # The original L4RA start grid (TrackPosMarkersFreeRoam.bin slot 0) sits on
+        # parking bays facing +X: a kerb about 20 m ahead and a planter about 5 m behind. Check movement direction as well as ratio
+        # selection; a finite idle/neutral run must not pass this check.
         if name == 'skyline':
-            assert {2, 3} <= gears and displacement > 30, (gears, displacement)
+            assert 2 in gears and displacement > 15, (gears, displacement)
         else:
-            assert 0 in gears and displacement < -30, (gears, displacement)
+            assert 0 in gears and displacement < -3, (gears, displacement)
         print('PASS %s: %d samples, %.1f km/h maximum, gears %s' %
               (name, len(rows), maximum, sorted(gears)))
 

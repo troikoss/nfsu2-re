@@ -93,7 +93,10 @@ probe wrapper at the same address for a different target; also reset FPTAG.
    (native seams: bank storage at `0x861e74`, language 0 at `0x7f70d0`). Gauge `0x4c68d0`,
    map feature `0x4da640` and dispatch `0x4ec5a0` are recovered and drive the native
    HUD. Remaining: caller `0x600590` (blocked on rear-view mirror view `0x5f1e10`).
-6. Follow the audit inventory through vehicle/session construction, complete
+6. The spawn now comes from the original start grid `0x5eb5d0` and free-roam markers
+   (`docs/pc-track-markers.md`); driving smoke from that start reaches 46.6/15.8 km/h
+   (kerb ahead, planter behind). Next: participant setup `0x6065b0` and car ctor `0x604260`.
+7. Follow the audit inventory through vehicle/session construction, complete
    update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/
    presentation. Keep committing/pushing verified checkpoints before pauses.
 

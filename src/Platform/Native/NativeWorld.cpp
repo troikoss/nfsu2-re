@@ -3,6 +3,8 @@
 // visibility, asynchronous reads) is not recovered; every collision pack is loaded.
 #include "NativeWorld.h"
 #include "NativeVehicle.h"
+#include "../../Speed/Indep/Src/World/TrackPositionMarkers.h"
+#include "../../Speed/Indep/Src/Hud/HudMinimap.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -47,6 +49,14 @@ unsigned int Read32(const std::vector<unsigned char> &data, size_t offset) {
 }
 
 }  // namespace
+
+extern TrackInfo *currentTrack883DAC;
+void NativeTrap(const char *what);
+void HudMinimapSeam(const char *what) { NativeTrap(what); }
+
+// Road navigation (0x5da370) needs the unrecovered road network; the free-roam markers make the
+// start grid's navigator fallback unreachable.
+void WRoadNav::Advance5DA370(float, float, int) { NativeTrap("road navigator 0x5da370"); }
 
 // Platform seam for the bWare heap (0x440390 bMalloc / 0x440540 free) that the
 // recovered slot pools (Libs/bWare/bSlotPool.cpp) allocate their blocks from.
@@ -94,93 +104,30 @@ bool LoadNativeTrack(const char *gameDirectory, const char *region, NativeTrack 
         }
         offset += 8 + size;
     }
-    // Scaffold spawn: a flat ROAD polygon near the map centre with road 30 m ahead and
-    // behind along its longest edge (the original race start data is not yet recovered).
-    float minimum[2] = {1e30f, 1e30f}, maximum[2] = {-1e30f, -1e30f};
-    for (WCollisionLink *link = collisionManager.packs0.next; link != &collisionManager.packs0;
-         link = link->next) {
-        WCollisionPack *pack = reinterpret_cast<WCollisionPack *>(link);
-        for (int k = 0; k < 2; ++k) {
-            if (pack->minimum40[k] < minimum[k]) minimum[k] = pack->minimum40[k];
-            if (pack->maximum50[k] > maximum[k]) maximum[k] = pack->maximum50[k];
-        }
+    // Original start: the free-roam marker file (0x57f2d0 picks TrackPosMarkersFreeRoam.bin
+    // when the track number is a multiple of 1000), loaded by recovered 0x5d8470, and the race
+    // grid 0x5eb5d0 as built by 0x6065b0. Native session seam: the one human participant has
+    // grid index 1, so it takes the first of the six positions.
+    std::vector<unsigned char> markerData;
+    path = std::string(gameDirectory) + "/TRACKS/ROUTES" + region + "/TrackPosMarkersFreeRoam.bin";
+    if (!ReadWholeFile(path, &markerData)) {
+        snprintf(error, errorSize, "cannot read %s", path.c_str());
+        return false;
     }
-    float centre[2] = {(minimum[0] + maximum[0]) * 0.5f, (minimum[1] + maximum[1]) * 0.5f};
-    float bestDistance = 1e30f;
-    for (WCollisionLink *link = collisionManager.packs0.next; link != &collisionManager.packs0;
-         link = link->next) {
-        WCollisionPack *pack = reinterpret_cast<WCollisionPack *>(link);
-        for (int i = 0; i < pack->polygonCountC; ++i) {
-            WCollisionPolygon *polygon = &pack->polygons8[i];
-            if (polygon->surface2 != 1 || (polygon->flags3 & 0x0e)) {
-                continue;
-            }
-            float vertices[4][4];
-            polygon->Decode(vertices[0]);
-            int count = (polygon->flags3 & 0x10) ? 4 : 3;
-            float x = 0, y = 0, z = 0, edge[2] = {0, 0}, longest = 0;
-            for (int k = 0; k < count; ++k) {
-                x += vertices[k][0];
-                y += vertices[k][1];
-                z += vertices[k][2];
-                float dx = vertices[(k + 1) % count][0] - vertices[k][0];
-                float dy = vertices[(k + 1) % count][1] - vertices[k][1];
-                float dz = vertices[(k + 1) % count][2] - vertices[k][2];
-                if (dz * dz > 0.01f * (dx * dx + dy * dy)) {
-                    longest = -1;
-                    break;
-                }
-                if (dx * dx + dy * dy > longest) {
-                    longest = dx * dx + dy * dy;
-                    edge[0] = dx;
-                    edge[1] = dy;
-                }
-            }
-            if (longest <= 4.0f) {
-                continue;
-            }
-            x /= count;
-            y /= count;
-            z /= count;
-            float distance = (x - centre[0]) * (x - centre[0]) + (y - centre[1]) * (y - centre[1]);
-            if (distance >= bestDistance) {
-                continue;
-            }
-            float length = sqrtf(longest);
-            bool covered = true;
-            for (int side = -1; side <= 1 && covered; side += 2) {
-                for (float along = 10.0f; along <= 30.0f && covered; along += 10.0f) {
-                    float px = x + side * edge[0] / length * along;
-                    float py = y + side * edge[1] / length * along;
-                    bool hit = false;
-                    for (int q = 0; q < pack->polygonCountC && !hit; ++q) {
-                        WCollisionPolygon *other = &pack->polygons8[q];
-                        if (other->surface2 != 1 || (other->flags3 & 0x0e)) continue;
-                        float v[4][4];
-                        other->Decode(v[0]);
-                        int n = (other->flags3 & 0x10) ? 4 : 3;
-                        bool inside = false;
-                        for (int a = 0, b = n - 1; a < n; b = a++) {
-                            if (((v[a][1] <= py && py < v[b][1]) || (v[b][1] <= py && py < v[a][1]))
-                                && px < (py - v[a][1]) * (v[b][0] - v[a][0]) / (v[b][1] - v[a][1]) + v[a][0]) {
-                                inside = !inside;
-                            }
-                        }
-                        hit = inside;
-                    }
-                    covered = hit;
-                }
-            }
-            if (!covered) {
-                continue;
-            }
-            bestDistance = distance;
-            track->spawn[0] = x;
-            track->spawn[1] = y;
-            track->spawn[2] = z;
-            track->heading = atan2f(edge[1], edge[0]);
-            track->spawnFound = true;
-        }
+    InitialiseTrackPositionMarkers();
+    for (size_t offset = 0; offset + 8 <= markerData.size();) {
+        unsigned int size = Read32(markerData, offset + 4);
+        LoadTrackPositionMarkers(reinterpret_cast<unsigned int *>(CopyChunk(markerData.data(), offset, size)));
+        offset += 8 + size;
     }
+    currentTrack883DAC = FindTrackInfo(4000);
+    StartingPosition positions[6];
+    memset(positions, 0, sizeof(positions));
+    GetStartingPositions(6, positions);
+    track->spawn[0] = positions[0].position0[0];
+    track->spawn[1] = positions[0].position0[1];
+    track->spawn[2] = positions[0].position0[2];
+    track->heading = positions[0].angle10 * (6.28318530718f / 65536.0f);
+    track->spawnFound = true;
     return true;
 }

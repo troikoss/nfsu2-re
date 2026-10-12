@@ -628,6 +628,20 @@ void WCollider::Construct() {
     trackerC.radiusC = -999.0f;
 }
 
+// Original 0x5e0bf0: collider destructor.
+void WCollider::Destruct() {
+    boundsMinimum1C[0] = boundsMinimum1C[1] = 3.40282347e+38f;
+    boundsMaximum24[0] = boundsMaximum24[1] = -3.40282347e+38f;
+    Release();
+    areaMinimum2C[0] = areaMinimum2C[1] = 3.40282347e+38f;
+    areaMaximum34[0] = areaMaximum34[1] = -3.40282347e+38f;
+    trackerC.x0 = 0.0f;
+    trackerC.y4 = 0.0f;
+    trackerC.section8 = 0;
+    trackerC.radiusC = -999.0f;
+    Unlink(&link0);
+}
+
 // Original 0x5d80a0.
 void WCollider::ReleaseArea() {
     int count = areaCount2E0;

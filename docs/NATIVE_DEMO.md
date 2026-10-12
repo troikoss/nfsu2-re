@@ -369,7 +369,8 @@ observations, not equivalence evidence.
   (`0x9c3ce745`) and four XS signs, as recorded in the scenery investigation.
 - Paint, vinyls, damage textures and headlight/brakelight switching are not applied.
 - Every collision pack is loaded at start-up
-  instead of the original streaming, and the spawn point is chosen heuristically.
+  instead of the original streaming. The spawn is the original start grid
+  ([track markers](pc-track-markers.md)); the participant/car setup around it is native.
 - Steering input scaling (±30° road-wheel angle), steering smoothing, device capture
   and partial controls construction are scaffold. Original pedal/reverse processing
   `0x407a30` and forward selection `0x407310` now run after native action capture;
