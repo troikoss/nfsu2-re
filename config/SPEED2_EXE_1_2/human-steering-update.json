@@ -30,6 +30,18 @@
       "size": 31,
       "sha256": "e51ce15d3c0a7f8d2e7fa8609a3b91e198f726e653490f9c5e6aedc2388f6381",
       "method": "IsAnalogInputDevice"
+    },
+    {
+      "address": 4221504,
+      "size": 940,
+      "sha256": "82fc36879e6389afb10f451d3c5f7a2624774d78a3555d2cded187bbaf181718",
+      "method": "UpdateAlternate"
+    },
+    {
+      "address": 5727584,
+      "size": 231,
+      "sha256": "32ea81ed21eda6299a46694d64460804217185b199c049e5d7f554effc35fe17",
+      "method": "Invert"
     }
   ]
 }

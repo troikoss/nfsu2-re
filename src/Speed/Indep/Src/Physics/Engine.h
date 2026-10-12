@@ -11,6 +11,7 @@ struct EngineCurve {
     float inverseSpacing;
     float *samples;
     float Lookup(float input);
+    float Invert(float value); // 0x576560
 };
 
 struct EngineSpec {

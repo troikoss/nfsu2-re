@@ -27,6 +27,7 @@ struct HumanSteering {
     float CalculateMaximum(float input, float duration, int device); // 0x405dc0
     float UpdateKeyboard(float input, float duration, int device); // 0x416bb0
     float UpdateAnalog(float input, float duration, int device); // 0x4061c0
+    float UpdateAlternate(float input, float duration, int device); // 0x406a40
 };
 bool IsAnalogInputDevice(int device); // 0x5c1000
 

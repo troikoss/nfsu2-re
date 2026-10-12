@@ -107,9 +107,22 @@ compile with `/Op`, and an analysis-only `fsqrt` helper stands in for the
 `__CIsqrt` call `/Op` emits (the original uses inline `fsqrt`). The empty-yaw
 case reads a stale stack slot in the original and is not exercised. Mutations
 of the counter limit, recovery ease and recovery floor were detected. Byte
-matching is not established. Dispatcher `0x41dfc0`, alternate steering
-`0x406a40` and force feedback `0x406460` remain, so native steering still uses
-its substitutes.
+matching is not established.
+
+Alternate steering `0x406a40` (selected by global `0x81cb8c`) and inverse
+curve lookup `0x576560` (`EngineCurveInvert.cpp`) are also recovered. The
+alternate path takes its limit from a device/slip-selected speed curve and a
+throttle-minus-brake term; counter-steering scales the slip magnitude by
+global `0x7e93b4`, which it writes. It inverts the current angle through
+shape curve `0x7e9fb4`, moves toward the input by a speed-dependent step
+(doubled away from centre, at least 0.173), maps back, stores the angle and
+limit, and returns the raw input. The inverse lookup returns a knot position
+for samples within 1e-6, interpolates the first crossing interval, or returns
+the last knot. The verifier adds 1,600 alternate cases and 341 inverse
+lookups on six original and five synthetic curves (**8,401** comparisons in
+all); mutations of the return scale and crossing test were detected.
+Dispatcher `0x41dfc0` and force feedback `0x406460` remain, so native
+steering still uses its substitutes.
 
 ## Remaining steering chain
 

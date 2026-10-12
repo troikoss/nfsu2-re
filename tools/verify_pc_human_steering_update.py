@@ -26,8 +26,9 @@ MALLOC, FREE = 0x75c6c8, 0x75c6da
 # Already verified routines executed as original code on both sides.
 CONTROLLED = {'?GetSlipAngle@DrivetrainAuxiliary@@QAEMXZ': 0x591d90,
               '?GetPhysicsSpeed@PhysicsParameters@@QAEMXZ': 0x5b5930}
-FLOATING = ('CalculateMaximum', 'UpdateKeyboard', 'UpdateAnalog', 'GetSteeringSlip')
-CLEANUP = dict(CalculateMaximum=12, UpdateKeyboard=12, UpdateAnalog=12, GetSteeringSlip=0, IsAnalogInputDevice=0)
+FLOATING = ('CalculateMaximum', 'UpdateKeyboard', 'UpdateAnalog', 'GetSteeringSlip', 'UpdateAlternate', 'Invert')
+CLEANUP = dict(CalculateMaximum=12, UpdateKeyboard=12, UpdateAnalog=12, GetSteeringSlip=0, IsAnalogInputDevice=0,
+               UpdateAlternate=12, Invert=4)
 SAVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 FLAGS8 = (0x89e7d8, 0x89e7d9, 0x89e7e2)
 FLAGS32 = (0x890100, 0x890104, 0x890108, 0x890110, 0x890114)
@@ -70,6 +71,7 @@ def main():
         'src/Speed/Indep/Libs/bWare/TimedAverage.cpp', 'src/Speed/Indep/Src/Physics/EngineCurve.cpp',
         'src/Speed/Indep/Src/Physics/DriveFeedbackCurve.cpp', 'src/Speed/Indep/Src/Physics/PairCurveLookup.cpp',
         'src/Speed/Indep/Src/Physics/HumanSteering.cpp'), False),
+        compile_unit('curve-invert', ('src/Speed/Indep/Src/Physics/EngineCurveInvert.cpp',), True),
         compile_unit('steering-update', ('src/Speed/Indep/Src/Physics/HumanSteeringUpdate.cpp',), True)]
     globals_ = {name: int(address, 16) for name, address in re.findall(r'^(\w+) = (0x[0-9a-f]+);',
                 (ROOT / 'src/Platform/Native/OriginalSymbols.ld').read_text(), re.M)}
@@ -219,6 +221,21 @@ def main():
         compare('UpdateAnalog', state, globals_state, (struct.unpack('<I', struct.pack('<f', value))[0],
                                                        struct.unpack('<I', struct.pack('<f', duration))[0], 0))
         compare('GetSteeringSlip', state, globals_state, (), CAR + 0x40)
+        compare('UpdateAlternate', state, globals_state, (struct.unpack('<I', struct.pack('<f', value))[0],
+                                                          struct.unpack('<I', struct.pack('<f', duration))[0], trial % 3))
+    # Inverse lookup on the original curves and synthetic monotonic,
+    # decreasing, plateaued and single-sample curves.
+    curves = [0x7e9e60, 0x7e9eb0, 0x7e9ed8, 0x7e9f00, 0x7e9fb4, 0x7e9fdc]
+    synthetic = [[0.0, 0.1, 0.4, 0.9, 1.0], [1.0, 0.5, 0.5, 0.2, 0.0], [0.2, 0.2, 0.2], [0.5], [0.0, 1.0, 0.0, 1.0]]
+    for k, samples in enumerate(synthetic):
+        curve = BASE + 0xe000 + k * 0x80
+        curves.append(curve)
+        state_extra = struct.pack('<ifffI', len(samples), -1.0 + k, 3.0, (len(samples) - 1) / 4.0 or 1.0, curve + 0x20) + bytes(12) + \
+            b''.join(struct.pack('<f', v) for v in samples)
+        constructed[curve - BASE:curve - BASE + len(state_extra)] = state_extra
+    for curve in curves:
+        for value in [i / 16.0 for i in range(-4, 21)] + [0.1000001, 0.0999999, 1e-7, -0.0, nan, 1e6]:
+            compare('Invert', constructed, [], (struct.unpack('<I', struct.pack('<f', value))[0],), curve)
     for device in range(-1, 9):
         for present in (0, 1):
             for flag in (0, 1, 0x80):

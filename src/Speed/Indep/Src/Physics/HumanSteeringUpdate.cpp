@@ -194,3 +194,78 @@ float HumanSteering::UpdateAnalog(float input, float duration, int) {
     angle7C = (unsigned short)(units / 360);
     return input;
 }
+
+extern EngineCurve steeringAlternateAnalogCurve;     // 0x7e9f78
+extern EngineCurve steeringAlternateCurve;           // 0x7e9f8c
+extern EngineCurve steeringAlternateRateCurve;       // 0x7e9fa0
+extern EngineCurve steeringAlternateShapeCurve;      // 0x7e9fb4
+extern EngineCurve steeringAlternateSlipCurve;       // 0x7e9fc8
+extern EngineCurve steeringAlternateCounterCurve;    // 0x7e9fdc
+extern float steeringAlternateCounter;               // .data 0x7e93b4, written here
+extern float steeringAlternateRateScale9470;
+extern float steeringAlternateReturnScale;
+extern float steeringAlternateMinimumStep;
+
+// 0x406a40: alternate steering (global 0x81cb8c). The limit comes from a
+// speed curve chosen by device and slip state and a throttle-minus-brake
+// term; counter-steering scales the slip magnitude by global 0x7e93b4, which
+// this routine sets. The current angle is inverted through shape curve
+// 0x7e9fb4, moved toward the input by a speed-dependent step (doubled when
+// moving away from centre, at least 0.173), and mapped back. Stores the
+// angle and limit; returns the raw input.
+float HumanSteering::UpdateAlternate(float input, float duration, int device) {
+    float current = (float)angle7C * steeringDegreesPerUnit;
+    if (!(current < steeringHalfTurn)) current = (float)((double)current - steeringFullTurn);
+    MoverModeOwner *car = car0;
+    double slip = (double)car->State()->GetSlipAngle() * steeringRadiansToDegrees;
+    float signedSlip = (float)slip;
+    double magnitude = fabs(slip);
+    float slipMagnitude = (float)magnitude;
+    WheelVector *velocity = &car->State()->velocity30;
+    float velocityMagnitude = (float)sqrt(((double)velocity->x * velocity->x + (double)velocity->y * velocity->y)
+                                          + (double)velocity->z * velocity->z);
+    if (flag10) {
+        if (magnitude < steeringSlipExit || velocityMagnitude < steeringSlipExitSpeed) flag10 = 0;
+    } else if (magnitude > steeringSlipEnter && velocityMagnitude >= steeringSlipEnterSpeed) {
+        flag10 = 1;
+    }
+    EngineCurve *curve;
+    if (IsAnalogInputDevice(device)) curve = &steeringAlternateAnalogCurve;
+    else if (IsModeGroup3() && flag10) curve = &steeringAlternateSlipCurve;
+    else curve = &steeringAlternateCurve;
+    double base = curve->Lookup(car->speed42C);
+    MoverInput *pedals = car->input30;
+    float limit = (float)((((1.0f - (((double)pedals->throttle20C - pedals->brake214) + 1.0f) * 0.5f))
+                           * steeringPedalScale + 1.0f) * base);
+    if ((double)signedSlip * input < 0.0 && (flag10 || slipMagnitude > limit)) {
+        if (IsAnalogInputDevice(device)) {
+            steeringAlternateCounter = 1.0f;
+        } else {
+            EngineCurve *counter = IsModeGroup3() ? &steeringCounterCurveGroup3 : &steeringAlternateCounterCurve;
+            steeringAlternateCounter = counter->Lookup((float)fabs(input));
+        }
+        limit = (float)((double)steeringAlternateCounter * slipMagnitude);
+        double cap = (double)steeringAlternateCounter * steeringMaximumAngle;
+        if (limit > cap) limit = (float)cap;
+    }
+    double ratio = (double)current / limit;
+    float shaped = (float)ratio;
+    float position = steeringAlternateShapeCurve.Invert((float)fabs(ratio));
+    if (shaped < 0.0f) position = -position;
+    float delta = (float)((double)input - position);
+    double step = (double)steeringAlternateRateCurve.Lookup(car->speed42C) * steeringAlternateRateScale9470;
+    if ((position > 0.0f && position > input) || (position < 0.0f && position < input))
+        step = step * steeringAlternateReturnScale;
+    step = step * duration;
+    if (step < steeringAlternateMinimumStep) step = steeringAlternateMinimumStep;
+    if (delta > step) delta = (float)step;
+    else if (delta < -step) delta = (float)-step;
+    position = (float)((double)delta + position);
+    double angle = (double)steeringAlternateShapeCurve.Lookup((float)fabs(position)) * limit;
+    if (position < 0.0f) angle = -angle;
+    angle = angle * car->record20->preparation270.value0;
+    value80 = limit;
+    int units = (int)(angle * steeringUnitsPerDegreeScale);
+    angle7C = (unsigned short)(units / 360);
+    return input;
+}
