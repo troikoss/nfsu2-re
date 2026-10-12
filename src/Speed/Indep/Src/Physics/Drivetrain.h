@@ -119,6 +119,7 @@ struct DrivetrainWheel {
     void PrepareForces(float unidentifiedArgument, int mode);
     void UpdateLockState(float input);
     float EvaluateLateralForce(float input, float angle);
+    void GetBlendedBasis(WheelVector *output); // 0x59daf0
 };
 
 struct DrivetrainComponent {

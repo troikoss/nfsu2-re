@@ -28,6 +28,7 @@ struct HumanSteering {
     float UpdateKeyboard(float input, float duration, int device); // 0x416bb0
     float UpdateAnalog(float input, float duration, int device); // 0x4061c0
     float UpdateAlternate(float input, float duration, int device); // 0x406a40
+    void UpdateForceFeedback(float input, int device); // 0x406460
 };
 bool IsAnalogInputDevice(int device); // 0x5c1000
 

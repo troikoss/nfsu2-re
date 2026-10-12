@@ -267,6 +267,13 @@ struct MoverOwnerLink {
 
 struct VehicleMover;
 
+// Car object +0x18; +0x10 selects a 0x28-byte row of the table at 0x83aa68.
+struct MoverRaceEntry {
+    char unidentified0[0x10];
+    int index10;
+    int QueryFlag5EB420(); // 0x5eb420
+};
+
 // Car object +0x1c. Only fields used by mover routines are named.
 struct MoverOwnerObject {
     char unidentified0[0x10];
@@ -400,7 +407,7 @@ struct MoverModeOwner {
     char unidentified0[0x10];
     PhysicsInfo *physicsInfo10;
     MoverContext *context14;
-    char unidentified18[4];
+    struct MoverRaceEntry *raceEntry18;
     MoverOwnerObject *object1C;
     CarPhysicsRecord *record20;
     int value24;

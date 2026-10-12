@@ -25,10 +25,17 @@ STEERING, CAR, INFO, INPUT, BODY = BASE, BASE + 0x9000, BASE + 0xa000, BASE + 0x
 MALLOC, FREE = 0x75c6c8, 0x75c6da
 # Already verified routines executed as original code on both sides.
 CONTROLLED = {'?GetSlipAngle@DrivetrainAuxiliary@@QAEMXZ': 0x591d90,
-              '?GetPhysicsSpeed@PhysicsParameters@@QAEMXZ': 0x5b5930}
+              '?GetPhysicsSpeed@PhysicsParameters@@QAEMXZ': 0x5b5930,
+              '?WheelLength@@YAMPAUWheelVector@@@Z': 0x440f70}
+# Unrecovered force-feedback manager methods: hooked on both sides, which
+# record each call and return scripted answers. Values are argument counts.
+FF_METHODS = {0x5bfd70: 1, 0x5bfd90: 2, 0x5bfe00: 1, 0x5bfe70: 1, 0x5c9150: 4, 0x5c9040: 2, 0x5c9550: 3,
+              0x5c9590: 2, 0x5c9760: 2, 0x5c9d90: 2, 0x5c9fd0: 4, 0x5cd850: 1, 0x5cd910: 1, 0x5cd9d0: 1,
+              0x5cda10: 1, 0x5cdbb0: 1}
+FF_MANAGER = 0x2100f00
 FLOATING = ('CalculateMaximum', 'UpdateKeyboard', 'UpdateAnalog', 'GetSteeringSlip', 'UpdateAlternate', 'Invert')
 CLEANUP = dict(CalculateMaximum=12, UpdateKeyboard=12, UpdateAnalog=12, GetSteeringSlip=0, IsAnalogInputDevice=0,
-               UpdateAlternate=12, Invert=4)
+               UpdateAlternate=12, Invert=4, UpdateForceFeedback=8, GetBlendedBasis=4, QueryFlag5EB420=0, Query4018F0=0)
 SAVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 FLAGS8 = (0x89e7d8, 0x89e7d9, 0x89e7e2)
 FLAGS32 = (0x890100, 0x890104, 0x890108, 0x890110, 0x890114)
@@ -70,9 +77,10 @@ def main():
     objects = [compile_unit('steering-dependencies', (
         'src/Speed/Indep/Libs/bWare/TimedAverage.cpp', 'src/Speed/Indep/Src/Physics/EngineCurve.cpp',
         'src/Speed/Indep/Src/Physics/DriveFeedbackCurve.cpp', 'src/Speed/Indep/Src/Physics/PairCurveLookup.cpp',
-        'src/Speed/Indep/Src/Physics/HumanSteering.cpp'), False),
+        'src/Speed/Indep/Src/Physics/HumanSteering.cpp', 'src/Speed/Indep/Src/Physics/EngineMath.cpp'), False),
         compile_unit('curve-invert', ('src/Speed/Indep/Src/Physics/EngineCurveInvert.cpp',), True),
-        compile_unit('steering-update', ('src/Speed/Indep/Src/Physics/HumanSteeringUpdate.cpp',), True)]
+        compile_unit('steering-update', ('src/Speed/Indep/Src/Physics/HumanSteeringUpdate.cpp',
+                                         'src/Speed/Indep/Src/Physics/HumanSteeringFeedback.cpp'), True)]
     globals_ = {name: int(address, 16) for name, address in re.findall(r'^(\w+) = (0x[0-9a-f]+);',
                 (ROOT / 'src/Platform/Native/OriginalSymbols.ld').read_text(), re.M)}
     externals = {'_malloc': MALLOC, '_free': FREE, '__ftol2': CONVERSION[0], '__fltused': BASE + 0xff00, '__CIsqrt': CISQRT}
@@ -82,6 +90,9 @@ def main():
             match = re.match(r'^\?(\w+)@@', symbol['name'])
             if symbol['section'] == 0 and match and match[1] in globals_:
                 externals[symbol['name']] = globals_[match[1]]
+            ff = re.match(r'^\?\w+([0-9A-F]{6})@ForceFeedbackManager@@', symbol['name'])
+            if symbol['section'] == 0 and ff:
+                externals[symbol['name']] = int(ff[1], 16)
     linked = link_objects(objects, externals)
     entries = {}
     for f in manifest['functions']:
@@ -91,6 +102,7 @@ def main():
     construct = (0x405c60, [a for s, a in linked['exports'].items() if s.startswith('?Construct@HumanSteering@')][0])
     runtime = [(CONVERSION[0], CONVERSION[0] + CONVERSION[1])]
     machines, cursors = [], [0, 0]
+    traces, answers = [[], []], {}
     for side in (0, 1):
         uc = Uc(UC_ARCH_X86, UC_MODE_32)
         uc.mem_map(0x400000, (len(image) + 4095) & ~4095)
@@ -114,6 +126,17 @@ def main():
             allowed = allowed + constructor_ranges
 
         def hook(machine, address, size, user, side=side, allowed=allowed):
+            if address in FF_METHODS:
+                sp = machine.reg_read(UC_X86_REG_ESP)
+                count = FF_METHODS[address]
+                args = struct.unpack('<%dI' % count, machine.mem_read(sp + 4, 4 * count))
+                traces[side].append((hex(address), hex(machine.reg_read(UC_X86_REG_ECX)), args))
+                machine.reg_write(UC_X86_REG_EAX, answers.get((address, args[1] if count > 1 else None), answers.get(address, 0)))
+                machine.reg_write(UC_X86_REG_ECX, 0xeeeeeeee)
+                machine.reg_write(UC_X86_REG_EDX, 0xffffffff)
+                machine.reg_write(UC_X86_REG_EIP, struct.unpack('<I', machine.mem_read(sp, 4))[0])
+                machine.reg_write(UC_X86_REG_ESP, sp + 4 + 4 * count)
+                return
             if address in (MALLOC, FREE):
                 sp = machine.reg_read(UC_X86_REG_ESP)
                 if address == MALLOC:
@@ -145,6 +168,7 @@ def main():
 
     def compare(method, state, globals_state, args, receiver=STEERING):
         outcomes = []
+        traces[0][:], traces[1][:] = [], []
         for side, (uc, wrappers) in enumerate(machines):
             uc.mem_write(BASE, bytes(state))
             for address, data in globals_state:
@@ -158,9 +182,12 @@ def main():
             else:
                 run(uc, entries[method][side], [STOP] + words, receiver)
                 assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4 + CLEANUP[method], method
-                result = uc.reg_read(UC_X86_REG_EAX) & 0xff
+                result = uc.reg_read(UC_X86_REG_EAX) & (0xffffffff if method == 'QueryFlag5EB420' else 0xff)
+                if method in ('UpdateForceFeedback', 'GetBlendedBasis'):
+                    result = None
             assert (uc.reg_read(UC_X86_REG_FPSW) >> 11) & 7 == 0, method
             outcomes.append((bytes(uc.mem_read(BASE, 0x10000)), result))
+        assert traces[0] == traces[1], (method, counts[method], traces)
         assert outcomes[0] == outcomes[1], (method, counts[method], args,
                                             next((hex(BASE + i) for i, (a, b) in enumerate(zip(outcomes[0][0], outcomes[1][0])) if a != b), None),
                                             outcomes[0][1], outcomes[1][1])
@@ -236,6 +263,47 @@ def main():
     for curve in curves:
         for value in [i / 16.0 for i in range(-4, 21)] + [0.1000001, 0.0999999, 1e-7, -0.0, nan, 1e6]:
             compare('Invert', constructed, [], (struct.unpack('<I', struct.pack('<f', value))[0],), curve)
+    # Force feedback: every guard, both stop branches, torque/spring/jolt/load/
+    # surface/rumble paths with scripted manager answers.
+    rng = random.Random(0x406460)
+    ff_cases = 0
+    for trial in range(3000):
+        state = bytearray(constructed)
+        car = CAR - BASE
+        mover, wheel0, wheel1, entry, flow = 0xc000, 0xc400, 0xc800, 0xcc00, 0xcd00
+        struct.pack_into('<i', state, car + 0x28, (1, 1, 1, 1, 0, 2)[trial % 6])
+        struct.pack_into('<I', state, car + 0x18, 0 if trial % 23 == 0 else BASE + entry)
+        struct.pack_into('<I', state, car + 0x34, BASE + mover)
+        struct.pack_into('<II', state, mover + 0x38, BASE + wheel0, BASE + wheel1)
+        for wheel in (wheel0, wheel1):
+            struct.pack_into('<fff', state, wheel + 0xb0, *(rng.uniform(-2, 2) for _ in range(3)))
+            struct.pack_into('<fff', state, wheel + 0xc0, *(rng.uniform(-2, 2) for _ in range(3)))
+            struct.pack_into('<ff', state, wheel + 0x124, rng.choice((0.0, rng.uniform(-900, 900))), rng.choice((0.0, rng.uniform(-900, 900))))
+        struct.pack_into('<fff', state, car + 0x70, *(rng.choice((0.0, rng.uniform(-60, 60))) for _ in range(3)))
+        struct.pack_into('<ffff', state, car + 0x370, *(rng.choice((0.0, rng.uniform(0, 0.3))) for _ in range(4)))
+        struct.pack_into('<BB', state, car + 0x390, rng.randrange(2), rng.randrange(2))
+        struct.pack_into('<ii', state, car + 0x394, rng.choice((0, 8, 9, 10, 11, 12, 13, 15, 16, 17)), rng.choice((0, 8, 9, 10, 11, 13, 15, 16, 17, 18)))
+        index = rng.randrange(4)
+        struct.pack_into('<i', state, entry + 0x10, index)
+        struct.pack_into('<i', state, flow, (4, 4, 4, 3)[trial % 4])
+        struct.pack_into('<ff', state, 0x08, 1.0, rng.choice((7.0, 3.5)))
+        device = rng.randrange(4)
+        answers.clear()
+        answers[0x5bfd70] = int(trial % 17 != 0)
+        answers[0x5bfd90] = rng.randrange(2)
+        answers[0x5c9040] = rng.randrange(2)
+        globals_state = [(0x870760, struct.pack('<I', 0 if trial % 29 == 0 else FF_MANAGER)),
+                         (0x8900d8, struct.pack('<I', 0 if trial % 31 == 0 else BASE + flow)),
+                         (0x83aa68 + index * 0x28, bytes([int(trial % 5 != 0)])),
+                         (0x89e7a0 + 0x38, bytes([int(trial % 7 == 0)])), (0x890108, struct.pack('<i', int(trial % 11 == 0))),
+                         (0x86518c, struct.pack('<i', 1000 + trial * 37)),
+                         (0x827aac + device * 4, struct.pack('<f', rng.choice((0.0, rng.uniform(0, 80))))),
+                         (0x827aa4 + device * 4, struct.pack('<f', rng.choice((0.0, rng.uniform(0, 30), 1e6))))]
+        value = rng.choice((1.0, -1.0, 0.5, 0.0, rng.uniform(-1, 1)))
+        compare('UpdateForceFeedback', state, globals_state, (struct.unpack('<I', struct.pack('<f', value))[0], device))
+        compare('GetBlendedBasis', state, globals_state, (BASE + 0xce00,), BASE + wheel0)
+        compare('QueryFlag5EB420', state, globals_state, (), BASE + entry)
+        compare('Query4018F0', state, globals_state, (), 0x89e7a0)
     for device in range(-1, 9):
         for present in (0, 1):
             for flag in (0, 1, 0x80):
@@ -246,7 +314,8 @@ def main():
                   byte_matching='not established',
                   controlled_interfaces=['0x591d90 slip angle and 0x5b5930 physics speed execute as original code on both sides (verified separately)',
                                          'malloc 0x75c6c8/free 0x75c6da for the original constructor',
-                                         'analysis-only fsqrt helper for MSVC /Op __CIsqrt (original uses inline fsqrt)'],
+                                         'analysis-only fsqrt helper for MSVC /Op __CIsqrt (original uses inline fsqrt)',
+                                         '0x440f70 vector length runs as original code; force-feedback manager methods are hooked, traced and scripted'],
                   limitations=['Synthetic car/input states on 46 retail records; physics speed uses a synthetic drive curve with a set class index.',
                                'Recovery curve 0x81e5b0 (runtime-filled) uses synthetic pairs with counts 4/0/1.',
                                'The yaw feedback curve leaves its output unchanged when empty; the original then reads a stale stack slot.',

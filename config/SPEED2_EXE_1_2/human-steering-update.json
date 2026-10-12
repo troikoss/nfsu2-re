@@ -42,6 +42,30 @@
       "size": 231,
       "sha256": "32ea81ed21eda6299a46694d64460804217185b199c049e5d7f554effc35fe17",
       "method": "Invert"
+    },
+    {
+      "address": 4220000,
+      "size": 1492,
+      "sha256": "e38deecfa9e2751aacc4195a5e17732541c2f907e14b5f5a8a2ef12d42186d4b",
+      "method": "UpdateForceFeedback"
+    },
+    {
+      "address": 5888752,
+      "size": 95,
+      "sha256": "275930fc8d04aa12e1f14b1bb16f4a36c734b8faf04c2a612eb22659ff6c11e5",
+      "method": "GetBlendedBasis"
+    },
+    {
+      "address": 6206496,
+      "size": 15,
+      "sha256": "62ae21750ff0fa6dea48924d4c37e7404daf61301138f11b93a0bd2e6aa30d72",
+      "method": "QueryFlag5EB420"
+    },
+    {
+      "address": 4200688,
+      "size": 25,
+      "sha256": "aebdac7bdc60669022492b9ac895e9056df1de77347e3c232ca651e29b554208",
+      "method": "Query4018F0"
     }
   ]
 }

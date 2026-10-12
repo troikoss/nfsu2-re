@@ -121,8 +121,24 @@ for samples within 1e-6, interpolates the first crossing interval, or returns
 the last knot. The verifier adds 1,600 alternate cases and 341 inverse
 lookups on six original and five synthetic curves (**8,401** comparisons in
 all); mutations of the return scale and crossing test were detected.
-Dispatcher `0x41dfc0` and force feedback `0x406460` remain, so native
-steering still uses its substitutes.
+Force feedback `0x406460` (`HumanSteeringFeedback.cpp`) is recovered with
+helpers `0x59daf0` (wheel basis blend), `0x5eb420` (race-entry table flag)
+and `0x4018f0` (session/890108 test). For a human car with an FF device in
+game-flow state 4 it stops all effects outside the race-entry/session
+conditions; otherwise it drives centring from the input, steering torque
+from the front wheels' lateral basis force scaled by valueC (7), a spring
+weakening with speed, jolts on sudden speed loss or suspension load (with a
+0.15 s interval at 0x827aa4), a surface effect from wheel surfaces
++0x394/+0x398 and a rumble on surface 13 above 23. The FF-manager methods at
+`*0x870760` (DirectInput effects) stay unrecovered and are declared in
+`ForceFeedback.h`; natively the manager is null, the routine returns at its
+guard, and the methods are native traps. The verifier hooks those methods on
+both sides, records every call with its receiver and arguments, scripts their
+boolean answers and compares the traces: 3,000 FF cases and 3,000 each for the
+three helpers, **21,401** comparisons in all. `0x440f70` (vector length) runs
+as original code. Mutations of a surface kind, the jolt interval and the
+torque clamp were detected. Dispatcher `0x41dfc0` remains, so native steering
+still uses its substitutes.
 
 ## Remaining steering chain
 

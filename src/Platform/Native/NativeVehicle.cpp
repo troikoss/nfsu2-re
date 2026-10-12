@@ -3,6 +3,7 @@
 #include "NativeModBridge.h"
 #endif
 #include "../../Speed/Indep/Libs/bWare/Strings.h"
+#include "../../Speed/Indep/Src/Physics/ForceFeedback.h"
 #include "OriginalImage.h"
 #include "../../Speed/Indep/Src/Physics/VehicleIntegrator.h"
 #include "../../Speed/Indep/Src/Physics/VehicleAllocation.h"
@@ -182,6 +183,24 @@ unsigned int bGetTicker() {
 
 // Unrecovered original routines. The demo state never reaches them; if it does, stop.
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
+// Force-feedback device manager (*0x870760) methods are unrecovered DirectInput effects.
+// Natively the manager pointer is null, so recovered 0x406460 never reaches them.
+bool ForceFeedbackManager::HasDevice5BFD70(int) { NativeTrap("force feedback 0x5bfd70"); return false; }
+bool ForceFeedbackManager::IsEffectActive5BFD90(int, int) { NativeTrap("force feedback 0x5bfd90"); return false; }
+void ForceFeedbackManager::Stop5BFE00(int) { NativeTrap("force feedback 0x5bfe00"); }
+void ForceFeedbackManager::Stop5BFE70(int) { NativeTrap("force feedback 0x5bfe70"); }
+void ForceFeedbackManager::Play5C9150(int, int, int, int) { NativeTrap("force feedback 0x5c9150"); }
+bool ForceFeedbackManager::IsEffectActive5C9040(int, int) { NativeTrap("force feedback 0x5c9040"); return false; }
+void ForceFeedbackManager::SetConstant5C9550(int, int, int) { NativeTrap("force feedback 0x5c9550"); }
+void ForceFeedbackManager::SetSpring5C9590(int, int) { NativeTrap("force feedback 0x5c9590"); }
+void ForceFeedbackManager::PlayJolt5C9760(int, int) { NativeTrap("force feedback 0x5c9760"); }
+void ForceFeedbackManager::SetRumble5C9D90(int, int) { NativeTrap("force feedback 0x5c9d90"); }
+void ForceFeedbackManager::SetSurface5C9FD0(int, int, int, int) { NativeTrap("force feedback 0x5c9fd0"); }
+void ForceFeedbackManager::Stop5CD850(int) { NativeTrap("force feedback 0x5cd850"); }
+void ForceFeedbackManager::Stop5CD910(int) { NativeTrap("force feedback 0x5cd910"); }
+void ForceFeedbackManager::Stop5CD9D0(int) { NativeTrap("force feedback 0x5cd9d0"); }
+void ForceFeedbackManager::Start5CDA10(int) { NativeTrap("force feedback 0x5cda10"); }
+void ForceFeedbackManager::Stop5CDBB0(int) { NativeTrap("force feedback 0x5cdbb0"); }
 // Skid-mark trail methods belong to the skid-mark renderer (0x5e6e70/0x5d3230).
 // Scaffold: record segments for the demo renderer instead of the original effect.
 NativeSkidSegment nativeSkidSegments[NATIVE_SKID_CAPACITY];
