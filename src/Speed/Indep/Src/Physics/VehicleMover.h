@@ -328,7 +328,7 @@ struct PhysicsParameters {
     signed char index4;
     char unidentified5[3];
     float value8;
-    char unidentifiedC[4];
+    float valueC;
     float value10;
     float value14;
     float value18;
@@ -341,9 +341,11 @@ struct PhysicsParameters {
     float curveSamples45C[64];
     EngineCurve driveCurve55C;
     PhysicsParameters *Construct(); // 0x5ac6e0
-    void Compose(int mode, int refresh, int flag);
+    void Compose(int mode, int refresh, int flag); // 0x5b4dc0
     void Refresh(int refresh, int flag, char select);
     float GetPhysicsSpeed(); // 0x5b5930
+    float GetDriveArea(); // 0x59a350
+    void SimulatePerformance(); // 0x5b06a0
 };
 UG2_CHECK_OFFSET(PhysicsParameters, record30, 0x30);
 UG2_CHECK_OFFSET(PhysicsParameters, selection2E0, 0x2e0);

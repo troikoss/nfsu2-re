@@ -77,10 +77,11 @@ probe wrapper at the same address for a different target; also reset FPTAG.
    and verified (`PhysicsTuningValues.cpp`, `tools/verify_pc_physics_tuning_values.py`,
    ~7.5 min). Native CarTypeInfo/tuning-table installation is still absent,
    so none of it runs natively yet.
-3. Recover enclosing parameter composer `0x5b4dc0`, class-index calculation,
-   performance helper `0x5b06a0`, real descriptor installation and source table
-   lifecycle. Integrate its original call chain and remove native manual
-   composition as evidence permits; do not force empty tables to evade callees.
+3. Composer `0x5b4dc0` (+ `0x59a350`, `0x5b06a0`) is recovered, verified
+   (`tools/verify_pc_physics_compose.py`, ~20 min; `UG2_COMPOSE_TRIAL=n` runs
+   one trial) and builds the native car. Remaining seams: CarTypeInfo chunk
+   loader, tuning-table (`0x86b340`) loader and the caller binding tuning to
+   its car; recover them to make native tuning run.
 4. Continue human steering (`0x405dc0`, `0x41dfc0`, keyboard `0x416bb0`, analog
    `0x4061c0`, alternate `0x406a40`, device capture `0x571a60`, constructors).
    The native smoothing at 2.5 units/s and ±30° angle scaling remain substitutes.

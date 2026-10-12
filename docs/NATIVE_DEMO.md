@@ -317,11 +317,15 @@ every 30 frames afterwards; `UG2_DEBUG_PAUSE=1` prints delivered messages and ga
 - `NativeVehicle.cpp`: vtable shims forwarding each original slot to the recovered
   method, the `New...` allocation factories, the D3DX matrix multiply,
   scaffold race-status/context/random
-  objects, keyboard capture, and stock source rows loaded from GLOBALB.BUN
-  CarTypeInfo `+0x110`. Recovered `0x5ac4f0` now builds the stock physics record;
-  extra adjustment `0x5997e0` follows it. Descriptor loading, full tuning
-  application and enclosing parameter composition remain
-  unfinished. See [physics parameter evidence](pc-physics-parameters.md).
+  objects, keyboard capture, and the GLOBALB.BUN CarTypeInfo chunk kept resident
+  and installed as original table pointer `0x8a1ccc` (the chunk loader is
+  unrecovered). `CreateNativeVehicle` binds the tuning object to its car,
+  selection and record (the original caller is unrecovered) and runs recovered
+  composer `0x5b4dc0` in free-drive mode without the performance run: stock
+  build, extras, tuning when active, drive curve and the original class index.
+  The tuning-table loader is unrecovered, so no tuning entries are installed and
+  full tuning does not run natively yet. See
+  [physics parameter evidence](pc-physics-parameters.md).
 - `DemoMain.cpp`: SDL2/OpenGL window and input; `NativeFng.cpp`/`NativeHud.cpp`: FNG HUD;
   `NativePause.cpp`: pause menu seams (see above); `NativeAssets.cpp`/
   `NativeScene.cpp` read and draw the original car and scenery assets (see above).

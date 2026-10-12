@@ -30,6 +30,8 @@ void NativeTrap(const char *what) {
 // body 0x7a20c4, wheel 0x7a20e8, arm 0x7a210c, engine 0x7a235c, drivetrain 0x7a2508.
 // Each native slot forwards to the recovered method; tiny slot bodies are noted.
 
+extern unsigned char *carTypeInfoTable; // original 0x8a1ccc
+
 namespace {
 
 template <class Self>
@@ -179,7 +181,6 @@ unsigned int bGetTicker() {
 }
 
 // Unrecovered original routines. The demo state never reaches them; if it does, stop.
-void PhysicsParameters::Compose(int, int, int) { NativeTrap("car record composer 0x5b4dc0"); }
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
 // Skid-mark trail methods belong to the skid-mark renderer (0x5e6e70/0x5d3230).
 // Scaffold: record segments for the demo renderer instead of the original effect.
@@ -266,17 +267,20 @@ unsigned int Read32(const std::vector<unsigned char> &data, size_t offset) {
 }
 
 // Platform scaffolding for the GLOBALB.BUN CarTypeInfo chunk (0x34600). The original
-// chunk loader and enclosing parameter composition remain unrecovered. Recovered
-// 0x5ac4f0/0x5997e0 build and adjust the full CarTypeInfo +0x110 source row.
-bool LoadStockRecord(const char *gameDirectory, const char *carName, CarPhysicsRecord *record,
-                     PhysicsUpgradeSelection *selection,
+// chunk loader remains unrecovered; this seam keeps the chunk's 0x890-byte rows resident
+// and installs them as the original table pointer 0x8a1ccc, which recovered composer
+// 0x5b4dc0 and the tuning helpers index by car (declared at file scope above).
+
+bool LoadCarTypeInfo(const char *gameDirectory, const char *carName,
                      CameraSettingsTable *cameraSettings, int *carIndex, char *modelName, char *error,
                      int errorSize) {
-    std::vector<unsigned char> bundle;
-    std::string path = std::string(gameDirectory) + "/GLOBAL/GLOBALB.BUN";
-    if (!ReadFile(path, &bundle)) {
-        snprintf(error, errorSize, "cannot read %s", path.c_str());
-        return false;
+    static std::vector<unsigned char> bundle;
+    if (bundle.empty()) {
+        std::string path = std::string(gameDirectory) + "/GLOBAL/GLOBALB.BUN";
+        if (!ReadFile(path, &bundle)) {
+            snprintf(error, errorSize, "cannot read %s", path.c_str());
+            return false;
+        }
     }
     for (size_t offset = 0; offset + 8 <= bundle.size();) {
         unsigned int id = Read32(bundle, offset);
@@ -284,16 +288,10 @@ bool LoadStockRecord(const char *gameDirectory, const char *carName, CarPhysicsR
         if (id == 0x34600) {
             size_t table = offset + 8 + 8;
             int count = (int)((size - 8) / 0x890);
+            carTypeInfoTable = &bundle[table];
             for (int i = 0; i < count; ++i) {
                 const char *name = reinterpret_cast<const char *>(&bundle[table + i * 0x890]);
                 if (strncmp(name, carName, 32) == 0) {
-                    // Native bundle/file access remains a platform seam. Compose
-                    // the requested stock grades with original 0x5ac4f0 instead
-                    // of treating the raw source row as a finished record.
-                    PhysicsUpgradeSource source;
-                    memcpy(&source, &bundle[table + i * 0x890 + 0x110], sizeof(source));
-                    source.BuildRecord(record, selection, 0);
-                    source.ApplyExtra(record, selection);
                     memcpy(cameraSettings, &bundle[table + i * 0x890 + 0x720], sizeof(CameraSettingsTable));
                     memcpy(modelName, &bundle[table + i * 0x890 + 0x20], 32);
                     modelName[31] = 0;
@@ -395,16 +393,19 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     info->parameters10.Construct();
     int carIndex = 0;
     char carTypeName[32];
-    if (!LoadStockRecord(gameDirectory, carName, &info->parameters10.record30, &info->parameters10.selection2E0, &vehicle->cameraSettings, &carIndex, carTypeName,
-                         error, errorSize)) {
+    if (!LoadCarTypeInfo(gameDirectory, carName, &vehicle->cameraSettings, &carIndex, carTypeName, error, errorSize)) {
         return false;
     }
-    info->parameters10.value0 = carIndex;
-    // Native stock-record entry seam: full 0x5b4dc0 tuning composition
-    // and its computed class index remain unresolved. Keep the recovered
-    // constructor and drive-curve builder instead of inventing their fields.
-    info->parameters10.index4 = 0;
-    BuildPhysicsDriveCurve(&info->parameters10.driveCurve55C, &info->parameters10);
+    PhysicsParameters *parameters = &info->parameters10;
+    parameters->value0 = carIndex;
+    // Native parameter entry seam: the original caller that binds the tuning
+    // object to its car, selection and record is unrecovered. Bind them here,
+    // then run recovered composer 0x5b4dc0 (stock build, extras, tuning,
+    // drive curve, class index) in free-drive mode without the performance run.
+    parameters->tuning374.value0 = carIndex;
+    parameters->tuning374.selection8 = &parameters->selection2E0;
+    parameters->tuning374.recordC = &parameters->record30;
+    parameters->Compose(0, 0, 0);
     MoverModeOwner *owner = static_cast<MoverModeOwner *>(calloc(1, 0xa00));
     owner->physicsInfo10 = info;
     owner->context14 = static_cast<MoverContext *>(calloc(1, 0x910));

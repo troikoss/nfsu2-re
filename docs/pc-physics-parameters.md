@@ -405,6 +405,48 @@ inside a permitted range. NaN curve samples exposed the lookup
 truncation difference described in `pc-vehicle-physics.md`. Results stay in
 `build/analysis/physics-tuning-values/`.
 
+## Parameter composer, drive area and performance simulation
+
+`PhysicsCompose.cpp` recovers parameter composer `0x5b4dc0` (449 bytes). For a
+car index other than -1 it builds the stock record from the CarTypeInfo row
+(`0x5ac4f0`, low byte of its third argument), applies extras (`0x5997e0`),
+runs full tuning (`0x5b4780`) when `0x59b0e0` reports active kinds, and builds
+the drive curve (`0x5b5ab0`). Unless row +0x844 is set it then scores the
+drive curve in 1.341 steps (`0x7a1a80`) up to the first speed where
+`speed * aero * speed / mass` exceeds it, stores the score at +8 and picks
+class index +4 from thresholds 500/401/273/0 (`0x7a1a84`), with 3 as default;
+row +0x844 forces class 3. A nonzero low byte of the second argument runs
+the performance simulation. Modes 3, 5/10 and 2 apply variants `0x5a7750`,
+`0x5a77c0` and `0x5a7830` and rebuild the curve.
+
+Drive area `0x59a350` (205 bytes) accumulates the same force-minus-drag area
+up to 44.7 (`0x788160`) or the first crossing and returns the area on both
+exits; it refreshes the parameters through `0x5b4fc0` when the class index
+is unset. Performance simulation `0x5b06a0` (767 bytes) stores that area at
++0xc and runs a 1/60-step standing start with the engine torque curve, gear
+ratios, front/rear-blended final drive and wheel radius, shift points from
+`0x5ac7d0`, and a shift ramp using `0x7fc298` coefficients -3/1.5. It stores
+times to 60 and 100 mph scaled by the per-car tables `0x7fc120`/`0x7fc1d8`
+at +0x14/+0x18, and time and speed at 400.5 distance at +0x1c/+0x20.
+
+`tools/verify_pc_physics_compose.py` fingerprints the three routines and the
+72-function original callee closure, compiles every recovered unit they reach
+and runs them on the rebuilt side. On 2026-10-12, **1,334 comparisons** were
+bit-identical (1,104 compositions, 138 drive areas, 92 performance runs) on
+46 retail rows with synthetic upgrade groups, selections and tuning entries,
+every mode, refresh/flag low bytes and row +0x844. Tuning entries use
+selection bytes 60..67, which `0x5ac4f0`'s upgrade search does not rewrite;
+gear kinds and the 16/17 pair share one byte because partial selections make
+the original read stale stack slots (the first attempt hit exactly that).
+Only 53-bit precision is exercised. Mutations of the class-index mapping and
+the drive split were detected. Byte matching is not established.
+
+The native demo now installs the CarTypeInfo chunk as `0x8a1ccc` and runs the
+composer for its car (`Compose(0, 0, 0)`) instead of building the stock record
+directly with a forced class 0. The record is unchanged; the original class
+index now selects the drivetrain tuning row, and the forward smoke maximum
+moved from 114.1 to 114.8 km/h (reverse unchanged at 76.8 km/h).
+
 ## Mode variants
 
 `PhysicsVariants.cpp` recovers shared application `0x5a7530` (540 bytes) and

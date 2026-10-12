@@ -1,0 +1,23 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 5983680,
+      "size": 449,
+      "sha256": "1b87ce797be9c0d1f4e4eedcf587447e94a18d3f55eaf34838f3a2e3304f8449",
+      "method": "Compose"
+    },
+    {
+      "address": 5874512,
+      "size": 205,
+      "sha256": "19660daf1ef4d5402294e0a53149b21f0c0ffa135ae11015ada6778bc5b20d1c",
+      "method": "GetDriveArea"
+    },
+    {
+      "address": 5965472,
+      "size": 767,
+      "sha256": "16f891550ac949fe4df82d9d724f1865e3088ad404a5ecabb668ebddb58ad3cc",
+      "method": "SimulatePerformance"
+    }
+  ]
+}
