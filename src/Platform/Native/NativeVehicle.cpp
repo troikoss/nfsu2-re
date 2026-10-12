@@ -381,11 +381,16 @@ void DestroyNativeVehicle(NativeVehicle *vehicle) {
     }
 }
 
+extern int audioEnabled7FAAA8;
+
 bool InitialiseNativeRuntime(const char *gameDirectory, char *error, int errorSize) {
     std::string exe = std::string(gameDirectory) + "/speed2.exe";
     if (!MapOriginalImage(exe.c_str(), error, errorSize)) {
         return false;
     }
+    // Platform seam: no sound device, so the audio enable flag takes the value 0x580130 stores
+    // when the device is absent.
+    audioEnabled7FAAA8 = 0;
     RunPhysicsStaticInitializers();
     // Collision-body world: static list heads, then the pools created at race start
     // (0x5a0200, 0x593db0, 0x592b00).

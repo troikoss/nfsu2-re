@@ -97,7 +97,7 @@ GLOBALS = {
     'difficulty83AC30': 0x83ac30, 'playerSettings83AA64': 0x83aa64, 'settings83AAB4': 0x83aab4,
     'memoryCard83A9E0': 0x83a9e0, 'prompt844AD8': 0x844ad8, 'autosave844AD9': 0x844ad9,
     'resolution870D1C': 0x870d1c, 'resolutions86E880': 0x86e880, 'levelOfDetail87099C': 0x87099c,
-    'displayChanged8709D1': 0x8709d1,
+    'displayChanged8709D1': 0x8709d1, 'careerData85AD40': 0x85ad40,
 }
 # Rebuilt symbol key: (retail address, stack arguments, thiscall, string argument indexes)
 INTERFACES = {
@@ -113,7 +113,7 @@ INTERFACES = {
     'FngPrintf': (0x537be0, 2, False, (1,)), 'FngSetObjectScript': (0x51cf70, 3, False, (1,)),
     'FngPlayMenuSound': (0x50d150, 3, False, ()), 'ControllerAssigned': (0x571a60, 1, False, ()),
     'FngFilterSlot0C': (0x50d1d0, 2, False, ()),
-    'Value500B60': (0x500b60, 0, False, ()), 'Value5B8240': (0x5b8240, 0, False, ()),
+    'CareerData85AD40::Query500B60': (0x500b60, 0, True, ()), 'Value5B8240': (0x5b8240, 0, False, ()),
     'SetPresetDisplayLevelFromLevelOfDetailAndLimit': (0x5be9f0, 0, False, ()),
     'SaveRegistrySettings': (0x5beea0, 0, False, ()), 'Value5CEC90': (0x5cec90, 0, False, ()),
     '??2@YAPAXI@Z': (0x575620, 1, False, ()), '??3@YAXPAX@Z': (0x575630, 1, False, ()),
@@ -339,7 +339,7 @@ def main():
             elif name == '??2@YAPAXI@Z':
                 result = 0 if state['null_new'] else HEAP + state['allocations'] * 0xa0
                 state['allocations'] += 1
-            elif name == 'Value500B60':
+            elif name == 'CareerData85AD40::Query500B60':
                 result = 0x12345600 | state['v500b60']
             elif name == 'Value5B8240':
                 result = 0x12345600 | state['v5b8240']

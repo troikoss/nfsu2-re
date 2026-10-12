@@ -368,10 +368,6 @@ void UIProgressBar::SetValue(float v) { previous2C = value30; value30 = v; if (v
 // Game/platform interfaces. The demo has no audio backend, registry, save profiles or force
 // feedback. Keep calls at their original boundaries and do not claim persistence or audio.
 void Audio82B884::Apply(float *) {}
-bool Value500B60() { return false; } // no career in the free-drive demo
-unsigned char Value5B8240() { return 0; } // no feedback device
-int Settings83AAB4::Value5026F0() { return 0; } // single-player demo
-bool MemoryCard83A9E0::Value502FE0() { return false; }
 void SetPresetDisplayLevelFromLevelOfDetailAndLimit() {} // native renderer has no retail quality presets
 void SaveRegistrySettings() { fprintf(stderr, "ug2demo: display settings are session-only; registry persistence is not recovered\n"); }
 void Value5CEC90() { fprintf(stderr, "ug2demo: retail display reset is not recovered; native renderer unchanged\n"); }

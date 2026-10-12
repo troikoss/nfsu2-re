@@ -1,4 +1,7 @@
 #include "PauseOptions.h"
+#include "../Hud/HudFreeroam.h"
+
+extern CareerData85AD40 careerData85AD40;
 
 extern GameFlow8900D8 *gameFlow8900D8;
 extern PCHelpBarFNGObject *pcHelpBar8384D8;
@@ -359,7 +362,7 @@ void PauseOptionsFNGObject::SetupGameplay() {
     prompt159 = prompt844AD8;
     autosave15A = autosave844AD9;
     SetHeader(package4, 0xe8647e75);
-    if (Value500B60()) {
+    if (careerData85AD40.Query500B60()) {
         AddOption54EF30(new PauseOption791D20(value0FC, value10C, value114, value11C, 1), 1);
     }
     AddOption54F170(new PauseOption791C00(value0FC, value10C, value114, value11C, 1), 1);

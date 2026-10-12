@@ -5,6 +5,7 @@ extern "C" double __cdecl sqrt(double);
 extern "C" void *malloc(unsigned int size);
 extern "C" void free(void *memory);
 #include "../VehicleMover.h"
+#include "../../Audio/AudioSystem.h"
 
 // Collision-body bookkeeping: the body list sorted by maximum X, the pair (witness) list,
 // contact events and the per-frame world step.
@@ -26,9 +27,8 @@ extern CollisionBodyWitness *collisionDebugWitness86B2B8;
 
 CollisionBody *PromoteWorldObject(CollisionBody *body);
 int BreakWorldObject(CollisionBody *body, CollisionBody **output);
-void RegisterCollisionEvent(CollisionEvent *event);
-void UnregisterCollisionEvent(CollisionEvent *event);
-void PostCarCollisionMessage(int message);
+struct GameMessage *PostGameMessage(int type); // 0x5e0360
+extern Audio82B884 *audio82B884;
 
 static CollisionBody *BodyFromLink(WCollisionLink *link) {
     return reinterpret_cast<CollisionBody *>(reinterpret_cast<char *>(link) - 4);
@@ -443,14 +443,14 @@ CollisionEvent *CollisionEvent::Construct(CollisionBodyWitness *witness, WheelVe
         point20.z = 0.0f;
     } else {
         point20 = *point;
-        RegisterCollisionEvent(this);
+        audio82B884->RegisterCollision(this);
     }
     CollisionBody *bodyA = witness64->bodyA238;
     if (bodyA->type11 == 0 && witness64->bodyB23C->type11 == 0) {
         int modeA = static_cast<CarCollisionBody *>(bodyA)->car130->context14->value4;
         int modeB = static_cast<CarCollisionBody *>(witness64->bodyB23C)->car130->context14->value4;
         if ((modeA == 1 && modeB == 4) || (modeA == 4 && modeB == 1)) {
-            PostCarCollisionMessage(0x20004);
+            PostGameMessage(0x20004);
         }
     }
     int clock = collisionClock;
@@ -485,7 +485,7 @@ void CollisionEvent::Destroy() {
     WCollisionLink *next = link0.next;
     previous->next = next;
     next->previous = previous;
-    UnregisterCollisionEvent(this);
+    audio82B884->UnregisterCollision(this);
     if (!IsWallContact()) {
         CollisionBody *a = witness64->bodyA238;
         if (a->type11 == 0 && witness64->bodyB23C->type11 == 0) {

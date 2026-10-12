@@ -3,6 +3,7 @@
 // (replay serialisation, cylinders, world objects), which stop the program if reached.
 #include "NativeVehicle.h"
 #include "../../Speed/Indep/Src/Physics/Collision/Collision.h"
+#include "../../Speed/Indep/Src/Audio/AudioSystem.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -87,16 +88,10 @@ void CollisionEffects(CollisionEvent *event, WheelVector *point, WheelVector *im
 void CollisionForceFeedback(MoverModeOwner *, WheelVector *, float) {
 }
 
-// 0x483e20 / 0x483e40: collision sound emitter registration (only with audio, 0x7faaa8).
-void RegisterCollisionEvent(CollisionEvent *) {
-}
-
-void UnregisterCollisionEvent(CollisionEvent *) {
-}
-
-// 0x5e0360: game message for cop/racer contacts; no message queue in the demo.
-void PostCarCollisionMessage(int) {
-}
+// Collision sound set behind recovered 0x483e20/0x483e40; unreachable while the native
+// runtime reports no sound device (0x7faaa8 = 0).
+void CollisionSoundSet::Add481CD0(CollisionEvent *) { NativeTrap("collision sound add 0x481cd0"); }
+void CollisionSoundSet::Remove481E50(CollisionEvent *) { NativeTrap("collision sound remove 0x481e50"); }
 
 int WorldObjectKind(CollisionBody *) {
     NativeTrap("world object collision body slot 0x8c");

@@ -12,6 +12,7 @@
 
 - [Strings](pc-strings.md): nine byte-matching routines, behavioral checks, and local reproduction.
 - [HUD minimap](pc-hud-minimap.md): angle/TrackInfo/indicator helper verification, city-map integration and rendering seams.
+- [Collision notifications](pc-collision-notifications.md): collision sound wrappers, game message post and profile readers.
 - [Track markers](pc-track-markers.md): position marker chunk, queries and the race-start grid used for the native spawn.
 - [Freeroam HUD](pc-hud-freeroam.md): turbo/NOS/heat, shift light, career text, GPS and notification scheduling, mask dispatch and bounded animation evidence.
 - [Pause menu](pc-pause-menu.md): `UI_Pause.fng` object, option lists and item handlers, with SEH-aware original/rebuilt verification; runs in the native demo on `Esc`.

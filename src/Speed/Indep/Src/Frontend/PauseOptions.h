@@ -6,6 +6,7 @@
 // the chosen category). Class names other than the two community IDC names are descriptive;
 // option classes keep their retail vtables.
 #include "PauseMenu.h"
+#include "../Audio/AudioSystem.h"
 
 // FEng interfaces at the original call boundaries (cdecl).
 void *FngFindObject5379C0(const char *package, unsigned int hash); // 0x5379c0
@@ -18,19 +19,25 @@ void FngSetObjectScript(void *object, const char *script, bool restart); // 0x51
 void FngPlayMenuSound(const char *package, int row, int column); // 0x50d150, table 0x837fe0
 
 // Game interfaces.
-bool Value500B60(); // 0x500b60
 unsigned char Value5B8240(); // 0x5b8240, returns 0x87078c
 void SetPresetDisplayLevelFromLevelOfDetailAndLimit(); // 0x5be9f0 (IDC name)
 void SaveRegistrySettings(); // 0x5beea0 (IDC name)
 void Value5CEC90(); // 0x5cec90, display settings reset
-struct Audio82B884 {
-    void Apply(float *volumes); // 0x469050
-};
+// Profile settings block at 0x83aab4 (profile 0x83a9d0 +0xe4): +0 mode, then a 0x14-byte row per
+// mode 0..11 and the mode-12 value at +0x100.
 struct Settings83AAB4 {
+    int mode0;
+    char unidentified4[0xc];
+    unsigned char modeRows10[12][0x14];
+    unsigned char value100;
     int Value5026F0(); // 0x5026f0
 };
+UG2_CHECK_OFFSET(Settings83AAB4, value100, 0x100);
+// Memory-card state at 0x83a9e0 (profile 0x83a9d0 +0x10).
 struct MemoryCard83A9E0 {
-    bool Value502FE0(); // 0x502fe0, returns +0x20
+    char unidentified0[0x20];
+    unsigned char value20;
+    unsigned char Value502FE0(); // 0x502fe0, returns +0x20
 };
 
 // Per-player settings at 0x83aa64, stride 0x28, indexed by PlayerSlot (0x4a7ae0). Labels are the
