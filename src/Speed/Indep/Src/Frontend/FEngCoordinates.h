@@ -32,6 +32,10 @@ float __stdcall FEngHorizontalOffset(unsigned char flags, float width); // 0x50c
 float __stdcall FEngVerticalOffset(unsigned char flags, float height); // 0x50c050
 bool FEngVectorNear(const float *value, const float *other); // 0x504500, AL
 int __stdcall FEngStateOffset(int key); // 0x5046f0
+void FEngGetCentre(HudVisibilityObject *object, float *x, float *y); // 0x51d620
+void FEngGetSize(HudVisibilityObject *object, float *width, float *height); // 0x51d730
+void FEngSetWidth(HudVisibilityObject *object, float width); // 0x495590
+void FEngSetHeight(HudVisibilityObject *object, float height); // 0x525db0
 void FEngGetTopLeft(HudVisibilityObject *object, float *x, float *y); // 0x51d070
 void FEngSetTopLeft(HudVisibilityObject *object, float x, float y); // 0x51d380
 void FEngSetCentre(HudVisibilityObject *object, float x, float y); // 0x51d4d0

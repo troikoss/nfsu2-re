@@ -29,15 +29,29 @@ bool FngObjectScriptActive(void *object, const char *name); // 0x51d040
 struct IconScrollerIcon;
 void UpdateIconLockScripts(IconScrollerIcon *icon, void *lock, void *button); // 0x51df00
 struct ScrollerScrollBar {
-    char unidentified0[0x48];
+    unsigned char vertical0, scaled1, deferred2, value3;
+    char unidentified4[8];
+    float positionC, position10;
+    char unidentified14[8];
+    float origin1C, origin20, extent24, extent28, handle2C, handle30, step34;
+    char unidentified38[8];
+    HudVisibilityObject *backing40;
+    HudVisibilityObject *handle44;
     HudVisibilityObject *arrow48;
     HudVisibilityObject *arrow4C;
-    void *unidentified50;
-    void *unidentified54;
+    HudVisibilityObject *end50;
+    HudVisibilityObject *end54;
     void SetArrow2Static(); // 0x527660
     void SetArrow1Blink(); // 0x495810
-    void Update(int page, int count, int selected); // 0x538080, remaining interface
+    void UpdateScaled(int page, int count, int selected); // 0x52e200
+    void UpdateFixed(int page, int count, int selected); // 0x52e320
+    void Update(int page, int count, int selected); // 0x538080
 };
+UG2_CHECK_OFFSET(ScrollerScrollBar, positionC, 0xc);
+UG2_CHECK_OFFSET(ScrollerScrollBar, origin1C, 0x1c);
+UG2_CHECK_OFFSET(ScrollerScrollBar, step34, 0x34);
+UG2_CHECK_OFFSET(ScrollerScrollBar, backing40, 0x40);
+UG2_CHECK_OFFSET(ScrollerScrollBar, handle44, 0x44);
 UG2_CHECK_OFFSET(ScrollerScrollBar, arrow48, 0x48);
 UG2_CHECK_OFFSET(ScrollerScrollBar, arrow4C, 0x4c);
 UG2_CHECK_SIZE(ScrollerScrollBar, 0x58);

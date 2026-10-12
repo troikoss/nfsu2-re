@@ -29,7 +29,7 @@ unless the user or applicable repository/skill instructions request delegation.
 ## Authoritative checkpoint
 
 Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`, branch `main`.
-Latest verified checkpoint: **Recover pause scroller arrow scripts and visibility**
+Latest verified checkpoint: **Recover pause scrollbar geometry and size helpers**
 (see Git history for its commit). Navigation checkpoint: `c0b18f1`; package mask/focus
 checkpoint: `3878b16`. Direct user authorization to commit and push to `main` was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
 FEng objects the original object and script prefix**.
@@ -135,11 +135,21 @@ classes write FEng internals directly, so the work is staged:
    (10,500 new), with five rejected arrow mutations; layout's 14,762 comparisons now
    execute actual recovered arrow code. Native build, 19 settings, 10 Controls and
    rendered motion pass. Scrollbar update and geometry/constructor remain seams.
+   **Scrollbar geometry done**: `ScrollerScrollBar.cpp` recovers `0x538080`, `0x52e200`,
+   `0x52e320`; coordinate helpers add `0x51d620`, `0x51d730`, `0x495590`, `0x525db0`.
+   Preserve scaled step's extended reuse versus fixed step's rounded reuse, top-left versus
+   centre placement, integer-page denominator in fixed mode and visibility order/hidden-branch
+   preservation. `verify_pc_scroller_scrollbar.py`: 15,641 comparisons under 53-/64-bit x87,
+   five rejected mutations (a forced volatile step spill is needed; a plain field reread is
+   optimized back into x87 reuse). Coordinate verifier expands to 29,970; layout remains
+   14,762 with actual scrollbar code. Native binds all six retail scrollbar objects and reads
+   geometry via recovered getters. Full construction remains a seam. Native build, pause/options,
+   19 settings, 10 Controls and rendered motion pass; byte matching remains unestablished.
    **Next**: recover the rest of IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
    IconScrollerFNGObject `+0x4c`) replacing `NativeIconScroller`:
    ctors `0x543840`/`0x543a90`, ScrollBar `0x542ac0` (at scroller `+0x38`), slots `0x543bf0`,
-   `0x543c10`, `0x538b80`, `0x51f870`; helpers `0x51fb70`, `0x538080`,
-   `0x538130`, `0x52e4e0`, `0x52e670`, `0x52e200`, `0x52e320`, `0x51fd10`, `0x51fd60`,
+   `0x543c10`, `0x538b80`, `0x51f870`; helpers `0x51fb70`,
+   `0x538130`, `0x52e4e0`, `0x52e670`, `0x51fd10`, `0x51fd60`,
    list helper `0x43be80`; script activation `0x51cf70`/`0x517720`.
    Layout notes: `+4/+8` icon list sentinel (icon node at icon `+4`), `+0xc` current icon,
    `+0x10/+0x14/+0x18` OPTION/LOCK/BUTTON_MASTER objects, `+0x1c` package, `+0x20` "option_"
@@ -200,6 +210,7 @@ build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_hud_player_masks.py
 build/venv/bin/python tools/verify_pc_hud_freeroam.py
+build/venv/bin/python tools/verify_pc_scroller_scrollbar.py
 build/venv/bin/python tools/verify_pc_feng_colour_scripts.py
 build/venv/bin/python tools/verify_pc_icon_scroller_layout.py
 build/venv/bin/python tools/verify_pc_feng_coordinates.py

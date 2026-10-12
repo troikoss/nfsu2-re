@@ -342,8 +342,7 @@ The native menu now calls recovered reset/frame/placement code; its old direct l
 is removed. The platform frame delta is supplied at `0x865198`, and the original scroller
 clock is bound at `0x8641a0`. Native construction and icon insertion still supply initial
 state, geometry and bindings and remain seams. Colour read/write and lock policy are now
-recovered as described below. Scrollbar update `0x538080` remains a controlled interface and native no-op.
-Arrow policy is now recovered as described below. This is not complete IconScroller or FNG-base recovery.
+recovered as described below. Scrollbar update and arrow policy are now recovered as described below. This is not complete IconScroller or FNG-base recovery.
 
 `build/venv/bin/python tools/verify_pc_icon_scroller_layout.py`: **14,762 original/rebuilt
 comparisons**. Tween cases run with 53-/64-bit x87 precision and cover states/modes, limits,
@@ -351,7 +350,7 @@ completion thresholds, zero/negative/infinite/NaN duration and arithmetic order.
 cases cover empty/null frame paths, every alignment, first/current/other selection, reset
 indices, window edges, disabled alpha policy and fade flags. Actual recovered coordinate,
 state-write, visibility, colour and lock-policy routines execute on both sides; selection,
-formatted hash, script activation and scrollbar callbacks remain controlled and
+formatted hash and script activation callbacks remain controlled and
 traced, including tween state at callbacks. The original list
 helper and `0x75bed4` conversion runtime are retained dependencies. Placement fixtures are
 image objects, not proof of arbitrary font/group layout. Memory, global clock, callback
@@ -413,8 +412,7 @@ Fingerprints/results remain in ignored `build/analysis/feng-colour-scripts/verif
 
 Native FEng colour writes now use the recovered setter, including script baseline updates.
 Native construction binds the retail LOCK and BUTTON_MASTER objects so recovered lock policy
-can run. Construction, formatted hashing, script activation/playback and scrollbar updates
-remain seams. The layout verifier passes its 14,762 comparisons with actual recovered colour
+can run. Construction, formatted hashing and script activation/playback remain seams. The layout verifier passes its 14,762 comparisons with actual recovered colour
 and lock-policy routines linked in. Native build, pause/options regression verifiers,
 19 settings scenarios, 10 Controls scenarios and rendered scroller motion pass.
 
@@ -438,7 +436,7 @@ hides arrow 1 and returns; at last it hides arrow 2 and returns. Those early ret
 the other arrow's visibility unchanged. At neither endpoint it shows both. Null links map
 to null icons; an empty intrusive list uses its sentinel instead. Native construction binds
 `ScrollBar_Arrow_1`/`ScrollBar_Arrow_2` by their original constructor names, and the arrow
-no-op is removed. Full scrollbar/scroller construction and geometry remain unrecovered.
+no-op is removed. Full scrollbar/scroller construction remains unrecovered; geometry was subsequently recovered below.
 
 The expanded `verify_pc_feng_colour_scripts.py` passes **39,700 comparisons**, including
 **10,500 new arrow/helper comparisons**. Cases cover all four directional requests and
@@ -454,3 +452,47 @@ The layout verifier's 14,762 comparisons now execute actual recovered arrow code
 with colour/lock/coordinate/visibility code. Native build, all 19 settings scenarios,
 10 Controls scenarios and rendered icon motion pass. These finite smoke checks establish
 integration for their exercised paths, not complete FEng animation or menu recovery.
+
+
+## Scrollbar handle geometry and visibility
+
+`Frontend/ScrollerScrollBar.cpp` recovers Update `0x538080`, scaled handle placement
+`0x52e200` and fixed handle placement `0x52e320`. `FEngCoordinates.cpp` adds centre getter
+`0x51d620`, size getter `0x51d730`, width setter `0x495590` and height setter `0x525db0`.
+ScrollBar remains 0x58 bytes: orientation/mode/deferred bytes +0/+1/+2, positions +0xc/+0x10,
+origins +0x1c/+0x20, backing extents +0x24/+0x28, handle extents +0x2c/+0x30,
+step +0x34 and object pointers +0x40 through +0x54. Unknown fields retain offsets.
+
+Update hides only handle and arrows when count ≤ page or count is zero; backing/end
+visibility remains untouched. Otherwise it shows backing, conditionally shows handle
+(selected zero hides it), then shows arrows, end 2 and end 1 before geometry dispatch.
+Scaled geometry changes handle size and uses top-left placement; fixed geometry uses centre
+placement with explicit first/last positions. Nonzero deferred byte updates saved positions
+without moving the object. There is no replacement selection clamp.
+
+Scaled arithmetic rounds page/count/size but stores the step without discarding its extended
+x87 value before computing position. Fixed arithmetic rounds count/selection-minus-one/step,
+keeps page as an integer in the denominator and uses the rounded step for interior positions.
+Both denominators clamp differences below one. Source preserves these spill points and
+arithmetic order; no forced-register code is used. A float-spill mutation requires an explicit
+volatile temporary: a plain reread of the stored field lets MSVC reuse its x87 value.
+
+`verify_pc_scroller_scrollbar.py` passes **15,641 original/rebuilt comparisons** under
+53-/64-bit x87 precision, covering orientation, scaled/fixed/deferred flags, signed integer
+extrema and ordinary counts, endpoint/interior/zero selections, null optional bindings,
+pre-existing visibility, nonfinite extents and targeted zero-origin rounding cases. Fixtures
+use valid image handles; all exercised coordinate, size, state-write and visibility dependencies
+execute their recovered source. Font interfaces are linked but asserted unreachable here.
+Five mutations are rejected: changing backing visibility in the hidden branch, wrong count
+boundary, forcing an early step spill, using top-left instead of centre, and dropping the
+selection-minus-one offset. Fingerprints/results remain in ignored
+`build/analysis/scroller-scrollbar/verification.json`. **Byte matching is not established.**
+
+The coordinate verifier expands to **29,970 comparisons**, including centre/size text paths
+with controlled font lookup/line measurement. Width/height write tests use defined size-getter
+inputs; original null/missing-font getters leave outputs untouched, and missing-font setter
+scratch behaviour is outside this proof. The full layout chain still passes 14,762 comparisons
+with actual recovered scrollbar geometry replacing its callback. Native construction now binds
+all six retail ScrollBar objects and obtains initial geometry through recovered getters.
+Full original construction remains a seam. Native build, pause/options regressions, all 19
+settings scenarios, 10 Controls scenarios and rendered scroller motion pass.

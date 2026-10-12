@@ -222,3 +222,59 @@ void FEngSetSize(HudVisibilityObject *object, float width, float height) {
     object->data2C[15] = height;
     object->flags1C |= 0x400000;
 }
+
+// Original 0x51d620.
+void FEngGetCentre(HudVisibilityObject *object, float *x, float *y) {
+    if (!object) return;
+    float *state = object->data2C;
+    if (object->type18 == 2) {
+        FEngFont *font = FindFEngFont(object->texture24);
+        if (font) {
+            FEStringObject *string = static_cast<FEStringObject *>(object);
+            float width = font->TextWidth(object->text64, 0) * state[14];
+            float height = font->TextHeight(object->text64, string->leading70) * state[15];
+            *x = width * 0.5f + FEngHorizontalOffset((unsigned char)string->justification6C, width) + state[7];
+            *y = height * 0.5f + FEngVerticalOffset((unsigned char)string->justification6C, height) + state[8];
+        }
+    } else { *x = state[7]; *y = state[8]; }
+}
+
+// Original 0x51d730: unsupported types return zero size; null/missing font leave outputs untouched.
+void FEngGetSize(HudVisibilityObject *object, float *width, float *height) {
+    if (!object) return;
+    float *state = object->data2C;
+    switch (object->type18) {
+    case 1: case 7: case 9: *width = state[14]; *height = state[15]; return;
+    case 2: {
+        FEngFont *font = FindFEngFont(object->texture24);
+        if (font) {
+            FEStringObject *string = static_cast<FEStringObject *>(object);
+            *width = font->TextWidth(object->text64, 0) * state[14];
+            *height = font->TextHeight(object->text64, string->leading70) * state[15];
+        }
+        return;
+    }
+    default: *width = 0.0f; *height = 0.0f;
+    }
+}
+
+// Original 0x495590.
+void FEngSetWidth(HudVisibilityObject *object, float width) {
+    float oldWidth, height;
+    FEngGetSize(object, &oldWidth, &height);
+    FEngSetSize(object, width, height);
+}
+
+// Original 0x525db0: direct stores, including duplicate image-type stores.
+void FEngSetHeight(HudVisibilityObject *object, float height) {
+    float width, oldHeight;
+    FEngGetSize(object, &width, &oldHeight);
+    if (object) {
+        float *state = object->data2C;
+        if (object->type18 == 1 || object->type18 == 7 || object->type18 == 9) {
+            state[14] = width; state[15] = height;
+        }
+        state[15] = height; state[14] = width;
+        object->flags1C |= 0x400000;
+    }
+}

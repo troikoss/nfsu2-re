@@ -499,7 +499,14 @@ public:
         S().master = static_cast<FengObject *>(FngFindObject(owner->package4, FngHash("OPTION_MASTER")));
         object14 = NativeFrontendPackage(owner->package4)->Find("LOCK");
         object18 = NativeFrontendPackage(owner->package4)->Find("BUTTON_MASTER");
-        // ScrollBar 0x542ac0 names; full construction remains a native seam.
+        // ScrollBar 0x542ac0 names/geometry; full construction remains a native seam.
+        scrollBar38.backing40 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Backing");
+        scrollBar38.handle44 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Handle");
+        scrollBar38.end50 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Backing_End_1");
+        scrollBar38.end54 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Backing_End_2");
+        FEngGetTopLeft(scrollBar38.backing40, &scrollBar38.origin1C, &scrollBar38.origin20);
+        FEngGetSize(scrollBar38.backing40, &scrollBar38.extent24, &scrollBar38.extent28);
+        FEngGetSize(scrollBar38.handle44, &scrollBar38.handle2C, &scrollBar38.handle30);
         scrollBar38.arrow48 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Arrow_1");
         scrollBar38.arrow4C = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Arrow_2");
         if (S().master) {
@@ -645,9 +652,6 @@ unsigned int FngFormatHash(const char *format, ...) {
     vsnprintf(text, sizeof(text), format, args);
     va_end(args);
     return FengHash(text);
-}
-void ScrollerScrollBar::Update(int, int, int) {
-    // The original ScrollBar constructor/controls have not yet been integrated.
 }
 
 // ---- IconScroller base seams --------------------------------------------------------------

@@ -21,7 +21,8 @@ FUNCTIONS = {'FindFEngGlyph': (0x6f45b0, 61), 'TextWidth': (0x50bec0, 118), 'Tex
              'FEngHorizontalOffset': (0x50c020, 43), 'FEngVerticalOffset': (0x50c050, 43),
              'FEngVectorNear': (0x504500, 158), 'FEngStateOffset': (0x5046f0, 101),
              'SetVectorState': (0x5178d0, 254), 'FEngGetTopLeft': (0x51d070, 225),
-             'FEngSetTopLeft': (0x51d380, 307), 'FEngSetCentre': (0x51d4d0, 304), 'FEngSetSize': (0x50cb00, 63)}
+             'FEngSetTopLeft': (0x51d380, 307), 'FEngSetCentre': (0x51d4d0, 304), 'FEngSetSize': (0x50cb00, 63), 'FEngGetCentre': (0x51d620, 235),
+             'FEngGetSize': (0x51d730, 155), 'FEngSetWidth': (0x495590, 48), 'FEngSetHeight': (0x525db0, 86)}
 GLOBALS = {'fengEpsilon7992EC': 0x7992ec, 'fengStateKeys7992F4': 0x7992f4}
 INTERFACES = {'FindFEngFont': 0x51bd70, 'LineWidth': 0x50bce0}
 ARENA, STACK, STOP = 0x2000000, 0x200f000, 0x2100000
@@ -160,6 +161,12 @@ def main():
         xy = struct.pack('<ff', rng.uniform(-500, 500), rng.uniform(-500, 500))
         compare('FEngSetTopLeft', memory, struct.pack('<I', current) + xy, font_found=found, precision=precision)
         compare('FEngSetCentre', memory, struct.pack('<I', current) + xy, font_found=found, precision=precision)
+        compare('FEngGetCentre', memory, struct.pack('<III', current, ARENA + 0x600, ARENA + 0x604), font_found=found, precision=precision)
+        compare('FEngGetSize', memory, struct.pack('<III', current, ARENA + 0x600, ARENA + 0x604), font_found=found, precision=precision)
+        # Width/height getters leave scratch uninitialised when no font is found; only defined input paths.
+        if current and (struct.unpack_from('<i', memory, 0x118)[0] != 2 or found):
+            for name in ('FEngSetWidth', 'FEngSetHeight'):
+                compare(name, memory, struct.pack('<If', current, rng.uniform(-1000, 1000)), font_found=found, precision=precision)
         compare('FEngSetSize', memory, struct.pack('<I', current) + xy, precision=precision)
         compare('TextWidth', memory, struct.pack('<II', text, rng.choice((0, 0x20, 0xff))), font, 8, floating=True, precision=precision)
         compare('TextHeight', memory, struct.pack('<Ii', rng.choice((0, text)), rng.randrange(-4, 12)), font, 8, floating=True, precision=precision)

@@ -26,7 +26,7 @@ FUNCTIONS = {'LimitEndSlope': (0x5748c0, 80), 'LimitAcceleration': (0x574910, 19
 GLOBALS = {'tweenSixth786D94': 0x786d94, 'frontendDelta865198': 0x865198, 'realClock8651AC': 0x8651ac,
            'scrollerClock8641A0': 0x8641a0, 'fengEpsilon7992EC': 0x7992ec,
            'fengStateKeys7992F4': 0x7992f4, 'fengVisibilityDirty8384D4': 0x8384d4}
-INTERFACES = {'FngFormatHash': (0x50b9c0, 1, False), 'FngSetObjectScript': (0x51cf70, 3, False), 'Update': (0x538080, 3, True),
+INTERFACES = {'FngFormatHash': (0x50b9c0, 1, False), 'FngSetObjectScript': (0x51cf70, 3, False),
               'FindFEngFont': (0x51bd70, 1, False),
               'LineWidth': (0x50bce0, 4, True)}
 ARENA, STACK, STOP = 0x2000000, 0x200f000, 0x2100000
@@ -45,7 +45,7 @@ def main():
     objects = []
     for i, source in enumerate((args.source, 'src/Speed/Indep/Src/Frontend/FEngCoordinates.cpp',
                                 'src/Speed/Indep/Src/Hud/HudVisibility.cpp', 'src/Speed/Indep/Src/Frontend/FEngColour.cpp',
-                                'src/Speed/Indep/Src/Frontend/IconScrollerScripts.cpp')):
+                                'src/Speed/Indep/Src/Frontend/IconScrollerScripts.cpp', 'src/Speed/Indep/Src/Frontend/ScrollerScrollBar.cpp')):
         obj = BUILD / ('layout-%d.obj' % i)
         subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo', '/c',
                         '/Ox', '/Ob0', '/Z7', '/EHsc', '/Fo' + str(obj.relative_to(ROOT)),
@@ -67,7 +67,7 @@ def main():
     entries = {name: next(a for n, a in linked['exports'].items() if n.startswith('?' + name + '@')) for name in FUNCTIONS}
     state, machines = {}, []
     retained = [(0x75bed4, 0x75bf49), (0x43be60, 0x43be7f)]
-    dependencies = [(a, a + n) for a, n in list(COORDINATES.values()) + list(COLOUR_SCRIPTS.values())] + [(0x50ca00, 0x50ca45), (0x50ca50, 0x50caa2)]
+    dependencies = [(a, a + n) for a, n in list(COORDINATES.values()) + list(COLOUR_SCRIPTS.values())] + [(0x52e200, 0x52e31f), (0x52e320, 0x52e464), (0x538080, 0x53812d), (0x50ca00, 0x50ca45), (0x50ca50, 0x50caa2)]
     for rebuilt in (False, True):
         uc = Uc(UC_ARCH_X86, UC_MODE_32)
         uc.mem_map(0x400000, (len(image) + 4095) & ~4095)
@@ -103,8 +103,6 @@ def main():
                     uc.mem_write(this + 0xc, struct.pack('<I', words[1]))
                     uc.mem_write(this + 0xc8, struct.pack('<I', state['selected_index']))
                     uc.reg_write(UC_X86_REG_EAX, 1)
-                elif name == 'Update':
-                    state['trace'].append(('tween_at_call', bytes(uc.mem_read(state['scroller'] + 0x90, 0x30)).hex()))
                 uc.reg_write(UC_X86_REG_ESP, sp + 4 + (4 * argc if member else 0))
                 uc.reg_write(UC_X86_REG_EIP, words[0])
                 return
