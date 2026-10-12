@@ -31,6 +31,7 @@ struct FengEvent {
     int time;
 };
 struct FengScript {
+    FEScript header;  // original prefix: links, lengthC (duration), time10, hash30
     unsigned int hash;
     int duration;
     std::vector<FengTrack> tracks;
@@ -52,13 +53,12 @@ struct FengResponse {
 const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses, unsigned int message);
 
 struct FengObject : HudVisibilityObject {
-    // Recovered prefix: type18 (1 image, 2 string, 5 group), flags1C, child list.
-    unsigned int hash;       // ObjD 'Oh'
-    unsigned int guid;       // ObjD 'OP' +0
+    // Original prefix (HudVisibilityObject): guidC ('OP' +0), hash10 ('Oh'), type18 (1 image,
+    // 2 string, 5 group), flags1C, texture24 (image resource hash), data2C (-> colour below),
+    // script list scripts4C / currentScript54 (FEScript headers of `scripts`), child list.
     unsigned int parentGuid; // ObjD 'PA'
     int resource;            // ObjD 'OP' +0xc (index into the resource table)
-    unsigned int textureHash;  // 0 for untextured images
-    unsigned int colour[4];  // state block dwords 0..3: B, G, R, A
+    unsigned int colour[4];  // state block dwords 0..3: B, G, R, A (data2C points here)
     float pivot[3];          // 4..6: rotation pivot relative to the object centre
     float position[3];       // 7..9
     float rotation[4];       // 10..13 quaternion
@@ -80,8 +80,7 @@ struct FengObject : HudVisibilityObject {
 
     std::vector<FengScript> scripts;
     std::vector<FengResponse> responses;
-    int activeScript;
-    float scriptMilliseconds;
+    float scriptRemainder;   // native frame-time fraction below currentScript54->time10
 
     bool Hidden() const { return (flags1C & 1) != 0; }
 };

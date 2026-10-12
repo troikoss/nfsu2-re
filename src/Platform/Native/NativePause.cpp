@@ -785,7 +785,7 @@ bool FngScriptActive(const char *package, unsigned int object, const char *scrip
 bool FngScriptRunning(const char *package, unsigned int object, unsigned int script) {
     NativeScreen *screen = FindScreen(package);
     for (size_t i = 0; i < scripts.size(); ++i) {
-        if (scripts[i].screen == screen && scripts[i].object->hash == object && scripts[i].script->hash == script)
+        if (scripts[i].screen == screen && scripts[i].object->hash10 == object && scripts[i].script->hash == script)
             return true;
     }
     return false;

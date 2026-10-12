@@ -154,7 +154,7 @@ static float BarFraction(float value, float maximum, float start, float end) {
 void HudVerticalBar(void *o, float value, float maximum, float start, float end, int) {
     FengObject *object = static_cast<FengObject *>(o);
     if (!object) return;
-    const NativeImage *image = hudTextures->Find(object->textureHash);
+    const NativeImage *image = hudTextures->Find(object->texture24);
     if (!image) NativeTrap("FEng vertical bar texture");
     float height = (float)image->height, inverse = 1.0f / height;
     float v = BarFraction(value, maximum, (height - start) * inverse, end * inverse);
@@ -167,7 +167,7 @@ void HudVerticalBar(void *o, float value, float maximum, float start, float end,
 void HudHorizontalBar(void *o, float value, float maximum, float start, float end, int) {
     FengObject *object = static_cast<FengObject *>(o);
     if (!object) return;
-    const NativeImage *image = hudTextures->Find(object->textureHash);
+    const NativeImage *image = hudTextures->Find(object->texture24);
     if (!image) NativeTrap("FEng horizontal bar texture");
     float width = (float)image->width, inverse = 1.0f / width;
     float v = BarFraction(value, maximum, (width - start) * inverse, end * inverse);
@@ -187,7 +187,7 @@ uint32_t ModHudCount() { return modHudPackage ? modHudPackage->Objects().size() 
 int ModHudObject(uint32_t index, Ug2HudObject *out) {
     if (!modHudPackage || index >= modHudPackage->Objects().size()) return UG2_ERROR;
     FengObject *object = modHudPackage->Objects()[index];
-    out->hash = object->hash; out->type = object->type18;
+    out->hash = object->hash10; out->type = object->type18;
     out->handle = HudHandle(index); out->parent = 0;
     for (size_t i = 0; i < modHudPackage->Objects().size(); ++i)
         if (modHudPackage->Objects()[i] == object->parent) out->parent = HudHandle(i);
@@ -196,7 +196,7 @@ int ModHudObject(uint32_t index, Ug2HudObject *out) {
 Ug2Handle ModHudFind(uint32_t hash) {
     if (!modHudPackage) return 0;
     for (size_t i = 0; i < modHudPackage->Objects().size(); ++i)
-        if (modHudPackage->Objects()[i]->hash == hash) return HudHandle(i);
+        if (modHudPackage->Objects()[i]->hash10 == hash) return HudHandle(i);
     return 0;
 }
 int ModHudTranslate(Ug2Handle handle, float x, float y) {
@@ -506,9 +506,9 @@ void NativeHud::Draw(int width, int height) {
 
 bool HudPackageScriptActive(void *package, unsigned int hash, const char *name) {
     FengObject *object = static_cast<FengPackage *>(package)->Find(hash);
-    if (!object || object->activeScript < 0) return false;
-    const FengScript &script = object->scripts[object->activeScript];
-    return script.hash == FengHash(name) && object->scriptMilliseconds <= script.duration;
+    if (!object || !object->currentScript54) return false;
+    const FEScript &script = *object->currentScript54;
+    return script.hash30 == FengHash(name) && (float)script.time10 + object->scriptRemainder <= script.lengthC;
 }
 void HudPackageScript(void *package, unsigned int hash, const char *name, int restart) {
     FengPackage::PlayScript(static_cast<FengPackage *>(package)->Find(hash), name, restart != 0);

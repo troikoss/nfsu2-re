@@ -3,20 +3,57 @@
 
 #include "../Physics/Ug2Layout.h"
 
-// Partial original FEng object layout used by 0x50ca00/0x50ca50. Native FNG
-// objects retain this prefix so the recovered routines operate on it directly.
+// Original FEng script (FEScript) prefix: list links, length and current time in milliseconds,
+// track table and name hash (script reader 0x5515e0, script set 0x517720).
+struct FEScript {
+    void *vtable0;
+    FEScript *next4;
+    FEScript *previous8;
+    int lengthC;
+    int time10;
+    unsigned int flags14;      // 'Sf'
+    FEScript *chain18;         // 'Sc'
+    int trackCount1C;
+    void *tracks20;            // 0x38-byte tracks
+    int eventCount24;
+    void *events28;            // 12-byte events
+    char unidentified2C[4];
+    unsigned int hash30;
+};
+UG2_CHECK_OFFSET(FEScript, time10, 0x10);
+UG2_CHECK_OFFSET(FEScript, hash30, 0x30);
+
+// Partial original FEng object (FEObject) layout, from the object reader 0x555140 and its users.
+// Native FNG objects retain this prefix so recovered routines operate on it directly.
 struct HudVisibilityObject {
     char unidentified0[4];
     HudVisibilityObject *next4;
-    char unidentified8[0x10];
-    int type18;
-    unsigned int flags1C;
-    char unidentified20[0x40];
+    HudVisibilityObject *previous8;
+    unsigned int guidC;        // 'OP' +0
+    unsigned int hash10;       // 'Oh'
+    char unidentified14[4];
+    int type18;                // 1 image, 2 string, 5 group, ...
+    unsigned int flags1C;      // bit 0 hidden, 0x400000 dirty
+    char unidentified20[2];
+    short resource22;          // 'OP' +0xc
+    unsigned int texture24;    // image resource hash
+    unsigned int value28;
+    float *data2C;             // state block: colour, pivot, position, rotation, size (+0x38), ...
+    char unidentified30[0x1c];
+    FEScript *scripts4C;
+    char unidentified50[4];
+    FEScript *currentScript54;
+    char unidentified58[8];
     int childCount60;
     HudVisibilityObject *firstChild64;
 };
+UG2_CHECK_OFFSET(HudVisibilityObject, hash10, 0x10);
 UG2_CHECK_OFFSET(HudVisibilityObject, type18, 0x18);
 UG2_CHECK_OFFSET(HudVisibilityObject, flags1C, 0x1c);
+UG2_CHECK_OFFSET(HudVisibilityObject, texture24, 0x24);
+UG2_CHECK_OFFSET(HudVisibilityObject, data2C, 0x2c);
+UG2_CHECK_OFFSET(HudVisibilityObject, scripts4C, 0x4c);
+UG2_CHECK_OFFSET(HudVisibilityObject, currentScript54, 0x54);
 UG2_CHECK_OFFSET(HudVisibilityObject, childCount60, 0x60);
 UG2_CHECK_OFFSET(HudVisibilityObject, firstChild64, 0x64);
 UG2_CHECK_SIZE(HudVisibilityObject, 0x68);

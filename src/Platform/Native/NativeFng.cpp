@@ -183,9 +183,10 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             FengObject *object = new FengObject;
                             memset(object->colour, 0, sizeof(object->colour));
                             memset(static_cast<HudVisibilityObject *>(object), 0, sizeof(HudVisibilityObject));
-                            object->hash = object->guid = object->flags1C = object->parentGuid = 0;
+                            object->hash10 = object->guidC = object->flags1C = object->parentGuid = 0;
                             object->resource = -1;
-                            object->textureHash = 0;
+                            object->texture24 = 0;
+                            object->data2C = reinterpret_cast<float *>(object->colour);
                             object->justification = 0;
                             object->font = 0;
                             object->leading = 0;
@@ -193,8 +194,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             object->fontHash = 0;
                             object->parent = 0;
                             object->imageMask = 0;
-                            object->activeScript = -1;
-                            object->scriptMilliseconds = 0;
+                            object->scriptRemainder = 0;
                             object->angle = 0;
                             object->depth = 0;
                             for (int i = 0; i < 3; ++i) object->pivot[i] = object->position[i] = 0, object->size[i] = 1;
@@ -216,9 +216,9 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         const unsigned char *pl = data + t + 4;
                                         switch (tag) {
                                         case 0x744f: object->type18 = (int)Rd32(pl); break;  // 'Ot'
-                                        case 0x684f: object->hash = Rd32(pl); break;       // 'Oh'
+                                        case 0x684f: object->hash10 = Rd32(pl); break;       // 'Oh'
                                         case 0x504f:                                       // 'OP'
-                                            object->guid = Rd32(pl);
+                                            object->guidC = Rd32(pl);
                                             object->flags1C = Rd32(pl + 8);
                                             object->resource = (short)Rd32(pl + 12);
                                             break;
@@ -294,7 +294,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             }
                             if (!state.empty()) ReadState(object, &state[0], (int)state.size());
                             if (object->resource >= 0 && object->resource < (int)resourceHashes.size()) {
-                                if (object->type18 == 1) object->textureHash = resourceHashes[object->resource];
+                                if (object->type18 == 1) object->texture24 = resourceHashes[object->resource];
                                 else if (object->type18 == 2) object->fontHash = resourceHashes[object->resource];
                             }
                             // Rotation about z from the quaternion (screen y down, positive = clockwise).
@@ -314,7 +314,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         FengObject *object = objects_[i];
         if (object->parentGuid) {
             for (size_t j = 0; j < objects_.size(); ++j) {
-                if (objects_[j]->guid == object->parentGuid) {
+                if (objects_[j]->guidC == object->parentGuid) {
                     object->parent = objects_[j];
                     objects_[j]->children.push_back(object);
                     break;
@@ -330,13 +330,24 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         object->firstChild64 = object->children.empty() ? 0 : object->children[0];
         for (size_t j = 0; j < object->children.size(); ++j)
             object->children[j]->next4 = j + 1 < object->children.size() ? object->children[j + 1] : 0;
+        // Native loader seam: original FEScript headers of the loaded scripts, linked in file order.
+        for (size_t j = 0; j < object->scripts.size(); ++j) {
+            FEScript &header = object->scripts[j].header;
+            memset(&header, 0, sizeof(header));
+            header.lengthC = object->scripts[j].duration;
+            header.hash30 = object->scripts[j].hash;
+            header.previous8 = j ? &object->scripts[j - 1].header : 0;
+            header.next4 = j + 1 < object->scripts.size() ? &object->scripts[j + 1].header : 0;
+        }
+        object->scripts4C = object->scripts.empty() ? 0 : &object->scripts[0].header;
+        object->currentScript54 = 0;
     }
     return !objects_.empty();
 }
 
 FengObject *FengPackage::FindGuid(unsigned int guid) {
     for (size_t i = 0; i < objects_.size(); ++i) {
-        if (objects_[i]->guid == guid) return objects_[i];
+        if (objects_[i]->guidC == guid) return objects_[i];
     }
     return 0;
 }
@@ -350,7 +361,7 @@ const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses,
 
 FengObject *FengPackage::Find(unsigned int hash) {
     for (size_t i = 0; i < objects_.size(); ++i) {
-        if (objects_[i]->hash == hash) return objects_[i];
+        if (objects_[i]->hash10 == hash) return objects_[i];
     }
     return 0;
 }
@@ -359,8 +370,8 @@ void FengPackage::Describe() const {
     for (size_t i = 0; i < objects_.size(); ++i) {
         const FengObject *o = objects_[i];
         fprintf(stderr, "#%zu type %d hash %08x guid %x parent %x flags %08x pos %.0f,%.0f,%.1f size %.1f,%.1f tex %08x pivot %.1f,%.1f angle %.1f\n", i,
-                o->type18, o->hash, o->guid, o->parentGuid, o->flags1C, o->position[0], o->position[1], o->position[2], o->size[0],
-                o->size[1], o->textureHash, o->pivot[0], o->pivot[1], o->angle);
+                o->type18, o->hash10, o->guidC, o->parentGuid, o->flags1C, o->position[0], o->position[1], o->position[2], o->size[0],
+                o->size[1], o->texture24, o->pivot[0], o->pivot[1], o->angle);
     }
 }
 
@@ -385,8 +396,11 @@ bool FengPackage::PlayScriptHash(FengObject *object, unsigned int hash, bool res
     if (!object) return false;
     for (size_t i = 0; i < object->scripts.size(); ++i) {
         if (object->scripts[i].hash != hash) continue;
-        if (object->activeScript != (int)i || restart) object->scriptMilliseconds = 0;
-        object->activeScript = (int)i;
+        if (object->currentScript54 != &object->scripts[i].header || restart) {
+            object->scripts[i].header.time10 = 0;
+            object->scriptRemainder = 0;
+        }
+        object->currentScript54 = &object->scripts[i].header;
         return true;
     }
     return false;
@@ -395,8 +409,9 @@ bool FengPackage::PlayScriptHash(FengObject *object, unsigned int hash, bool res
 void FengPackage::AdvanceScripts(float seconds) {
     for (size_t i = 0; i < objects_.size(); ++i) {
         FengObject *object = objects_[i];
-        if (object->activeScript < 0) continue;
-        const FengScript &script = object->scripts[object->activeScript];
+        if (!object->currentScript54) continue;
+        // FengScript begins with its FEScript header.
+        FengScript &script = *reinterpret_cast<FengScript *>(object->currentScript54);
         unsigned char state[84] = {};
         memcpy(state, object->colour, 16);
         memcpy(state + 16, object->pivot, 12);
@@ -405,13 +420,14 @@ void FengPackage::AdvanceScripts(float seconds) {
         memcpy(state + 56, object->size, 12);
         memcpy(state + 68, object->uv, 16);
         for (size_t k = 0; k < script.tracks.size(); ++k)
-            ApplyTrack(script.tracks[k], state, sizeof(state), (int)object->scriptMilliseconds);
+            ApplyTrack(script.tracks[k], state, sizeof(state), script.header.time10);
         ReadState(object, state, sizeof(state));
-        object->scriptMilliseconds += seconds * 1000.0f;
+        float milliseconds = (float)script.header.time10 + object->scriptRemainder + seconds * 1000.0f;
         bool cycling = false;
         for (size_t k = 0; k < script.tracks.size(); ++k) cycling |= script.tracks[k].cycle == 1;
-        if (!cycling && object->scriptMilliseconds > script.duration)
-            object->scriptMilliseconds = (float)script.duration + 1.0f;
+        if (!cycling && milliseconds > script.duration) milliseconds = (float)script.duration + 1.0f;
+        script.header.time10 = (int)milliseconds;
+        object->scriptRemainder = milliseconds - (float)script.header.time10;
     }
 }
 
@@ -424,7 +440,7 @@ void FengPackage::SetColour(FengObject *object, unsigned int argb) {
 }
 
 void FengPackage::SetTexture(FengObject *object, unsigned int hash) {
-    if (object) object->textureHash = hash;
+    if (object) object->texture24 = hash;
 }
 
 void FengPackage::SetPosition(FengObject *object, float x, float y) {
@@ -572,14 +588,14 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
             // DESTALPHA/ONE for mode 6. Ordinary source-alpha blending made
             // the black NOS mask/gamebreaker background an opaque rectangle.
             // Destination-alpha/stencil composition remains a native seam.
-            const NativeImage *image = textures->Find(o->textureHash);
+            const NativeImage *image = textures->Find(o->texture24);
             int blend = image ? image->alphaBlend : 1;
             if (blend == 2) glBlendFunc(GL_SRC_ALPHA, GL_ONE);
             else if (blend == 5) glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
             else if (blend == 6) glBlendFunc(GL_DST_ALPHA, GL_ONE);
             else glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             bool alpha = false;
-            GLuint tex = o->textureHash ? textures->Get(o->textureHash, &alpha) : 0;
+            GLuint tex = o->texture24 ? textures->Get(o->texture24, &alpha) : 0;
             // Native render seam: GL textures default to GL_REPEAT, so linear filtering at the
             // edge of a sprite blended in texels from the opposite side (bright seams at the
             // corners of the pause frame and icons). FEng sprites inside [0,1] are clamped.
@@ -592,7 +608,7 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
             } else {
                 glDisable(GL_TEXTURE_2D);
                 static bool warned[1] = {false};
-                if (o->textureHash && getenv("UG2_DEBUG_HUD") && !warned[0]) fprintf(stderr, "HUD: texture %08x of object %08x not loaded\n", o->textureHash, o->hash);
+                if (o->texture24 && getenv("UG2_DEBUG_HUD") && !warned[0]) fprintf(stderr, "HUD: texture %08x of object %08x not loaded\n", o->texture24, o->hash10);
             }
             glColor4f(R, G, B, item.alpha);
             float hw = o->size[0] * 0.5f, hh = o->size[1] * 0.5f;
@@ -604,7 +620,7 @@ void FengPackage::Draw(NativeTextureCache *textures, NativeFont *font, int width
                 for (size_t mi = 0; mi < items.size(); ++mi) {
                     const DrawItem &mask = items[mi];
                     if (mask.object != o->imageMask) continue;
-                    GLuint maskTexture = textures->Get(mask.object->textureHash, 0);
+                    GLuint maskTexture = textures->Get(mask.object->texture24, 0);
                     if (!maskTexture) break;
                     // Native render seam: TRACKMAP4000's DXT3 alpha is zero; its
                     // observed TextureInfo blend byte is 5. Sample its RGB through

@@ -171,8 +171,8 @@ int Add(OptionsScrollerFNGObject *owner, OptionItem *item, int arrows, int kind)
         Bar &b = bars[&slider->bar54];
         b.base = Named(owner->package4, "SLIDER_BASE_", index);
         // Native theme seam: the reference uses UI_Options, whose retail Init track is dark.
-        if (b.base && frontendTrackColours.count(b.base->hash))
-            FengPackage::SetColour(b.base, frontendTrackColours[b.base->hash]);
+        if (b.base && frontendTrackColours.count(b.base->hash10))
+            FengPackage::SetColour(b.base, frontendTrackColours[b.base->hash10]);
         b.knob = Named(owner->package4, "SLIDER_KNOB_", index);
         b.value = Named(owner->package4, "SLIDER_VALUE_", index);
         b.handle = Named(owner->package4, "SLIDER_HANDLE_", index);
@@ -386,7 +386,7 @@ void NativePauseOptionsLoad(const char *gameDirectory) {
                     for (int i = 1; i <= 20; ++i) {
                         char name[32]; snprintf(name, sizeof(name), "SLIDER_BASE_%d", i);
                         FengObject *base = theme.Find(name);
-                        if (base) frontendTrackColours[base->hash] = (base->colour[3] << 24) |
+                        if (base) frontendTrackColours[base->hash10] = (base->colour[3] << 24) |
                             (base->colour[2] << 16) | (base->colour[1] << 8) | base->colour[0];
                     }
                 }
