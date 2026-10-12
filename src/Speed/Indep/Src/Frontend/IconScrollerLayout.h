@@ -28,7 +28,13 @@ unsigned int FngFormatHash(const char *format, ...); // 0x50b9c0, formatting int
 bool FngObjectScriptActive(void *object, const char *name); // 0x51d040
 struct IconScrollerIcon;
 void UpdateIconLockScripts(IconScrollerIcon *icon, void *lock, void *button); // 0x51df00
+int FngFormatBuffer(char *buffer, unsigned int size, const char *format, ...); // 0x50c960, formatting boundary
+HudVisibilityObject *FngFindImageByHash(const char *package, unsigned int hash); // 0x537a60, remaining lookup boundary
+HudVisibilityObject *FngFindNamedImage(const char *package, const char *name); // 0x4953e0
 struct ScrollerScrollBar {
+    ScrollerScrollBar() {} // Temporary native storage construction; no initialization.
+    ScrollerScrollBar(const char *package, const char *prefix, unsigned char vertical,
+                      unsigned char scaled, unsigned char value); // 0x542ac0
     unsigned char vertical0, scaled1, deferred2, value3;
     char unidentified4[8];
     float positionC, position10;

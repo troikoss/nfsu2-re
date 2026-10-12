@@ -499,16 +499,7 @@ public:
         S().master = static_cast<FengObject *>(FngFindObject(owner->package4, FngHash("OPTION_MASTER")));
         object14 = NativeFrontendPackage(owner->package4)->Find("LOCK");
         object18 = NativeFrontendPackage(owner->package4)->Find("BUTTON_MASTER");
-        // ScrollBar 0x542ac0 names/geometry; full construction remains a native seam.
-        scrollBar38.backing40 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Backing");
-        scrollBar38.handle44 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Handle");
-        scrollBar38.end50 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Backing_End_1");
-        scrollBar38.end54 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Backing_End_2");
-        FEngGetTopLeft(scrollBar38.backing40, &scrollBar38.origin1C, &scrollBar38.origin20);
-        FEngGetSize(scrollBar38.backing40, &scrollBar38.extent24, &scrollBar38.extent28);
-        FEngGetSize(scrollBar38.handle44, &scrollBar38.handle2C, &scrollBar38.handle30);
-        scrollBar38.arrow48 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Arrow_1");
-        scrollBar38.arrow4C = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Arrow_2");
+        new (&scrollBar38) ScrollerScrollBar(owner->package4, "ScrollBar", 0, 0, 0);
         if (S().master) {
             masterD4 = S().master->position[0];
             masterD8 = S().master->position[1];
@@ -652,6 +643,20 @@ unsigned int FngFormatHash(const char *format, ...) {
     vsnprintf(text, sizeof(text), format, args);
     va_end(args);
     return FengHash(text);
+}
+
+int FngFormatBuffer(char *buffer, unsigned int size, const char *format, ...) {
+    // Linux formatting backend for 0x50c960; legacy truncation semantics remain unverified.
+    va_list args;
+    va_start(args, format);
+    int result = vsnprintf(buffer, size, format, args);
+    va_end(args);
+    return result;
+}
+HudVisibilityObject *FngFindImageByHash(const char *package, unsigned int hash) {
+    // Original 0x537a60 package/manager lookup remains a native boundary.
+    FengObject *object = static_cast<FengObject *>(FngFindObject(package, hash));
+    return object && object->type18 == 1 ? object : 0;
 }
 
 // ---- IconScroller base seams --------------------------------------------------------------

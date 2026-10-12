@@ -26,7 +26,7 @@ FUNCTIONS = {'LimitEndSlope': (0x5748c0, 80), 'LimitAcceleration': (0x574910, 19
 GLOBALS = {'tweenSixth786D94': 0x786d94, 'frontendDelta865198': 0x865198, 'realClock8651AC': 0x8651ac,
            'scrollerClock8641A0': 0x8641a0, 'fengEpsilon7992EC': 0x7992ec,
            'fengStateKeys7992F4': 0x7992f4, 'fengVisibilityDirty8384D4': 0x8384d4}
-INTERFACES = {'FngFormatHash': (0x50b9c0, 1, False), 'FngSetObjectScript': (0x51cf70, 3, False),
+INTERFACES = {'FngFormatBuffer': (0x50c960, 5, False), 'FngHash': (0x505450, 1, False), 'FngFindImageByHash': (0x537a60, 2, False), 'FngFormatHash': (0x50b9c0, 1, False), 'FngSetObjectScript': (0x51cf70, 3, False),
               'FindFEngFont': (0x51bd70, 1, False),
               'LineWidth': (0x50bce0, 4, True)}
 ARENA, STACK, STOP = 0x2000000, 0x200f000, 0x2100000

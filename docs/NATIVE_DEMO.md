@@ -301,7 +301,9 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   Smaller icons centre-align; the icon row moves under a fixed selection frame, with placement
   preceding tween advancement. Native construction/insertion and script activation
   remain seams. Colour, lock/arrow-script policies and scrollbar geometry use recovered routines;
-  LOCK/BUTTON_MASTER and all ScrollBar objects now bind the retail objects. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
+  LOCK/BUTTON_MASTER and all ScrollBar objects now bind the retail objects.
+  ScrollBar setup calls recovered constructor `0x542ac0`; formatting and typed image lookup
+  backends remain seams. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
   and run `python tools/smoke_native_pause_scroller.py` for rendered motion checks.
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;

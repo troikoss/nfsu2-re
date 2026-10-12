@@ -496,3 +496,37 @@ with actual recovered scrollbar geometry replacing its callback. Native construc
 all six retail ScrollBar objects and obtains initial geometry through recovered getters.
 Full original construction remains a seam. Native build, pause/options regressions, all 19
 settings scenarios, 10 Controls scenarios and rendered scroller motion pass.
+
+
+## Scrollbar construction
+
+`ScrollerScrollBar.cpp` recovers constructor `0x542ac0` and named image wrapper `0x4953e0`.
+The constructor preserves flag bytes exactly, clears deferred +2 and observed fields,
+but leaves step +0x34 and bytes +0x3c..+0x3f untouched. A null prefix skips all lookup and
+geometry calls. Otherwise it formats six names into a 64-byte buffer, in order: _Backing,
+_Handle, _Arrow_1, _Arrow_2, _Backing_End_1, _Backing_End_2. The wrapper hashes each name
+before typed image lookup, including when package is null.
+
+Construction reads backing top-left/size, then either handle size (fixed mode) or copies
+the backing's opposite-axis extent into both handle dimensions (scaled mode). That unusual
+scaled-mode axis choice is present in the original instructions and is preserved. Native
+pause construction now calls the recovered constructor instead of assigning these fields.
+The enclosing native scroller still clears its storage before this call; standalone proof
+starts from arbitrary bytes to check the constructor's untouched fields independently.
+
+The expanded scrollbar verifier passes **19,641 original/rebuilt comparisons**, including
+2,000 constructors and 2,000 named wrappers. Constructor cases cover null/non-null package
+and prefix, two prefixes, missing/present image results, noncanonical flag bytes and initial
+memory preservation. Return values, cleanup, preserved registers, object memory and normalized
+format/hash/lookup traces are checked. Five mutations are rejected: clearing the untouched
+step, wrong scaled extent, wrong suffix, skipping lookup in fixed mode and hashing package
+instead of object name. **Byte matching is not established.**
+
+Formatted buffer `0x50c960`, uppercase hash `0x505450` and typed image lookup `0x537a60`
+remain controlled interfaces in this proof. Native formatting uses vsnprintf; legacy
+truncation/error semantics are unverified. Native image lookup enforces type 1 but its
+package/manager search remains a seam. Fixtures keep generated names within the buffer.
+The empty default constructor supports temporary enclosing native storage only; the original
+parameterized constructor is used for actual setup. Full IconScroller construction remains
+unrecovered. Native build, layout/pause/options regressions and settings/Controls/motion
+smoke checks pass.

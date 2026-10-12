@@ -29,7 +29,7 @@ unless the user or applicable repository/skill instructions request delegation.
 ## Authoritative checkpoint
 
 Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`, branch `main`.
-Latest verified checkpoint: **Recover pause scrollbar geometry and size helpers**
+Latest verified checkpoint: **Recover pause scrollbar construction**
 (see Git history for its commit). Navigation checkpoint: `c0b18f1`; package mask/focus
 checkpoint: `3878b16`. Direct user authorization to commit and push to `main` was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
 FEng objects the original object and script prefix**.
@@ -145,9 +145,18 @@ classes write FEng internals directly, so the work is staged:
    14,762 with actual scrollbar code. Native binds all six retail scrollbar objects and reads
    geometry via recovered getters. Full construction remains a seam. Native build, pause/options,
    19 settings, 10 Controls and rendered motion pass; byte matching remains unestablished.
+   **Scrollbar constructor done**: `0x542ac0` and named image wrapper `0x4953e0`
+   replace native setup. Preserve untouched +0x34/+0x3c fields, null-prefix lookup skip,
+   six suffixes/order, noncanonical bytes and original opposite-axis initial scaled extent.
+   Scrollbar verifier expands to 19,641 (2,000 constructors + 2,000 wrappers); five
+   constructor/wrapper mutations rejected. Format `0x50c960`, hash `0x505450` and typed
+   image lookup `0x537a60` remain controlled/native boundaries; type 1 is enforced natively,
+   package/manager lookup and legacy truncation remain unverified. Native build, layout,
+   pause/options and 19 settings/10 Controls/motion checks pass. Full scroller construction
+   remains a seam. Default empty scrollbar ctor only supports temporary native storage.
    **Next**: recover the rest of IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
    IconScrollerFNGObject `+0x4c`) replacing `NativeIconScroller`:
-   ctors `0x543840`/`0x543a90`, ScrollBar `0x542ac0` (at scroller `+0x38`), slots `0x543bf0`,
+   ctors `0x543840`/`0x543a90`, slots `0x543bf0`,
    `0x543c10`, `0x538b80`, `0x51f870`; helpers `0x51fb70`,
    `0x538130`, `0x52e4e0`, `0x52e670`, `0x51fd10`, `0x51fd60`,
    list helper `0x43be80`; script activation `0x51cf70`/`0x517720`.

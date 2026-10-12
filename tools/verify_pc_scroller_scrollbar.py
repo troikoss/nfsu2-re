@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Original/rebuilt scrollbar visibility and scaled/fixed handle geometry."""
+"""Original/rebuilt scrollbar construction, visibility and scaled/fixed geometry."""
 import argparse
 import hashlib
 import json
@@ -18,11 +18,11 @@ from pc_coff import link_objects, read_object
 from verify_pc_feng_coordinates import FUNCTIONS as COORDINATES
 
 BUILD = ROOT / 'build/analysis/scroller-scrollbar'
-FUNCTIONS = {'UpdateScaled': (0x52e200, 287), 'UpdateFixed': (0x52e320, 324), 'Update': (0x538080, 173)}
+FUNCTIONS = {'UpdateScaled': (0x52e200, 287), 'UpdateFixed': (0x52e320, 324), 'Update': (0x538080, 173), 'Constructor': (0x542ac0, 465), 'FngFindNamedImage': (0x4953e0, 22)}
 GLOBALS = {'tweenSixth786D94': 0x786d94, 'frontendDelta865198': 0x865198, 'realClock8651AC': 0x8651ac,
            'scrollerClock8641A0': 0x8641a0, 'fengEpsilon7992EC': 0x7992ec,
            'fengStateKeys7992F4': 0x7992f4, 'fengVisibilityDirty8384D4': 0x8384d4}
-INTERFACES = {'FindFEngFont': (0x51bd70, 1, False),
+INTERFACES = {'FngFormatBuffer': (0x50c960, 5, False), 'FngHash': (0x505450, 1, False), 'FngFindImageByHash': (0x537a60, 2, False), 'FindFEngFont': (0x51bd70, 1, False),
               'LineWidth': (0x50bce0, 4, True)}
 ARENA, STACK, STOP = 0x2000000, 0x200f000, 0x2100000
 SELECT, FLOAT_STOP, FLOAT_RESULT = STOP + 0x100, STOP + 0x40, ARENA + 0xe000
@@ -58,7 +58,7 @@ def main():
         elif name in INTERFACES: externals[s['name']] = INTERFACES[name][0]
         else: raise AssertionError(s['name'])
     linked = link_objects(objects, externals)
-    entries = {name: next(a for n, a in linked['exports'].items() if n.startswith('?' + name + '@')) for name in FUNCTIONS}
+    entries = {name: next(a for n, a in linked['exports'].items() if n.startswith('??0ScrollerScrollBar@' if name == 'Constructor' else '?' + name + '@')) for name in FUNCTIONS}
     state, machines = {}, []
     retained = [(0x75bed4, 0x75bf49), (0x43be60, 0x43be7f)]
     dependencies = [(a, a + n) for a, n in list(COORDINATES.values())] + [(0x50ca00, 0x50ca45), (0x50ca50, 0x50caa2)]
@@ -82,23 +82,23 @@ def main():
                 sp = uc.reg_read(UC_X86_REG_ESP)
                 words = struct.unpack('<' + 'I' * (argc + 1), uc.mem_read(sp, (argc + 1) * 4))
                 this = uc.reg_read(UC_X86_REG_ECX) if member else 0
-                if name in ('FngFormatHash', 'FngSetObjectScript'):
-                    pointer = words[1] if name == 'FngFormatHash' else words[2]
-                    label = bytearray()
-                    while (c := uc.mem_read(pointer + len(label), 1)[0]): label.append(c)
-                    label = label.decode('ascii')
-                    state['trace'].append((name, label) if name == 'FngFormatHash' else (name, words[1], label, words[3] & 255))
-                    if name == 'FngFormatHash': uc.reg_write(UC_X86_REG_EAX, 123 if label == 'FadeIn' else 456)
-                else:
-                    state['trace'].append((name, this, words[1:]))
-                if name == 'Select':
-                    # Selection itself is verified separately. Capture pre-selection geometry/order.
-                    state['trace'].append(('before_select', bytes(uc.mem_read(this + 0x90, 0x40)).hex()))
-                    uc.mem_write(this + 0xc, struct.pack('<I', words[1]))
-                    uc.mem_write(this + 0xc8, struct.pack('<I', state['selected_index']))
-                    uc.reg_write(UC_X86_REG_EAX, 1)
-                elif name == 'Update':
-                    state['trace'].append(('tween_at_call', bytes(uc.mem_read(state['scroller'] + 0x90, 0x30)).hex()))
+                def string(pointer):
+                    if not pointer: return None
+                    out = bytearray()
+                    while (c := uc.mem_read(pointer + len(out), 1)[0]): out.append(c)
+                    return out.decode('ascii')
+                if name == 'FngFormatBuffer':
+                    fmt, prefix, suffix = map(string, words[3:6])
+                    state['trace'].append((name, words[2], fmt, prefix, suffix))
+                    text_ = (prefix + suffix).encode('ascii')
+                    uc.mem_write(words[1], text_ + b'\0'); uc.reg_write(UC_X86_REG_EAX, len(text_))
+                elif name == 'FngHash':
+                    text_ = string(words[1]); state['trace'].append((name, text_))
+                    h = 0 if text_ is None else sum((i+1)*c for i,c in enumerate(text_.encode('ascii')))
+                    uc.reg_write(UC_X86_REG_EAX, h)
+                elif name == 'FngFindImageByHash':
+                    state['trace'].append((name, words[1:]))
+                    uc.reg_write(UC_X86_REG_EAX, state.get('lookups', {}).get(words[2], 0))
                 uc.reg_write(UC_X86_REG_ESP, sp + 4 + (4 * argc if member else 0))
                 uc.reg_write(UC_X86_REG_EIP, words[0])
                 return
@@ -113,7 +113,7 @@ def main():
     objects_ = [ARENA + 0x2000 + i * 0x100 for i in range(5)]
     data_ = [ARENA + 0x3000 + i * 0x100 for i in range(5)]
 
-    def compare(name, memory, args=b'', this=0, cleanup=0, floating=False, precision=0x027f):
+    def compare(name, memory, args=b'', this=0, cleanup=0, floating=False, precision=0x027f, lookups=None):
         outputs = []
         for rebuilt, uc in zip((False, True), machines):
             uc.mem_write(ARENA, bytes(memory))
@@ -125,13 +125,13 @@ def main():
             uc.reg_write(UC_X86_REG_ESP, STACK); uc.reg_write(UC_X86_REG_ECX, this)
             uc.reg_write(UC_X86_REG_FPCW, precision); uc.reg_write(UC_X86_REG_FPSW, 0); uc.reg_write(UC_X86_REG_FPTAG, 0xffff)
             for reg in REGISTERS: uc.reg_write(reg, 0x12345678)
-            state.update(trace=[], scroller=scroller, selected_index=3)
+            state.update(trace=[], scroller=scroller, selected_index=3, lookups=lookups or {})
             uc.emu_start(entries[name] if rebuilt else FUNCTIONS[name][0], STOP, count=50000)
             assert uc.reg_read(UC_X86_REG_EIP) == STOP
             assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4 + cleanup, (name, rebuilt, hex(uc.reg_read(UC_X86_REG_ESP)))
             assert all(uc.reg_read(r) == 0x12345678 for r in REGISTERS)
             assert uc.reg_read(UC_X86_REG_FPCW) == precision
-            outputs.append((state['trace'], bytes(uc.mem_read(ARENA, 0xe004)), bytes(uc.mem_read(0x8384d4, 4))))
+            outputs.append((([uc.reg_read(UC_X86_REG_EAX)] if name in ('Constructor','FngFindNamedImage') else []) + state['trace'], bytes(uc.mem_read(ARENA, 0xe004)), bytes(uc.mem_read(0x8384d4, 4))))
         if outputs[0] != outputs[1]:
             diff = [(hex(i), outputs[0][1][i], outputs[1][1][i]) for i in range(0xe004) if outputs[0][1][i] != outputs[1][1][i]][:12]
             print('difference', name, args.hex(), diff, outputs[0][0], outputs[1][0])
@@ -162,7 +162,7 @@ def main():
         if trial % 2 == 0:
             count = rng.randrange(2, 500); page = rng.randrange(1, count); selected = rng.randrange(1, count + 1)
         args_ = struct.pack('<3i', page, count, selected)
-        for name in FUNCTIONS: compare(name, memory, args_, scroller, 12, precision=precision)
+        for name in ('UpdateScaled','UpdateFixed','Update'): compare(name, memory, args_, scroller, 12, precision=precision)
     for extent in (13.0, 123.456, 1.0e-4, 10000.123):
         for count in (3, 7, 19, 101):
             for selected in range(1, count + 1):
@@ -175,12 +175,25 @@ def main():
                 for deferred in (0, 1):
                     memory = fixture(); memory[0x100] = vertical; memory[0x102] = deferred
                     struct.pack_into('<4f', memory, 0x124, value, value, value, value)
-                    for name in FUNCTIONS: compare(name, memory, struct.pack('<3i', 1, 5, 3), scroller, 12, precision=precision)
+                    for name in ('UpdateScaled','UpdateFixed','Update'): compare(name, memory, struct.pack('<3i', 1, 5, 3), scroller, 12, precision=precision)
     # No geometry is requested in this branch, so null handle/arrow bindings are valid.
     memory = fixture(); memory[0x140:0x158] = bytes(24)
     compare('Update', memory, struct.pack('<3i', 1, 0, 0), scroller, 12)
+    for trial in range(2000):
+        memory = fixture(); prefix = 'ScrollBar' if trial % 2 else 'Other'
+        memory[0x500:0x540] = bytes(64); memory[0x500:0x500+len(prefix)+1] = prefix.encode()+b'\0'
+        lookups = {}
+        for i,suffix in enumerate(('_Backing','_Handle','_Arrow_1','_Arrow_2','_Backing_End_1','_Backing_End_2')):
+            label = (prefix+suffix).encode(); h = sum((j+1)*c for j,c in enumerate(label))
+            lookups[h] = rng.choice((0, ARENA+0x1000+i*0x100))
+            struct.pack_into('<i', memory, 0x1018+i*0x100, 1)
+        lookups[sum((j+1)*c for j,c in enumerate(prefix.encode()))] = rng.choice((0, ARENA+0x1000))
+        package = rng.choice((0, ARENA+0x700)); prefix_ptr = rng.choice((0, ARENA+0x500))
+        flags = [rng.choice((0,1,0x80,255)) for _ in range(3)]
+        compare('Constructor', memory, struct.pack('<5I',package,prefix_ptr,*flags), scroller, 20, lookups=lookups)
+        compare('FngFindNamedImage', memory, struct.pack('<II',package,ARENA+0x500), lookups=lookups)
     report = {'comparisons': counts, 'total': sum(counts.values()), 'byte_matching': 'not established',
-              'controlled_interfaces': [], 'linked_but_unreached_interfaces': list(INTERFACES),
+              'controlled_interfaces': ['format 0x50c960', 'hash 0x505450', 'typed lookup 0x537a60'], 'linked_but_unreached_interfaces': ['FindFEngFont', 'LineWidth'],
               'fixture_scope': 'image handle, valid geometry state; null bindings in hidden branch',
               'fingerprints': {n: {'address': hex(a), 'size': size, 'sha256': hashlib.sha256(image[a-0x400000:a-0x400000+size]).hexdigest()} for n, (a, size) in FUNCTIONS.items()}}
     (BUILD / 'verification.json').write_text(json.dumps(report, indent=2)+'\n'); print(json.dumps(report, indent=2))
