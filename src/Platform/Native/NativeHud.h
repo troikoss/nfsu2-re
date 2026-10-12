@@ -67,7 +67,7 @@ private:
     HudRewardFeature reward_;
     HudFeatureObjectNode rewardNodes_[1];
     HudMinimap minimap_;
-    HudFeatureVisibility mapVisibility_;
+    HudGpsFeature mapVisibility_; // map feature 0x4f73e0 (controller +0x5c)
     HudFeatureObjectNode mapVisibilityNodes_[7];
     HudMinimapIndicator playerIndicator_;
     HudIndicatorSlot playerSlot_;

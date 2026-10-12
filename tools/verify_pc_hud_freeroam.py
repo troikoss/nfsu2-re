@@ -43,6 +43,9 @@ FUNCTIONS = {
     'GaugeUpdate': (0x4c68d0, 676),
     'HudNeedleAngle': (0x4aa0e0, 124),
     'UseMetric5EA8B0': (0x5ea8b0, 15),
+    'MapUpdate': (0x4da640, 167),
+    'Query500B60': (0x500b60, 28),
+    'Count500400': (0x500400, 86),
 }
 GLOBAL_ADDRESSES = {
     'engineSpeedOverride': 0x7fbed8, 'engineSpeedOverrideUnset': 0x784258,
@@ -80,6 +83,7 @@ INTERFACES = {
     'HudObjectTexture': (0x50c900, 2, 0), 'HudObjectPosition': (0x51d4d0, 3, 0),
     'HudGpsEvent': (0x458520, 1, 4),
     'GetClassIndex': (0x5b5330, 0, 0),
+    'Update': (0x4ca840, 0, 0),  # HudMinimap::Update, verified by verify_pc_hud_minimap.py
     'HudNotificationTexture': (0x50c990, 2, 0),
     'HudNotificationPrepare': (0x4c8ac0, 0, 0),
     'HudNotificationNormal': (0x4c8b80, 1, 4),
@@ -136,7 +140,9 @@ def main():
                'NotificationUpdate': 'HudNotificationFeature', 'HeatUpdate': 'HudHeatFeature', 'GpsUpdate': 'HudGpsFeature',
                'RegionUpdate': 'HudRegionFeature', 'CashUpdate': 'HudCashFeature',
                'RewardUpdate': 'HudRewardFeature'}.get(name)
-        prefix = '?ApplyMasks@HudController@' if name == 'ControllerMasks' else '?Update@' + cls + '@' if cls else '?' + name + '@'
+        prefix = {'MapUpdate': '?UpdateMap@HudGpsFeature@', 'Query500B60': '?Query500B60@CareerData85AD40@',
+                  'Count500400': '?Count500400@CareerData85AD40@'}.get(name) or (
+            '?ApplyMasks@HudController@' if name == 'ControllerMasks' else '?Update@' + cls + '@' if cls else '?' + name + '@')
         entries[name] = next(a for s, a in linked['exports'].items() if s.startswith(prefix))
     arena, stack, stop = 0x2000000, 0x200f000, 0x2100000
     state = {}
@@ -176,7 +182,7 @@ def main():
             elif name in ('HudObjectHash',): args[0] = cstring(uc, args[0])
             elif name == 'HudObjectScript': args[1] = cstring(uc, args[1])
             elif name in ('HudPackageScriptActive', 'HudPackageScript'): args[2] = cstring(uc, args[2])
-            elif name == 'ApplyMasks': args.insert(0, uc.reg_read(UC_X86_REG_ECX))
+            elif name in ('ApplyMasks', 'Update'): args.insert(0, uc.reg_read(UC_X86_REG_ECX))
             elif name == 'HudPlayerVisibility':
                 if rebuilt: args = [u32(uc, sp + 4), u32(uc, sp + 8)]
                 else: args.insert(0, uc.reg_read(UC_X86_REG_ECX))
@@ -244,7 +250,7 @@ def main():
             assert uc.reg_read(UC_X86_REG_FPCW) == cw
             if True:
                 assert all(uc.reg_read(r) == 0x12345678 for r in (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP))
-            outputs.append((state['trace'], bytes(uc.mem_read(arena, 0x9000)), bytes(uc.mem_read(arena + 0x9200, 4)) if floating else struct.pack('<I', uc.reg_read(UC_X86_REG_EAX)) if name in ('HudNotificationNext', 'HudNotificationPriority') else bytes([uc.reg_read(UC_X86_REG_EAX) & 0xff]) if name == 'UseMetric5EA8B0' else b'',
+            outputs.append((state['trace'], bytes(uc.mem_read(arena, 0x9000)), bytes(uc.mem_read(arena + 0x9200, 4)) if floating else struct.pack('<I', uc.reg_read(UC_X86_REG_EAX)) if name in ('HudNotificationNext', 'HudNotificationPriority') else bytes([uc.reg_read(UC_X86_REG_EAX) & 0xff]) if name in ('UseMetric5EA8B0', 'Query500B60') else struct.pack('<I', uc.reg_read(UC_X86_REG_EAX)) if name == 'Count500400' else b'',
                             bytes(uc.mem_read(0x83649c, 24)), bytes(uc.mem_read(0x8364b0, 4))))
         assert outputs[0] == outputs[1], (name, fraction, cw, outputs[0][0], outputs[1][0], outputs[0][2:], outputs[1][2:])
         counts[name] += 1
@@ -346,6 +352,25 @@ def main():
                 (0x83aa1a, bytes([rng.choice((0, 1, 2))])),
                 (0x7fbed8, struct.pack('<f', rng.choice((100., 100., 6800.))))]
             compare('GaugeUpdate', m, struct.pack('<I', arena + 0x3000), arena, g, cw=cw, tuning=rng.randrange(4))
+        for trial in range(400):
+            m = frame(rng.random() < 0.8)
+            for k in (0x20, 0x24, 0x28, 0x2c, 0x30): struct.pack_into('<I', m, k, arena + 0x1000 + k * 0x10)
+            m[0x35] = rng.choice((0, 1))
+            struct.pack_into('<I', m, 0x3004, arena + 0x4000)
+            struct.pack_into('<i', m, 0x4024, rng.choice((0, 1)))
+            struct.pack_into('<I', m, 0x402c, arena + 0x8000)
+            struct.pack_into('<i', m, 0x83e4, rng.choice((0, 1, 2, 3)))
+            career = bytearray(16)
+            for i in range(16): career[i] = rng.choice((0, 1, 1, 1)) if trial % 3 else 1
+            mode = rng.choice((0, 1, 1, 4))
+            race = rng.choice((0, 0, 7))
+            g = globals_for() + [(0x8364d4, struct.pack('<I', rng.choice((0, arena + 0x9400)))),
+                                 (0x8385b9, bytes([rng.choice((0, 1))])), (0x850078, struct.pack('<i', mode)),
+                                 (0x89e7b0, struct.pack('<i', race)), (0x85ad40 + 0x8869, bytes(career)),
+                                 (0x82b884, struct.pack('<I', rng.choice((0, arena + 0x8500))))]
+            compare('MapUpdate', m, struct.pack('<I', arena + 0x3000), arena, g, cw=cw, gps_mode=rng.randrange(5))
+            compare('Query500B60', m, b'', 0x85ad40, g, cw=cw)
+            compare('Count500400', m, b'', 0x85ad40, g, cw=cw)
         for name in ('HudLerpVector3', 'HudLerpColour'):
             for fraction in (0., 0.125, 0.5, 0.875, 1.):
                 for trial in range(64):

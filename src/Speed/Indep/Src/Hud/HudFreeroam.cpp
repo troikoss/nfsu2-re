@@ -14,6 +14,11 @@ extern float hudSpeedScaleImperial78426C;
 extern float hudTachSegments788218;      // -7
 extern signed char hudGearCharacters7F66A4[20];
 extern unsigned char units83AA1A;
+extern int gameMode850078;
+extern int hudRaceType89E7B0;
+extern HudMinimap *hudMinimap8364D4;
+extern unsigned char gpsEnabled8385B9;
+extern CareerData85AD40 careerData85AD40;
 extern "C" double __cdecl fabs(double);
 #pragma intrinsic(fabs)
 extern float hudOne784250;
@@ -190,6 +195,37 @@ void HudGpsFeature::Update(HudPlayerSlot *player) {
     HudObjectPosition(object30, x, y);
     if (!arrived35 && arrived && hudGpsReceiver82B884) HudGpsEvent(hudGpsReceiver82B884, 0x12);
     arrived35 = arrived;
+}
+
+// Original 0x500b60.
+bool CareerData85AD40::Query500B60() {
+    if (gameMode850078 == 1 && hudRaceType89E7B0 == 0) return true;
+    return false;
+}
+
+// Original 0x500400.
+int CareerData85AD40::Count500400() {
+    int count = 0;
+    for (int i = 0; i < 16; ++i) {
+        if (!flags8869[i]) ++count;
+    }
+    return count;
+}
+
+// Original 0x4da640: the minimap update, then (when shown) the GPS search group.
+void HudGpsFeature::UpdateMap(HudPlayerSlot *player) {
+    if (hudMinimap8364D4) hudMinimap8364D4->Update();
+    if ((current18 & mask10) || (current1C & mask14)) {
+        HudHideObject(static_cast<HudVisibilityObject *>(value20));
+        HudHideObject(object24);
+        HudHideObject(object30);
+        if (gpsEnabled8385B9 && careerData85AD40.Query500B60()) Update(player);
+        if (careerData85AD40.Count500400() && careerData85AD40.Query500B60()) {
+            HudShowObject(static_cast<HudVisibilityObject *>(value20));
+        } else {
+            HudHideObject(static_cast<HudVisibilityObject *>(value20));
+        }
+    }
 }
 
 // Original 0x4aa160. Keep extended intermediates until the caller's float store.

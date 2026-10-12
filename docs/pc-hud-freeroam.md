@@ -92,8 +92,15 @@ seven multi-player tach bars, gear text/colour, the shift light (with class inde
 `0x5b5330` scripted; it is recovered in `PhysicsRefresh.cpp` and verified by
 `verify_pc_physics_parameters.py`) and the missing-skin hides. Three behaviour
 mutations (bar colour threshold, shift-light comparison, replay RPM) are detected.
+The map feature built by `0x4f73e0` is the GPS feature (`+0x20` object `0xd80c97e1`,
+`+0x24` `GPS_Search_Group`, `+0x28` `GPS_SEARCH_Text`, `+0x2c` `GPS_SEARCH_ERROR`,
+`+0x30` object `0x697d2bca`). Its update `0x4da640` (`HudGpsFeature::UpdateMap`) runs
+the minimap at `*0x8364d4` (`0x4ca840`, traced here and verified by the minimap
+verifier), then while shown hides the search objects, runs the GPS update `0x4c8410`
+when `0x8385b9` is set in career free roam (`0x500b60`) and shows `+0x20` only when
+career flags remain (`0x500400`). 400 cases per control word; three mutations detected.
 
-Report: `build/analysis/freeroam-hud/verification.json`. **12,268 bounded comparisons
+Report: `build/analysis/freeroam-hud/verification.json`. **14,668 bounded comparisons
 pass; byte matching is not established.** Finite synthetic cases do not prove
 complete coverage. Fingerprints below cover the recovered original spans:
 
@@ -121,6 +128,9 @@ complete coverage. Fingerprints below cover the recovered original spans:
 | GaugeUpdate | 0x4c68d0 | 676 | 3000 | `36e23e98aba5666f4e8f44ed70f2eebad1472d149bb9f94ffa9635d545097fb3` |
 | HudNeedleAngle | 0x4aa0e0 | 124 | 168 | `1c6ee6c1602bf6af3c47bdaaed9455f35d5eaa3f3f98893e4f265283d48bf9aa` |
 | UseMetric5EA8B0 | 0x5ea8b0 | 15 | 24 | `1c1527208d0f30539bdfd2e034977cc48388552bfcca34f9b599ed63bb6402cf` |
+| MapUpdate | 0x4da640 | 167 | 800 | `97a1e10edbbdfd1987e4ce668beb98d30559662ebaed9001b138c0fcf9a9e90b` |
+| Query500B60 | 0x500b60 | 28 | 800 | `810fb3fb6a8956268eae04cdd3e00523007e7a34add0f2d5bca334334fbb8369` |
+| Count500400 | 0x500400 | 86 | 800 | `7d8ae5b4102271ba852a578908783ea6ed178b9e4e8437dad23aa03906789155` |
 
 ## Native integration and seams
 

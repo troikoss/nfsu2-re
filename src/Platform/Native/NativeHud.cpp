@@ -16,6 +16,7 @@ extern PlayerRecord *players8900B4[2];
 extern CareerBank861E74 careerBank861E74;
 extern int language7F70D0;
 extern unsigned char units83AA1A;
+extern HudMinimap *hudMinimap8364D4;
 extern int playerCount8900BC;
 void NativeTrap(const char *what);
 void HudMinimapSeam(const char *what) { NativeTrap(what); }
@@ -471,6 +472,14 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
         mapVisibility_.previous4->next0 = node;
         mapVisibility_.previous4 = node;
     }
+    // Constructor 0x4f73e0 object slots (lookups 0x5379c0, text objects 0x537a10).
+    mapVisibility_.value20 = package_.Find(0xd80c97e1u);
+    mapVisibility_.object24 = package_.Find("GPS_Search_Group");
+    mapVisibility_.value28 = package_.Find("GPS_SEARCH_Text");
+    mapVisibility_.object2C = package_.Find("GPS_SEARCH_ERROR");
+    mapVisibility_.object30 = package_.Find(0x697d2bcau);
+    mapVisibility_.value34 = 0;
+    hudMinimap8364D4 = &minimap_;
     mapVisibility_.ApplyMasks(0, 0); // Constructor 0x4f73e0 ends with this call.
     controller_.feature5C = &mapVisibility_;
 
@@ -493,7 +502,7 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     cash_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
     reward_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
     package_.AdvanceScripts(seconds);
-    if (minimapReady_) minimap_.Update();
+    mapVisibility_.UpdateMap(reinterpret_cast<HudPlayerSlot *>(&player_)); // 0x4da640 runs the minimap
 }
 
 void NativeHud::SetCareerHudState(int balance, unsigned int regionHash) {

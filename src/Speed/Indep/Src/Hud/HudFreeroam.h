@@ -82,6 +82,16 @@ struct HudGpsFeature : HudFeatureVisibility {
     unsigned char arrived35;
     char unidentified36[2];
     void Update(HudPlayerSlot *player); // 0x4c8410
+    // Map feature update 0x4da640 (constructor 0x4f73e0 builds this feature as controller +0x5c).
+    void UpdateMap(HudPlayerSlot *player);
+};
+
+// Career state object at 0x85ad40.
+struct CareerData85AD40 {
+    char unidentified0[0x8869];
+    unsigned char flags8869[16];
+    bool Query500B60(); // 0x500b60: career free roam
+    int Count500400();  // 0x500400: zero flags in +0x8869..+0x8878
 };
 struct HudRegionFeature : HudFeatureVisibility {
     HudVisibilityObject *message20;

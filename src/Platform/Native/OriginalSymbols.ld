@@ -807,3 +807,6 @@ restartLimit7844F8 = 0x7844f8;
 careerBank861E74 = 0x861e74;
 language7F70D0 = 0x7f70d0;
 hudTachSegments788218 = 0x788218;
+hudMinimap8364D4 = 0x8364d4;
+gpsEnabled8385B9 = 0x8385b9;
+careerData85AD40 = 0x85ad40;
