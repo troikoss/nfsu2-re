@@ -25,8 +25,7 @@ extern int colliderFaceRecordsEnabled883E60;
 extern int frameTotal7FB720;
 extern int colliderFaceSecondary802040;
 extern float colliderFaceRaise;   // 8
-int bIsSlotPoolFull(void *pool);  // 0x43cd10
-void *bSlotPoolAllocate(void *pool); // 0x43f8f0
+#include "../../Libs/bWare/bSlotPool.h"
 
 // 0x502fd0, identical to DriftRankList::End: the list object is its sentinel.
 ColliderFaceRecord *ColliderFaceRecordList::End() {

@@ -31,3 +31,4 @@ Document their fingerprints, commands, and limitations here without redistributi
 them. Session-specific commit state and temporary goals belong in chat or Git history.
 
 - [Physics parameter layout and drive curve](pc-physics-parameters.md)
+- [bWare slot pool](pc-bware-slotpool.md)

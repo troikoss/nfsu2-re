@@ -13,12 +13,6 @@
 
 namespace {
 
-struct SlotPool {
-    int size;
-    int capacity;
-    int used;
-};
-
 std::vector<unsigned char *> &Buffers() {
     static std::vector<unsigned char *> buffers;
     return buffers;
@@ -54,52 +48,14 @@ unsigned int Read32(const std::vector<unsigned char> &data, size_t offset) {
 
 }  // namespace
 
-// Platform scaffolding for bWare slot pools (0x440df0, 0x440e50 bOMalloc, 0x43f920 bFree,
-// 0x43cd10 full test): heap blocks with the original capacities enforced.
-void *bNewSlotPool(int size, int count, const char *name, int flags) {
-    (void)name;
-    (void)flags;
-    SlotPool *pool = static_cast<SlotPool *>(calloc(1, sizeof(SlotPool)));
-    pool->size = size;
-    pool->capacity = count;
-    return pool;
+// Platform seam for the bWare heap (0x440390 bMalloc / 0x440540 free) that the
+// recovered slot pools (Libs/bWare/bSlotPool.cpp) allocate their blocks from.
+void *bMalloc(int size, const char *, int, int) {
+    return calloc(1, size);
 }
 
-void *bOMalloc(void *pool) {
-    SlotPool *slots = static_cast<SlotPool *>(pool);
-    if (slots->capacity && slots->used >= slots->capacity) {
-        return 0;
-    }
-    ++slots->used;
-    return calloc(1, slots->size);
-}
-
-void bFree(void *pool, void *memory) {
-    if (!memory) {
-        return;
-    }
-    --static_cast<SlotPool *>(pool)->used;
+void bFreeMemory(void *memory) {
     free(memory);
-}
-
-// 0x43f8f0 is the inline slot-pool allocation used by recovered 0x5dc360;
-// it shares this scaffold until the bWare slot pool itself is recovered.
-void *bSlotPoolAllocate(void *pool) {
-    return bOMalloc(pool);
-}
-
-int bIsSlotPoolFull(void *pool) {
-    SlotPool *slots = static_cast<SlotPool *>(pool);
-    return slots->capacity && slots->used == slots->capacity;
-}
-
-// bTNode allocation (0x440ec0 / 0x440ef0): {next, previous, object}.
-WCollisionLink *bNewListNode() {
-    return static_cast<WCollisionLink *>(calloc(1, 0xc));
-}
-
-void bDeleteListNode(WCollisionLink *node) {
-    free(node);
 }
 
 bool LoadNativeTrack(const char *gameDirectory, const char *region, NativeTrack *track, char *error,
@@ -123,8 +79,6 @@ bool LoadNativeTrack(const char *gameDirectory, const char *region, NativeTrack 
         offset += 8 + size;
     }
     InitialiseCollisionCache(&collisionManager, 0);
-    // Scaffold: every pack is loaded at start-up, so the topology pool is left unbounded.
-    static_cast<SlotPool *>(collisionPackPool)->capacity = 0;
     std::vector<unsigned char> streamData;
     path = std::string(gameDirectory) + "/TRACKS/STREAM" + region + ".BUN";
     if (!ReadWholeFile(path, &streamData)) {

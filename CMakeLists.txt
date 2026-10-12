@@ -16,6 +16,7 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/Frontend/*.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Strings.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/TimedAverage.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/bSlotPool.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Compression.cpp)
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/src/Platform/Native/include)
 add_library(ug2recovered STATIC ${UG2_RECOVERED_SOURCES})

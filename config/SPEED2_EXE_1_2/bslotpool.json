@@ -1,0 +1,89 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 4443456,
+      "size": 62,
+      "sha256": "baef9da955cf3baa6b296c020c110e402f40ec04446b2c5c5725624f062b4c0d",
+      "method": "InitialiseFreeList"
+    },
+    {
+      "address": 4459328,
+      "size": 98,
+      "sha256": "0b4721f002c104208436a2ea454c345320fc2f75db0d332054b07e5f520618e5",
+      "method": "bNewSlotPoolBlock"
+    },
+    {
+      "address": 4459440,
+      "size": 115,
+      "sha256": "78338c7c2b4f93c0ae53bcccf13a96ef869a6cab4867335a64f66b2e59dc174d",
+      "method": "Expand"
+    },
+    {
+      "address": 4459568,
+      "size": 263,
+      "sha256": "20adef47a68370d342d35a8c3ff8c699950c11fcb07a5927c172ffc85745fb34",
+      "method": "FindUsedSlot"
+    },
+    {
+      "address": 4459840,
+      "size": 90,
+      "sha256": "f7ab6cdda99920d9ec9fcce7b8016be4eeb4a0fb7179e2f3e2e195955658f0bf",
+      "method": "Allocate"
+    },
+    {
+      "address": 4459936,
+      "size": 71,
+      "sha256": "9301fa5e01ef30ea911be66001d729687e9d49be1e6469965fcf9df54a8ff7d6",
+      "method": "Delete"
+    },
+    {
+      "address": 4460016,
+      "size": 71,
+      "sha256": "712b65298fd3ecdee887b2ea10f962d20018965b6362d9e434fc4c31e87c705b",
+      "method": "bNewSlotPool"
+    },
+    {
+      "address": 4460112,
+      "size": 9,
+      "sha256": "3382ef36868722937da9fe323a3b2e276b6775d8945dbf19710e80fe62a471a2",
+      "method": "bOMalloc"
+    },
+    {
+      "address": 4454640,
+      "size": 34,
+      "sha256": "12ca1d6a56c661b750f070887878480a17b2e555b24e145ec1f08e9a81987469",
+      "method": "bSlotPoolAllocate"
+    },
+    {
+      "address": 4454688,
+      "size": 26,
+      "sha256": "8101f680c250b7fb9f3adca05f4331a9b68d70ca9c58a27f21d97ad222411d72",
+      "method": "bFree"
+    },
+    {
+      "address": 4443408,
+      "size": 16,
+      "sha256": "19661d1d3a4de65c13bbc22482cd16c2387d22c255ed3767a766ab18fb705c7b",
+      "method": "bIsSlotPoolFull"
+    },
+    {
+      "address": 4460128,
+      "size": 93,
+      "sha256": "5675e6ddcba0c501b222d636af508764cc4afb19bdd3d4c3793cc0dd6a5c0fd5",
+      "method": "bNewNodeSlotPool"
+    },
+    {
+      "address": 4460224,
+      "size": 33,
+      "sha256": "6888b9facf7f00bb2aba87c5ee371c7316bd095b90a9ee7f34aff92bb4d4e936",
+      "method": "bNewListNode"
+    },
+    {
+      "address": 4460272,
+      "size": 90,
+      "sha256": "326066660f6bc85c3da2353627f8bb7d2780e421c8f8bb01631cc1a7c1d77b69",
+      "method": "bDeleteListNode"
+    }
+  ]
+}

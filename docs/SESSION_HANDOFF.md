@@ -85,9 +85,8 @@ probe wrapper at the same address for a different target; also reset FPTAG.
 4. Human steering and input update are recovered and integrated
    (`tools/verify_pc_human_steering_update.py`). Remaining: constructors
    `0x425fc0`/`0x423330` with route reset `0x41d160`, the input event
-   handlers that write action fields, and the bWare slot pool (`0x440df0`,
-   `0x440d40`, `0x43f8f0`, `0x43f920`, `0x43cd10`) that native `SlotPool`
-   still replaces.
+   handlers that write action fields. The bWare slot pool is recovered
+   (`docs/pc-bware-slotpool.md`); the bWare heap stays a platform seam.
 5. Follow the audit inventory through vehicle/session construction, complete
    update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/
    presentation. Keep committing/pushing verified checkpoints before pauses.

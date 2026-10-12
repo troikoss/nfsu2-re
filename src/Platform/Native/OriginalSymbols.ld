@@ -779,3 +779,7 @@ colliderFaceRecordsEnabled883E60 = 0x883e60;
 colliderFaceSecondary802040 = 0x802040;
 colliderFaceRaise = 0x7881f4;
 pairTable7E9F58 = 0x7e9f58;
+slotPoolRegistry828530 = 0x828530;
+nodeSlotPool8284F0 = 0x8284f0;
+nodeSlotPoolPendingDelete8284F4 = 0x8284f4;
+nodeSlotPoolName786F40 = 0x786f40;

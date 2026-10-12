@@ -112,7 +112,8 @@ Scaffolding and seams (`src/Platform/Native/NativeCollision.cpp`): the car updat
 is reduced to the mover step; collision effects after the impulse sums (sparks, sounds,
 replay, force feedback), audio registration `0x483e20`/`0x483e40` and the game message
 `0x5e0360` are no-ops; the hull key `0x61c320` is computed by the loader for stock parts;
-slot pools are heap blocks with the original capacities; the world clock runs after the
+slot pools are the recovered bWare pools ([slot pool evidence](pc-bware-slotpool.md)) over a
+calloc-backed heap seam; the world clock runs after the
 step (its original call site is not recovered). World objects (type 1/2), cylinders,
 replay serialisation and mover point velocity (`0x59bec0`) are trapped. `UG2_DEBUG_COLLISION=1`
 prints every impulse with the wall normal and the car's distance to the wall plane.
