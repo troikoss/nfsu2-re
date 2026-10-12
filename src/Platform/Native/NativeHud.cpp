@@ -115,6 +115,23 @@ void NativeChaseCameraMover::Virtual24() { NativeTrap("camera mover slot +0x24")
 // Original 0x404800, the kind-1 chase mover's slot +0x28.
 bool NativeChaseCameraMover::Query28() { return false; }
 
+// HUD features dispatched by 0x4ec5a0 that the native HUD never attaches.
+void HudUnrecoveredFeature::Update4C7090(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4c7090"); }
+void HudUnrecoveredFeature::Update4EBB10(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4ebb10"); }
+void HudUnrecoveredFeature::Update4DA590(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4da590"); }
+void HudUnrecoveredFeature::Update4C7F00(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4c7f00"); }
+void HudUnrecoveredFeature::Update4AA1B0(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4aa1b0"); }
+void HudUnrecoveredFeature::Update4DA190(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4da190"); }
+void HudUnrecoveredFeature::Update4AAFC0(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4aafc0"); }
+void HudUnrecoveredFeature::Update4DA090(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4da090"); }
+void HudUnrecoveredFeature::Update4DA900(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4da900"); }
+void HudUnrecoveredFeature::Update4EBEC0(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4ebec0"); }
+void HudUnrecoveredFeature::Update4AB5B0(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4ab5b0"); }
+void HudUnrecoveredFeature::Update4C9210(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4c9210"); }
+void HudUnrecoveredFeature::Update4DABD0(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4dabd0"); }
+void HudUnrecoveredFeature::Update4C9CE0(HudPlayerSlot *) { NativeTrap("HUD feature update 0x4c9ce0"); }
+void HudUnrecoveredFeature::Update4DB8C0() { NativeTrap("HUD feature update 0x4db8c0"); }
+
 void HudTextPrint(void *o, const char *format, ...) {
     // FEng's %$d inserts digit grouping; libc does not implement that extension.
     std::string text;
@@ -228,7 +245,6 @@ NativeHud::NativeHud() : textures_(0), minimapReady_(false), loaded_(false) {
     memset(&turbo_, 0, sizeof(turbo_));
     memset(&nitrous_, 0, sizeof(nitrous_));
     memset(&region_, 0, sizeof(region_));
-    memset(&regionPlayer_, 0, sizeof(regionPlayer_));
     memset(&cash_, 0, sizeof(cash_));
     memset(&reward_, 0, sizeof(reward_));
     memset(&gauge_, 0, sizeof(gauge_));
@@ -414,12 +430,12 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     // Every feature was just applied with masks 0/0; recovered 0x600090 supplies the rest.
     controller_.current8 = 0;
     controller_.currentC = 0;
-    player_.car4 = vehicle->owner;
-    player_.camera238 = &camera_;
-    HudPlayerSlot *slot = reinterpret_cast<HudPlayerSlot *>(&player_);
+    player_.record.car4 = vehicle->owner;
+    player_.record.camera238 = &camera_;
+    HudPlayerSlot *slot = reinterpret_cast<HudPlayerSlot *>(&player_.record);
     hudPlayerSlots8900AC[0] = slot;
     // Native session seam: one local player in both original player tables.
-    players8900B4[0] = &player_;
+    players8900B4[0] = &player_.record;
     playerCount8900BC = 1;
     minimap_.map8 = package_.Find(0x90fe80f3u);
     minimap_.maskC = package_.Find(0x40cdc515u);
@@ -490,24 +506,17 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     // Recovered 0x600090 produces the masks; 0x4ca090 applies the transitions. The original
     // caller 0x600590 passes the player for the rear-view mirror bit (0x5f1e10, not
     // recovered); the native seam passes none, so that view is not created.
-    unsigned long long mask = player_.GetHudMask();
+    unsigned long long mask = player_.record.GetHudMask();
     controller_.ApplyMasks(0, (unsigned int)mask, (unsigned int)(mask >> 32));
-    const EngineSpec *engine = reinterpret_cast<const EngineSpec *>(vehicle->info->parameters10.record30.engine1F0);
     // Native option seam: the demo's metric choice is the profile option at 0x83aa1a.
     units83AA1A = metric ? 1 : 0;
-    gaugeVisibility_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
-    turbo_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
-    nitrous_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
-    region_.Update(&regionPlayer_);
-    cash_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
-    reward_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
+    controller_.UpdateFeatures(reinterpret_cast<HudPlayerSlot *>(&player_.record), vehicle->owner); // 0x4ec5a0
     package_.AdvanceScripts(seconds);
-    mapVisibility_.UpdateMap(reinterpret_cast<HudPlayerSlot *>(&player_)); // 0x4da640 runs the minimap
 }
 
 void NativeHud::SetCareerHudState(int balance, unsigned int regionHash) {
     careerBank861E74.balance0 = balance;
-    regionPlayer_.region9B8 = regionHash;
+    player_.region.region9B8 = regionHash;
     // Region/cash/reward visibility follows the 0x600090 masks applied by the controller.
     controller_.feature74 = &region_;
     controller_.current8 &= ~1u; // Reapply bit 0 to the newly attached region feature.

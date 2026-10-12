@@ -90,8 +90,9 @@ probe wrapper at the same address for a different target; also reset FPTAG.
 5. HUD mask producer `0x600090` and its helpers are recovered and drive the
    native HUD (`HudPlayerMasks.cpp`, `tools/verify_pc_hud_player_masks.py`, ~3 min).
    The cash/language readers `0x501680`/`0x500f90`/`0x4ff970` replace native stubs
-   (native seams: bank storage at `0x861e74`, language 0 at `0x7f70d0`). Next HUD
-   targets: caller `0x600590` with controller update `0x4ec5a0`, and `0x5f1e10`.
+   (native seams: bank storage at `0x861e74`, language 0 at `0x7f70d0`). Gauge `0x4c68d0`,
+   map feature `0x4da640` and dispatch `0x4ec5a0` are recovered and drive the native
+   HUD. Remaining: caller `0x600590` (blocked on rear-view mirror view `0x5f1e10`).
 6. Follow the audit inventory through vehicle/session construction, complete
    update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/
    presentation. Keep committing/pushing verified checkpoints before pauses.

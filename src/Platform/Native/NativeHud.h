@@ -61,7 +61,6 @@ private:
     HudFeatureObjectNode nitrousNodes_[4];
     HudRegionFeature region_;
     HudFeatureObjectNode regionNodes_[1];
-    HudRegionPlayer regionPlayer_;
     HudCashFeature cash_;
     HudFeatureObjectNode cashNodes_[4];
     HudRewardFeature reward_;
@@ -71,8 +70,12 @@ private:
     HudFeatureObjectNode mapVisibilityNodes_[7];
     HudMinimapIndicator playerIndicator_;
     HudIndicatorSlot playerSlot_;
-    // Native storage for the player record published at 0x8900ac/0x8900b4.
-    PlayerRecord player_;
+    // Native storage for the player record published at 0x8900ac/0x8900b4: recovered HUD code
+    // reads the PlayerRecord prefix and the region hash at +0x9b8 of the same object.
+    union {
+        PlayerRecord record;
+        HudRegionPlayer region;
+    } player_;
     NativeChaseCameraMover camera_;
     std::vector<unsigned char> trackInfo_;
     bool minimapReady_;

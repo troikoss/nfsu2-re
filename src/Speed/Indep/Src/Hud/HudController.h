@@ -21,6 +21,26 @@ struct HudController {
     void *value7C;
     HudFeatureVisibility *feature80;
     void ApplyMasks(void *player, unsigned int low, unsigned int high); // 0x4ca090
+    void UpdateFeatures(struct HudPlayerSlot *player, struct MoverModeOwner *car); // 0x4ec5a0
+};
+
+// Feature updates dispatched by 0x4ec5a0 whose features are not recovered (thiscall, player).
+struct HudUnrecoveredFeature : HudFeatureVisibility {
+    void Update4C7090(struct HudPlayerSlot *player); // +0x34
+    void Update4EBB10(struct HudPlayerSlot *player); // +0x20
+    void Update4DA590(struct HudPlayerSlot *player); // +0x2c
+    void Update4C7F00(struct HudPlayerSlot *player); // +0x30
+    void Update4AA1B0(struct HudPlayerSlot *player); // +0x3c
+    void Update4DA190(struct HudPlayerSlot *player); // +0x40
+    void Update4AAFC0(struct HudPlayerSlot *player); // +0x44
+    void Update4DA090(struct HudPlayerSlot *player); // +0x48
+    void Update4DA900(struct HudPlayerSlot *player); // +0x4c
+    void Update4EBEC0(struct HudPlayerSlot *player); // +0x50
+    void Update4AB5B0(struct HudPlayerSlot *player); // +0x54
+    void Update4C9210(struct HudPlayerSlot *player); // +0x64
+    void Update4DABD0(struct HudPlayerSlot *player); // +0x6c
+    void Update4C9CE0(struct HudPlayerSlot *player); // +0x70
+    void Update4DB8C0();                             // +0x7c
 };
 UG2_CHECK_SIZE(HudController, 0x84);
 UG2_CHECK_OFFSET(HudController, feature5C, 0x5c);

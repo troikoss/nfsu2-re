@@ -46,6 +46,7 @@ FUNCTIONS = {
     'MapUpdate': (0x4da640, 167),
     'Query500B60': (0x500b60, 28),
     'Count500400': (0x500400, 86),
+    'ControllerUpdate': (0x4ec5a0, 327),
 }
 GLOBAL_ADDRESSES = {
     'engineSpeedOverride': 0x7fbed8, 'engineSpeedOverrideUnset': 0x784258,
@@ -141,10 +142,24 @@ def main():
                'RegionUpdate': 'HudRegionFeature', 'CashUpdate': 'HudCashFeature',
                'RewardUpdate': 'HudRewardFeature'}.get(name)
         prefix = {'MapUpdate': '?UpdateMap@HudGpsFeature@', 'Query500B60': '?Query500B60@CareerData85AD40@',
-                  'Count500400': '?Count500400@CareerData85AD40@'}.get(name) or (
+                  'Count500400': '?Count500400@CareerData85AD40@',
+                  'ControllerUpdate': '?UpdateFeatures@HudController@'}.get(name) or (
             '?ApplyMasks@HudController@' if name == 'ControllerMasks' else '?Update@' + cls + '@' if cls else '?' + name + '@')
         entries[name] = next(a for s, a in linked['exports'].items() if s.startswith(prefix))
     arena, stack, stop = 0x2000000, 0x200f000, 0x2100000
+    # Feature updates reached from 0x4ec5a0: (original, rebuilt) entry -> name, argument count.
+    recovered_updates = {'GaugeUpdate': 0x4c68d0, 'TurboUpdate': 0x4c6b80, 'NitrousUpdate': 0x4c7b20,
+                         'HeatUpdate': 0x4c7aa0, 'NotificationUpdate': 0x4da9a0, 'MapUpdate': 0x4da640,
+                         'RegionUpdate': 0x4a9e70, 'RewardUpdate': 0x4a9ff0, 'CashUpdate': 0x4a9ef0}
+    unrecovered_updates = [0x4c7090, 0x4ebb10, 0x4da590, 0x4c7f00, 0x4aa1b0, 0x4da190, 0x4aafc0, 0x4da090,
+                           0x4da900, 0x4ebec0, 0x4ab5b0, 0x4c9210, 0x4dabd0, 0x4c9ce0, 0x4db8c0]
+    dispatch = [{}, {}]
+    for n, a in recovered_updates.items():
+        dispatch[0][a] = (hex(a), 1)
+        dispatch[1][entries[n]] = (hex(a), 1)
+    for a in unrecovered_updates:
+        for side in (0, 1):
+            dispatch[side][a] = (hex(a), 0 if a == 0x4db8c0 else 1)
     state = {}
     machines = []
     def cstring(uc, address):
@@ -163,6 +178,13 @@ def main():
         hooks = {0x2110000 + i * 0x100 if rebuilt else a: (n, count, 8 if rebuilt and n == 'ApplyMasks' else 0 if rebuilt else clean)
                  for i, (n, (a, count, clean)) in enumerate(INTERFACES.items())}
         def hook(uc, address, size, user, rebuilt=rebuilt, hooks=hooks):
+            if state.get('dispatch') and address in dispatch[rebuilt]:
+                label, count = dispatch[rebuilt][address]
+                sp = uc.reg_read(UC_X86_REG_ESP)
+                state['trace'].append(('dispatch', label, uc.reg_read(UC_X86_REG_ECX), [u32(uc, sp + 4 + 4 * i) for i in range(count)]))
+                uc.reg_write(UC_X86_REG_ESP, sp + 4 + 4 * count)
+                uc.reg_write(UC_X86_REG_EIP, u32(uc, sp))
+                return
             if address not in hooks:
                 providers = [(stop + 0x100, stop + 0x107), (stop + 0x200, stop + 0x20b)]
                 retained = [(0x75bed4, 0x75bf49), (0x5947b0, 0x5947bd)]
@@ -241,7 +263,7 @@ def main():
             uc.reg_write(UC_X86_REG_FPTAG, 0xffff)
             for reg in (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP): uc.reg_write(reg, 0x12345678)
             for a, data in globals_: uc.mem_write(a, bytes(data))
-            state.update(trace=[], suppressed=suppressed, balance=balance, language=language, script_active=script_active, tuning=tuning, gps_mode=gps_mode)
+            state.update(dispatch=name == 'ControllerUpdate', trace=[], suppressed=suppressed, balance=balance, language=language, script_active=script_active, tuning=tuning, gps_mode=gps_mode)
             end = stop
             uc.emu_start(entries[name] if rebuilt else FUNCTIONS[name][0], end, count=10000)
             assert uc.reg_read(UC_X86_REG_EIP) == end, (name, hex(uc.reg_read(UC_X86_REG_EIP)))
@@ -371,6 +393,12 @@ def main():
             compare('MapUpdate', m, struct.pack('<I', arena + 0x3000), arena, g, cw=cw, gps_mode=rng.randrange(5))
             compare('Query500B60', m, b'', 0x85ad40, g, cw=cw)
             compare('Count500400', m, b'', 0x85ad40, g, cw=cw)
+        for trial in range(256):
+            m = frame()
+            for slot in range(0x18, 0x84, 4):
+                if slot not in (0x60, 0x68) and rng.random() < 0.5:
+                    struct.pack_into('<I', m, slot, arena + 0x2000 + slot * 16)
+            compare('ControllerUpdate', m, struct.pack('<II', arena + 0x3000, arena + 0x4000), arena, globals_for(), cw=cw)
         for name in ('HudLerpVector3', 'HudLerpColour'):
             for fraction in (0., 0.125, 0.5, 0.875, 1.):
                 for trial in range(64):

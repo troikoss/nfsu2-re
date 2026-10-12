@@ -66,3 +66,36 @@ void HudController::ApplyMasks(void *player, unsigned int low, unsigned int high
     current8 = stripped;
     currentC = high;
 }
+
+static HudUnrecoveredFeature *Unrecovered(void *feature) {
+    return static_cast<HudUnrecoveredFeature *>(feature);
+}
+
+// Original 0x4ec5a0: every present feature's per-frame update, in the original order.
+// The car argument is not read.
+void HudController::UpdateFeatures(HudPlayerSlot *player, MoverModeOwner *) {
+    if (feature18) static_cast<HudGaugeFeature *>(feature18)->Update(player);
+    if (feature1C) static_cast<HudTurboFeature *>(feature1C)->Update(player);
+    if (feature34) Unrecovered(feature34)->Update4C7090(player);
+    if (feature20) Unrecovered(feature20)->Update4EBB10(player);
+    if (feature28) static_cast<HudNitrousFeature *>(feature28)->Update(player);
+    if (feature24) static_cast<HudHeatFeature *>(feature24)->Update(player);
+    if (feature2C) Unrecovered(feature2C)->Update4DA590(player);
+    if (feature30) Unrecovered(feature30)->Update4C7F00(player);
+    if (feature3C) Unrecovered(feature3C)->Update4AA1B0(player);
+    if (feature40) Unrecovered(feature40)->Update4DA190(player);
+    if (feature44) Unrecovered(feature44)->Update4AAFC0(player);
+    if (feature48) Unrecovered(feature48)->Update4DA090(player);
+    if (feature4C) Unrecovered(feature4C)->Update4DA900(player);
+    if (feature50) Unrecovered(feature50)->Update4EBEC0(player);
+    if (feature54) Unrecovered(feature54)->Update4AB5B0(player);
+    if (feature58) static_cast<HudNotificationFeature *>(feature58)->Update(player);
+    if (feature5C) static_cast<HudGpsFeature *>(feature5C)->UpdateMap(player);
+    if (feature64) Unrecovered(feature64)->Update4C9210(player);
+    if (feature6C) Unrecovered(feature6C)->Update4DABD0(player);
+    if (feature70) Unrecovered(feature70)->Update4C9CE0(player);
+    if (feature74) static_cast<HudRegionFeature *>(feature74)->Update(reinterpret_cast<HudRegionPlayer *>(player));
+    if (feature78) static_cast<HudRewardFeature *>(feature78)->Update(player);
+    if (value7C) static_cast<HudUnrecoveredFeature *>(value7C)->Update4DB8C0();
+    if (feature80) static_cast<HudCashFeature *>(feature80)->Update(player);
+}

@@ -99,8 +99,16 @@ the minimap at `*0x8364d4` (`0x4ca840`, traced here and verified by the minimap
 verifier), then while shown hides the search objects, runs the GPS update `0x4c8410`
 when `0x8385b9` is set in career free roam (`0x500b60`) and shows `+0x20` only when
 career flags remain (`0x500400`). 400 cases per control word; three mutations detected.
+`HudController::UpdateFeatures` recovers the per-frame dispatch `0x4ec5a0`: every
+present feature slot's update in the original order with the player argument (the
+car argument is unread; slot `+0x7c` takes none). The comparison traces each
+feature entry (recovered or not) by receiver and argument over 256 random slot
+populations per control word; order and argument mutations are detected. Feature
+updates not yet recovered (`0x4c7090`, `0x4ebb10`, `0x4da590`, `0x4c7f00`, `0x4aa1b0`,
+`0x4da190`, `0x4aafc0`, `0x4da090`, `0x4da900`, `0x4ebec0`, `0x4ab5b0`, `0x4c9210`,
+`0x4dabd0`, `0x4c9ce0`, `0x4db8c0`) are native traps; the demo never attaches them.
 
-Report: `build/analysis/freeroam-hud/verification.json`. **14,668 bounded comparisons
+Report: `build/analysis/freeroam-hud/verification.json`. **15,180 bounded comparisons
 pass; byte matching is not established.** Finite synthetic cases do not prove
 complete coverage. Fingerprints below cover the recovered original spans:
 
@@ -131,13 +139,14 @@ complete coverage. Fingerprints below cover the recovered original spans:
 | MapUpdate | 0x4da640 | 167 | 800 | `97a1e10edbbdfd1987e4ce668beb98d30559662ebaed9001b138c0fcf9a9e90b` |
 | Query500B60 | 0x500b60 | 28 | 800 | `810fb3fb6a8956268eae04cdd3e00523007e7a34add0f2d5bca334334fbb8369` |
 | Count500400 | 0x500400 | 86 | 800 | `7d8ae5b4102271ba852a578908783ea6ed178b9e4e8437dad23aa03906789155` |
+| ControllerUpdate | 0x4ec5a0 | 327 | 512 | `5e4d05e07fdb7dd99cddf1a568995e339221f55b8ef3e4e244b9e1546a21b0f5` |
 
 ## Native integration and seams
 
 The native demo registers the retail constructor object names/masks using fixed
 node storage, supplies its one-player chase/map context, and uses recovered
-`0x4ca090` transitions. It runs the recovered gauge update (with shift light), turbo, nitrous, region, cash
-and reward updates, followed by bounded script playback and the minimap update.
+`0x4ca090` transitions. It runs recovered dispatch `0x4ec5a0` (gauge with shift light, turbo, nitrous, region, cash
+reward and map/minimap updates for the attached features), then bounded script playback.
 Parent containers are revealed without recursively showing unrelated siblings.
 Retail authoring sample strings for cash/reward/region are cleared at native
 initialisation so they cannot appear as live events.
