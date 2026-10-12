@@ -102,9 +102,13 @@ public:
     IconScrollerIcon(unsigned int value0C, unsigned int value2C, unsigned int value30); // 0x51f670
     virtual ~IconScrollerIcon(); // 0x527770
     virtual void React(const char *package, unsigned int message, int value8, int valueC, int value10) = 0;
-    char unidentified4[8];
+    void *next4;             // intrusive node links point at icon +4
+    void *previous8;
     unsigned int valueC;
-    char unidentified10[0x10];
+    void *object10;
+    float offset14;
+    float value18;
+    unsigned int colour1C;
     unsigned char value20;
     char unidentified21[0xb];
     unsigned int value2C;
@@ -113,7 +117,10 @@ public:
     unsigned char value45;
     char unidentified46[2];
 };
+UG2_CHECK_OFFSET(IconScrollerIcon, next4, 4);
+UG2_CHECK_OFFSET(IconScrollerIcon, previous8, 8);
 UG2_CHECK_OFFSET(IconScrollerIcon, valueC, 0xc);
+UG2_CHECK_OFFSET(IconScrollerIcon, object10, 0x10);
 UG2_CHECK_OFFSET(IconScrollerIcon, value20, 0x20);
 UG2_CHECK_OFFSET(IconScrollerIcon, value2C, 0x2c);
 UG2_CHECK_OFFSET(IconScrollerIcon, value45, 0x45);
@@ -173,13 +180,49 @@ public:
     virtual void UnknownSlot00() = 0;
     virtual void UnknownSlot04() = 0;
     virtual void UnknownSlot08() = 0;
-    virtual void UnknownSlot0C() = 0;
+    virtual void UnknownSlot0C(unsigned int message, int value8, int valueC, int value10) = 0;
     virtual void UnknownSlot10() = 0;
-    virtual void UnknownSlot14() = 0;
+    virtual void UnknownSlot14(IconScrollerIcon *icon) = 0;
     virtual void UnknownSlot18() = 0;
     virtual void UnknownSlot1C() = 0;
     virtual void UnknownSlot20(int value) = 0;
+
+    bool AtFirst(); // 0x5276d0, only AL is defined
+    bool AtLast(); // 0x527700, only AL is defined
+    void Next(); // 0x527730
+    void Previous(); // 0x527750
+    void StepNoWrap(int direction); // 0x51f9f0
+    void StepWrap(int direction); // 0x51fac0
+    int IndexOf(IconScrollerIcon *icon); // 0x51f820, 1-based; -1 if absent
+    void Dispatch(unsigned int message, int value8, int valueC, int value10); // 0x50d980
+
+    void *next4;
+    void *previous8;
+    IconScrollerIcon *currentC;
+    void *object10;
+    void *object14;
+    void *object18;
+    const char *package1C;
+    const char *prefix20;
+    float spacing24;
+    int option28;
+    unsigned char vertical2C;
+    unsigned char value2D;
+    unsigned char relayout2E;
+    unsigned char value2F;
+    unsigned char allowDisabled30;
+    char unidentified31[3];
+    int direction34;
 };
+
+UG2_CHECK_OFFSET(IconScroller4C, next4, 4);
+UG2_CHECK_OFFSET(IconScroller4C, currentC, 0xc);
+UG2_CHECK_OFFSET(IconScroller4C, package1C, 0x1c);
+UG2_CHECK_OFFSET(IconScroller4C, vertical2C, 0x2c);
+UG2_CHECK_OFFSET(IconScroller4C, relayout2E, 0x2e);
+UG2_CHECK_OFFSET(IconScroller4C, allowDisabled30, 0x30);
+UG2_CHECK_OFFSET(IconScroller4C, direction34, 0x34);
+UG2_CHECK_SIZE(IconScroller4C, 0x38);
 
 // IconScrollerFNGObject: constructor 0x552330, destructor 0x4defb0, vtable 0x7974d4.
 class IconScrollerFNGObject {

@@ -163,3 +163,54 @@ still passes 11,723 comparisons and 25 vtable slots; options passes 5,730 compar
 89 routines and 510 vtable slots. The native build and all 19 settings smoke scenarios,
 including rendered slider checks, pass. Native smoke evidence establishes routing and
 session integration only, separately from original/rebuilt execution.
+
+## IconScroller navigation and dispatch
+
+`Frontend/IconScrollerNavigation.cpp` recovers eight routines:
+
+| Routine | Address | Behavior |
+|---|---|---|
+| `AtFirst` / `AtLast` | `0x5276d0` / `0x527700` | Current icon equals first/last; only AL is defined in the original |
+| `Next` / `Previous` | `0x527730` / `0x527750` | Choose wrapping or non-wrapping stepping from byte `+0x2c` |
+| `StepNoWrap` | `0x51f9f0` | Step toward the boundary, skipping disabled icons unless byte `+0x30` permits them |
+| `StepWrap` | `0x51fac0` | Wrap at either boundary, with the same disabled policy |
+| `IndexOf` | `0x51f820` | 1-based list position; -1 for null or absent icons |
+| `Dispatch` | `0x50d980` | Call current icon's React slot only when sender equals its FEObject `+0x10` |
+
+The observed scroller prefix through `+0x34` is now explicit in `IconScroller4C`:
+node links at `+4/+8`, current icon `+0xc`, package `+0x1c`, layout flag `+0x2e`,
+disabled-selection byte `+0x30` and last direction `+0x34`. Links point to icon
+**+4**, including the sentinel at scroller +4. Both step routines call virtual
+slot `+0x14` first, then set the layout flag and direction. The native scroller
+now supplies this list and calls recovered stepping, indexing and dispatch;
+its selection callback still sets current icon, synchronizes native layout and focus.
+Mouse selection synchronizes the same current-icon field. List construction, icon
+construction, slot `+0x14` itself, layout, scroll/fade animation and the owning
+FNG object's message handler remain native seams.
+
+The original wrapping routine does not terminate for direction ±1 when all icons
+are disabled and `+0x30` is zero. No replacement guard is added. Normal native
+pause lists include enabled items. Empty/null-current lists are not valid step
+inputs; callers retain their existing empty-list checks.
+
+`build/venv/bin/python tools/verify_pc_icon_scroller_navigation.py` compiles with
+MSVC 7.1 and runs original/rebuilt routines in Unicorn. **34,670 comparisons**
+exhaust all disabled masks and current positions for lists of 1–6 items, allowed
+selection bytes 0/1/0x80, directions ±1/0/±10, and both wrapper modes; the known
+nonterminating wrap inputs are excluded. Tests also cover empty/null/absent index
+queries, null current icon and matching/mismatching dispatch sender, arbitrary
+message arguments, and callbacks that either update or preserve current selection.
+They compare fixture memory, virtual callback traces and pre-callback layout state,
+stack cleanup, callee-saved registers and defined return bits. The selection and React
+callbacks are controlled interfaces, not verified implementations. Fingerprints and
+counts are stored in ignored `build/analysis/icon-scroller-navigation/verification.json`.
+**Byte matching: not established.**
+
+Four mutation checks reject inverted disabled policy, a zeroed last direction, a zero-based
+index and inverted dispatch-sender gating. Existing pause (11,723) and options (5,730)
+comparisons remain passing. Native compilation and all 19 settings smoke scenarios with
+rendered slider checks pass separately as integration evidence.
+
+An additional native run (`--frames 240 --pause-at 20 --pause-keys RRA`) skips the
+disabled Replay icon and reaches the Quit dialog with result `0x30ed2368`. Its
+screenshot/log stay in ignored `build/analysis/icon-scroller-navigation/`.

@@ -287,16 +287,20 @@ read; `UI_Pause.fng`'s `FORWARD` script sends `EXIT_COMPLETE` (`0xe1fde1d1`) to 
 
 Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, not verified):
 
-- IconScroller base (`0x552330`, `0x543d40`, `0x50dab0`/`0x543c10`, `0x50da50`, `0x52fbf0`,
+- Remaining IconScroller base (`0x552330`, `0x543d40`, `0x50dab0`/`0x543c10`, `0x50da50`, `0x52fbf0`,
   `0x50da20`, scroller slots `0x538940`/`0x538a30`): icons fill `option_1..n` 40 units apart,
   anchored on the hidden `OPTION_MASTER`; unselected icons are drawn at 0.8 and bottom aligned
   (`0x52f8c0`), shown inside a 480-unit window (`0x50d9c0`); moves skip disabled icons without
-  wrapping (`0x51f9f0`); accept reacts immediately for dialog items (`+0x45`) and after
+  wrapping using recovered `0x51f9f0`; accept reacts immediately for dialog items (`+0x45`) and after
   `EXIT_COMPLETE` otherwise, only for the focused icon object (`0x50d980`). Scroll animation,
   sounds and Dim/UNDIM scripts are not modelled.
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.
+- Icon stepping/indexing/selected-item dispatch now use recovered `0x51f9f0`, `0x51fac0`,
+  `0x5276d0`/`0x527700`, `0x527730`/`0x527750`, `0x51f820` and `0x50d980`.
+  The native scroller owns the original list/current-icon prefix; its constructor,
+  selection callback and rendering remain seams. See [navigation evidence](pc-pause-menu.md#iconscroller-navigation-and-dispatch).
 - Package masks, persisted selection and focus now use recovered routines `0x537950`,
   `0x50b8a0`/`0x50b8c0`, `0x52b3a0` and `0x52ce40`. Native screens retain FEPackage
   masks/focus/array offsets, archive-node package `+0x18` and a separate static FNG selection

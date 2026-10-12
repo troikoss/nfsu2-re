@@ -29,8 +29,8 @@ unless the user or applicable repository/skill instructions request delegation.
 ## Authoritative checkpoint
 
 Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`, branch `main`.
-Latest verified checkpoint: **Recover FEng package masks and focus for the pause menu**
-(see Git history for its commit). Direct user authorization to commit and push to `main`
+Latest verified checkpoint: **Recover pause icon scroller navigation and dispatch**
+(see Git history for its commit). Package mask/focus checkpoint: `3878b16`. Direct user authorization to commit and push to `main`
 was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
 FEng objects the original object and script prefix**.
 
@@ -74,12 +74,19 @@ classes write FEng internals directly, so the work is staged:
    unrecovered (`0x52cef0`, `0x51bb70`, `0x517f80`, `0x52c570`). Native build, pause verifier
    (11,723), options verifier (5,730) and all 19 native settings scenarios pass.
    Evidence: `docs/pc-pause-menu.md#feng-package-masks-selection-and-focus`.
-3. Recover the IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
+3. **Navigation/dispatch done**: `IconScrollerNavigation.cpp` recovers `0x51f9f0`/`0x51fac0`,
+   `0x5276d0`/`0x527700`, `0x527730`/`0x527750`, `0x51f820` and `0x50d980`. Native
+   scroller retains the original prefix through `+0x34`, supplies icon +4 intrusive links,
+   and uses recovered navigation/indexing/dispatch. Slot +0x14 (selection/layout), constructor,
+   insertion and the remainder of the scroller still use native seams. The original wrap routine
+   loops when every icon is disabled and disabled selection is disallowed; do not add a guard.
+   `verify_pc_icon_scroller_navigation.py`: 34,670 comparisons, four rejected mutations;
+   byte matching not established. Pause/options verifiers and all 19 native settings scenarios pass.
+   **Next**: recover the rest of IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
    IconScrollerFNGObject `+0x4c`) replacing `NativeIconScroller`:
    ctors `0x543840`/`0x543a90`, ScrollBar `0x542ac0` (at scroller `+0x38`), slots `0x543bf0`,
-   `0x538940`, `0x543c10`, `0x50d980`, `0x52f7c0`, `0x52f680`, `0x538b80`, `0x51f870`,
-   `0x538a30`; helpers `0x52f8c0`, `0x50d9c0`, `0x51fb70`, `0x51f9f0`/`0x51fac0`,
-   `0x527700`/`0x527730`/`0x5276d0`/`0x527750`, `0x51f820`, `0x538080`, `0x52fa70`,
+   `0x538940`, `0x543c10`, `0x52f7c0`, `0x52f680`, `0x538b80`, `0x51f870`,
+   `0x538a30`; helpers `0x52f8c0`, `0x50d9c0`, `0x51fb70`, `0x538080`, `0x52fa70`,
    `0x538130`, `0x52e4e0`, `0x52e670`, `0x52e200`, `0x52e320`, `0x51fd10`, `0x51fd60`,
    `0x50cb00`, `0x50d8d0`, tween `0x574e30`, list index `0x43be60`/`0x43be80`.
    Layout notes: `+4/+8` icon list sentinel (icon node at icon `+4`), `+0xc` current icon,
@@ -141,6 +148,7 @@ build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_hud_player_masks.py
 build/venv/bin/python tools/verify_pc_hud_freeroam.py
+build/venv/bin/python tools/verify_pc_icon_scroller_navigation.py
 build/venv/bin/python tools/verify_pc_feng_package.py
 build/venv/bin/python tools/verify_pc_pause_menu.py
 build/venv/bin/python tools/verify_pc_pause_options.py

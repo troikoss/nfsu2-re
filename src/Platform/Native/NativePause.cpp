@@ -461,6 +461,9 @@ public:
 
     explicit NativeIconScroller(IconScrollerFNGObject *owner)
         : owner_(owner), count_(1), runningX_(0.0f), selected_(-1), inputEnabled_(true), stopped_(false) {
+        memset(&next4, 0, 0x34);  // native constructor seam for the observed scroller prefix
+        next4 = previous8 = &next4;
+        package1C = owner->package4;
         // 0x543a90: the OPTION_MASTER position anchors the icons; the master itself is hidden.
         master_ = static_cast<FengObject *>(FngFindObject(owner->package4, FngHash("OPTION_MASTER")));
         if (master_) FengPackage::Hide(master_);
@@ -472,13 +475,19 @@ public:
     void UnknownSlot00() { NativeTrap("IconScroller scalar destructor 0x543bf0"); }
     void UnknownSlot04() { Layout(); }  // 0x538940
     void UnknownSlot08() { NativeTrap("IconScroller add slot 0x543c10 (reached through AddIcon)"); }
-    void UnknownSlot0C() { NativeTrap("IconScroller react slot 0x50d980 (reached through MessageHandler)"); }
+    void UnknownSlot0C(unsigned int message, int value8, int valueC, int value10) { Dispatch(message, value8, valueC, value10); }
     void UnknownSlot10() { NativeTrap("IconScroller slot 0x52f7c0"); }
-    void UnknownSlot14() { NativeTrap("IconScroller slot 0x52f680"); }
+    void UnknownSlot14(IconScrollerIcon *icon) {  // native selection/layout seam for 0x52f680
+        currentC = icon;
+        for (size_t i = 0; i < entries_.size(); ++i) {
+            if (entries_[i].icon == icon) { selected_ = i; Layout(); return; }
+        }
+    }
     void UnknownSlot18() { NativeTrap("IconScroller slot 0x538b80"); }
     void UnknownSlot1C() { NativeTrap("IconScroller slot 0x51f870"); }
     void UnknownSlot20(int index) {  // 0x538a30
         if (!entries_.empty()) selected_ = index > 0 && index <= (int)entries_.size() ? index - 1 : 0;
+        currentC = selected_ < 0 ? 0 : entries_[selected_].icon;
         Layout();
     }
 
@@ -497,8 +506,14 @@ public:
         runningX_ += 40.0f + entry.width;
         // 0x50dab0: the object's texture becomes the icon's valueC.
         FengPackage::SetTexture(object, icon->valueC);
+        // Native list insertion seam: links carry the original icon +4 addresses.
+        icon->next4 = &next4;
+        icon->previous8 = previous8;
+        *static_cast<void **>(previous8) = &icon->next4;
+        previous8 = &icon->next4;
+        icon->object10 = object;
         entries_.push_back(entry);
-        if (selected_ < 0) selected_ = 0;
+        if (selected_ < 0) { selected_ = 0; currentC = icon; }
     }
 
     void Layout() {
@@ -526,15 +541,11 @@ public:
         nativeFengManager.SetFocusByHash(owner_->package4, entries_[selected_].object->hash10);
     }
 
-    // 0x51f9f0 (no wrap): steps over disabled icons (+0x20); stays put when none is left.
     bool Move(int direction) {
-        for (int i = selected_ + direction; i >= 0 && i < (int)entries_.size(); i += direction) {
-            if (entries_[i].icon->value20) continue;
-            selected_ = i;
-            Layout();
-            return true;
-        }
-        return false;
+        IconScrollerIcon *old = currentC;
+        if (direction == -1) Previous();
+        else if (direction == 1) Next();
+        return currentC != old;
     }
 
     // 0x50d980: React only when the message names the selected icon's object.
@@ -542,7 +553,7 @@ public:
         FengPackage *package = NativeFrontendPackage(owner_->package4);
         for (size_t i = 0; package && i < entries_.size(); ++i) {
             if (!entries_[i].icon->value20 && package->Contains(entries_[i].object, x, y)) {
-                if (selected_ != (int)i) { selected_ = (int)i; Layout(); owner_->SelectedIconChanged(); }
+                if (selected_ != (int)i) { selected_ = (int)i; currentC = entries_[i].icon; Layout(); owner_->SelectedIconChanged(); }
                 return true;
             }
         }
@@ -550,14 +561,12 @@ public:
     }
 
     void React(unsigned int message, int value8, int valueC, int value10) {
-        IconScrollerIcon *icon = Selected();
-        if (icon && value8 == (int)(size_t)entries_[selected_].object)
-            icon->React(owner_->package4, message, value8, valueC, value10);
+        Dispatch(message, value8, valueC, value10);
     }
 
-    IconScrollerIcon *Selected() { return selected_ >= 0 ? entries_[selected_].icon : 0; }
+    IconScrollerIcon *Selected() { return currentC; }
     FengObject *SelectedObject() { return selected_ >= 0 ? entries_[selected_].object : 0; }
-    int SelectedIndex() const { return selected_ >= 0 ? selected_ + 1 : -1; }  // 0x51f820, 1-based
+    int SelectedIndex() { return IndexOf(currentC); }
     bool Empty() const { return entries_.empty(); }
 
     IconScrollerFNGObject *owner_;
@@ -566,8 +575,8 @@ public:
     int count_;
     float runningX_;
     int selected_;
-    bool inputEnabled_;  // +0x7b
-    bool stopped_;       // +0x14c
+    bool inputEnabled_;  // native seam for original owner +0x7b
+    bool stopped_;       // native seam for original owner +0x14c
 };
 
 NativeIconScroller *ScrollerOf(IconScrollerFNGObject *object) {
@@ -623,8 +632,10 @@ void FEngQueue::Post(unsigned int message, void *sender, FEPackage *package, int
 
 // 0x51f670, as read.
 IconScrollerIcon::IconScrollerIcon(unsigned int value0C, unsigned int value2C_, unsigned int value30_) {
-    memset(unidentified4, 0, sizeof(unidentified4));
-    memset(unidentified10, 0, sizeof(unidentified10));
+    next4 = previous8 = 0;
+    object10 = 0;
+    offset14 = value18 = 0;
+    colour1C = 0;
     memset(unidentified21, 0, sizeof(unidentified21));
     memset(unidentified34, 0, sizeof(unidentified34));
     memset(unidentified46, 0, sizeof(unidentified46));
