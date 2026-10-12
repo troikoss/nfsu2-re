@@ -96,7 +96,14 @@ probe wrapper at the same address for a different target; also reset FPTAG.
 6. The spawn now comes from the original start grid `0x5eb5d0` and free-roam markers
    (`docs/pc-track-markers.md`); driving smoke from that start reaches 46.6/15.8 km/h
    (kerb ahead, planter behind). Next: participant setup `0x6065b0` and car ctor `0x604260`.
-7. Follow the audit inventory through vehicle/session construction, complete
+7. Native respawn (DemoMain airborne reset) is the remaining invented gameplay logic. The
+   original reset `0x6009a0` (via fall check `0x5ecba0`) needs road navigation: `WRoadNav`
+   (ctor `0x5da2f0` recovered; advance `0x5da370` -> `0x5d5c00`/`0x5d9e30`/`0x5da240`, spline
+   helpers `0x570640`/`0x577710`) over the road network in `TRACKS/L4RA.BUN`: chunk `0x34107`
+   (loader `0x5df8a0`, also `0x80034100` sub-chunks, table at `0x883df0`/`0x883df4`), `0x34108`
+   (`0x5db2e0`, list `0x88f760`), `0x34110..0x34113` (`0x5def30` -> grid `0x88eb00` `0x5da7a0`).
+   Loaders are registered by the static initializers at `0x77e7d0..0x77e8d0`.
+8. Follow the audit inventory through vehicle/session construction, complete
    update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/
    presentation. Keep committing/pushing verified checkpoints before pauses.
 
