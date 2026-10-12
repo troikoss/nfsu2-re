@@ -54,6 +54,10 @@ def link_objects(paths, externals, start=0x2200000):
                     raise ValueError("Floating literal does not match its symbol")
             if symbol["storage"] == 2:
                 if symbol["name"] in exports and not symbol["name"].startswith("__real@"):
+                    # COMDAT (IMAGE_SCN_LNK_COMDAT) duplicates, e.g. inline
+                    # functions emitted by several objects: keep the first.
+                    if section["flags"] & 0x1000:
+                        continue
                     raise ValueError("Duplicate external definition: "+symbol["name"])
                 exports[symbol["name"]] = address
             if symbol["kind"] == 0x20 and symbol["size"] is not None:

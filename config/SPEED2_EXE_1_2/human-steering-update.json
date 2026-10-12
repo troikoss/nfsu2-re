@@ -1,0 +1,35 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 4218304,
+      "size": 796,
+      "sha256": "8594d5a5677a978c97a9e7cfeae01258ac1e9c0b162170dc3769cb9163c7c6da",
+      "method": "CalculateMaximum"
+    },
+    {
+      "address": 4287408,
+      "size": 527,
+      "sha256": "98a6c4da08ec4e868ce6eb9d38018baa6fcce12293694a6de032ec1901b01ced",
+      "method": "UpdateKeyboard"
+    },
+    {
+      "address": 4219328,
+      "size": 669,
+      "sha256": "4819234ba35133101be3c78694dcef402f8f3e8f1809d71e06bfcb980337dd32",
+      "method": "UpdateAnalog"
+    },
+    {
+      "address": 5896720,
+      "size": 31,
+      "sha256": "3577604b4469e92b720fa565720356042a00577a5b61157598d1cec5ca20abab",
+      "method": "GetSteeringSlip"
+    },
+    {
+      "address": 6033408,
+      "size": 31,
+      "sha256": "e51ce15d3c0a7f8d2e7fa8609a3b91e198f726e653490f9c5e6aedc2388f6381",
+      "method": "IsAnalogInputDevice"
+    }
+  ]
+}

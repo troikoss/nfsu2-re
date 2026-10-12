@@ -24,7 +24,11 @@ struct HumanSteering {
     HumanSteering *Construct(MoverModeOwner *car); // 0x405c60
     void Destroy(); // 0x405d00
     float CalculateRate(float value, float duration, int device); // 0x4060e0
+    float CalculateMaximum(float input, float duration, int device); // 0x405dc0
+    float UpdateKeyboard(float input, float duration, int device); // 0x416bb0
+    float UpdateAnalog(float input, float duration, int device); // 0x4061c0
 };
+bool IsAnalogInputDevice(int device); // 0x5c1000
 
 UG2_CHECK_SIZE(HumanSteering, 0x88);
 UG2_CHECK_OFFSET(HumanSteering, inputHistory14, 0x14);

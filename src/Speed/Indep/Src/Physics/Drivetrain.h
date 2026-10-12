@@ -41,7 +41,7 @@ struct WheelSurface {
 };
 
 struct WheelPreparationSpec {
-    char unidentified0[4];
+    float value0; // steering angle scale (0x405dc0 callers)
     float coefficient4;
     float coefficient8;
 };
@@ -238,6 +238,7 @@ struct DrivetrainAuxiliary {
     WheelMatrix matrix440;
     unsigned char flag480;
     float GetSlipAngle();
+    float GetSteeringSlip(); // 0x59fa10
     void UpdateOrigin(WheelVector *centre);
     void UpdateWheelRenderMatrices(int wheel);
     void InitialiseNitrous();

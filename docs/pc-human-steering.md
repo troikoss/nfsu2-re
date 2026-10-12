@@ -66,6 +66,51 @@ finite fixtures exclude invalid capacities, exceptional allocation, pathological
 expiry and complete steering caller composition. Analysis executes original
 `__ftol2` as a compiler runtime dependency.
 
+## Keyboard, analog and limit routines
+
+`Physics/HumanSteeringUpdate.cpp` recovers keyboard steering `0x416bb0`,
+analog steering `0x4061c0`, the keyboard limit `0x405dc0`, auxiliary slip
+gate `0x59fa10` and analog-device test `0x5c1000`.
+
+- `0x405dc0` returns the steering limit in degrees and stores it at +0x80. A
+  speed curve (`0x7e9ed8`) is scaled by a pedal term (`0x7e9f14` response
+  times `1 - ((throttle + 1) - (handbrake + brake) / 2) / 2`) and by input
+  history (`0x7e9f00`). Within one second of a collision stamp (car body
+  +0x140), outside groups 89E7D9/890104, it is eased by recovery curve
+  `0x81e5b0` and the speed ratio to `0x5b5930`. Counter-steering slip (slip
+  angle opposite to the input, with hysteresis flag +0x10 between 15/5
+  degrees and 13.41/0 speed) replaces it with the slip magnitude times a
+  counter curve (`0x7e9eb0`, `0x7e9ec4` in group 3), capped at that curve's
+  multiple of 45; otherwise, while steering is held, it may not fall below
+  the previous limit minus `0x783af0` per second. The result is capped at 45.
+- `0x416bb0` maps the input through curve `0x7e9e60` (`0x7e9e9c` in groups 3
+  and E2), scales the limit by record +0x270 (times yaw curve `0x7e9f50` when
+  turning into the yaw in group 3), clamps the target to +-45, approaches it
+  from the current angle by the rate from `0x4060e0`, and stores the angle at
+  +0x7c in 65536/360 units through `__ftol2` and integer division by 360.
+- `0x4061c0` clamps the raw input to +-value8, maps it to -1..1 and through
+  curve `0x7e9e88`, computes the same limit with curve `0x7e9eec`, a spilled
+  pedal term and a different multiplication order (skipped when flag +4 is
+  set), and replaces counter-steering with the slip magnitude capped at 45.
+  It sets the angle directly, without a rate, and leaves +0x80 unchanged.
+
+`tools/verify_pc_human_steering_update.py` fingerprints the five routines and
+their callee closure. On 2026-10-12 **6,460 comparisons** were bit-identical:
+1,600 each for the limit, keyboard, analog and slip routines over 46 retail
+records with synthetic car/input states, all mode groups, collision stamps
+(including unset and 0x7fffffff), counter-steering, NaN inputs and synthetic
+recovery curves with 4/0/1 pairs (`0x81e5b0` is filled at runtime), plus 60
+device tests. Slip angle `0x591d90` and physics speed `0x5b5930` execute as
+original code on both sides (controlled interfaces, verified separately).
+Dependencies compile without `/Op` as in their own verifiers; the new routines
+compile with `/Op`, and an analysis-only `fsqrt` helper stands in for the
+`__CIsqrt` call `/Op` emits (the original uses inline `fsqrt`). The empty-yaw
+case reads a stale stack slot in the original and is not exercised. Mutations
+of the counter limit, recovery ease and recovery floor were detected. Byte
+matching is not established. Dispatcher `0x41dfc0`, alternate steering
+`0x406a40` and force feedback `0x406460` remain, so native steering still uses
+its substitutes.
+
 ## Remaining steering chain
 
 The human update `0x41dfc0` selects keyboard `0x416bb0`, analog `0x4061c0` or
