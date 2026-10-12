@@ -822,3 +822,4 @@ gameMessagePool883E38 = 0x883e38;
 gameMessageCount876DC8 = 0x876dc8;
 gameMessages800ECC = 0x800ecc;
 viewMode8707DC = 0x8707dc;
+playerRecords8900AC = 0x8900ac;

@@ -370,7 +370,6 @@ void Audio82B884::Apply(float *) {}
 void SetPresetDisplayLevelFromLevelOfDetailAndLimit() {} // native renderer has no retail quality presets
 void SaveRegistrySettings() { fprintf(stderr, "ug2demo: display settings are session-only; registry persistence is not recovered\n"); }
 void Value5CEC90() { fprintf(stderr, "ug2demo: retail display reset is not recovered; native renderer unchanged\n"); }
-void Replay8650B8::Value578EF0(int, int, int, bool) {} // no replay recorder
 void NativePauseOptionsLoad(const char *gameDirectory) {
     // Read the frontend track tint from the player's assets rather than invent a replacement sprite.
     std::vector<unsigned char> frontend;

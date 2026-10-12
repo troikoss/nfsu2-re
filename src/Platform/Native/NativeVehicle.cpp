@@ -243,7 +243,8 @@ void NativeControls::SetSelectedGear(int gear) { StoreGearRequest(gear); }
 void NativeControls::SetCurrentGear(int gear) { StoreDirectGear(gear); }
 void NativeControls::UnknownSlot30() { SelectForward(); }
 #define NATIVE_TRAP_SLOT(name) void NativeControls::name() { NativeTrap("controls " #name); }
-NATIVE_TRAP_SLOT(UnknownSlot34) NATIVE_TRAP_SLOT(UnknownSlot38)
+bool NativeControls::SetTransmission(int mode) { return ApplyTransmission(mode); }
+NATIVE_TRAP_SLOT(UnknownSlot38)
 NATIVE_TRAP_SLOT(UnknownSlot3C) NATIVE_TRAP_SLOT(UnknownSlot40) NATIVE_TRAP_SLOT(UnknownSlot44)
 NATIVE_TRAP_SLOT(UnknownSlot48) NATIVE_TRAP_SLOT(UnknownSlot4C) NATIVE_TRAP_SLOT(UnknownSlot50)
 NATIVE_TRAP_SLOT(UnknownSlot54) NATIVE_TRAP_SLOT(UnknownSlot58) NATIVE_TRAP_SLOT(UnknownSlot5C)

@@ -22,7 +22,7 @@ public:
     int GetDirectGear();
     void SetSelectedGear(int gear);
     void SetCurrentGear(int gear);
-    void UnknownSlot30(); void UnknownSlot34(); void UnknownSlot38(); void UnknownSlot3C();
+    void UnknownSlot30(); bool SetTransmission(int mode); void UnknownSlot38(); void UnknownSlot3C();
     void UnknownSlot40(); void UnknownSlot44(); void UnknownSlot48(); void UnknownSlot4C();
     void UnknownSlot50(); void UnknownSlot54(); void UnknownSlot58(); void UnknownSlot5C();
     void UnknownSlot60(); void UnknownSlot64(); void UnknownSlot68(); void UnknownSlot6C();

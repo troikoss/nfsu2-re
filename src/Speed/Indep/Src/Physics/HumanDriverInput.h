@@ -62,6 +62,7 @@ public:
     void StoreGearRequest(int gear);
     void StoreDirectGear(int gear);
     void SelectForward();
+    bool ApplyTransmission(int mode); // 0x407280, human input slot 0x34
     void UpdatePedals(float duration);
     void Update(float duration); // 0x41e2c0
     HumanDriverInput *ConstructHuman(MoverModeOwner *car); // 0x425fc0 without vtable/SEH

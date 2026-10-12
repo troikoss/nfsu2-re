@@ -229,7 +229,9 @@ public:
     virtual int GetDirectGear() = 0;
     virtual void SetSelectedGear(int gear) = 0;
     virtual void SetCurrentGear(int gear) = 0;
-    virtual void UnknownSlot30() = 0; virtual void UnknownSlot34() = 0; virtual void UnknownSlot38() = 0;
+    virtual void UnknownSlot30() = 0;
+    virtual bool SetTransmission(int mode) = 0; // slot 0x34 (human input 0x407280)
+    virtual void UnknownSlot38() = 0;
     virtual void UnknownSlot3C() = 0; virtual void UnknownSlot40() = 0; virtual void UnknownSlot44() = 0;
     virtual void UnknownSlot48() = 0; virtual void UnknownSlot4C() = 0; virtual void UnknownSlot50() = 0;
     virtual void UnknownSlot54() = 0; virtual void UnknownSlot58() = 0; virtual void UnknownSlot5C() = 0;
@@ -469,7 +471,8 @@ struct MoverModeOwner {
     float engineValue440;
     char unidentified444[4];
     int value448;
-    char unidentified44C[0x1c];
+    char unidentified44C[0x18];
+    int stability464;     // stability control option (replay event type 2)
     float value468;
     char unidentified46C[0x70];
     float value4DC;
@@ -529,6 +532,7 @@ UG2_CHECK_OFFSET(MoverModeOwner, value4E4, 0x4e4);
 UG2_CHECK_OFFSET(MoverModeOwner, mask95C, 0x95c);
 UG2_CHECK_OFFSET(MoverModeOwner, resetTick974, 0x974);
 UG2_CHECK_OFFSET(MoverModeOwner, replay968, 0x968);
+UG2_CHECK_OFFSET(MoverModeOwner, stability464, 0x464);
 UG2_CHECK_OFFSET(MoverModeOwner, physicsInfo10, 0x10);
 UG2_CHECK_OFFSET(MoverModeOwner, effectsEnabled550, 0x550);
 UG2_CHECK_OFFSET(MoverModeOwner, colliderPack5CC, 0x5cc);

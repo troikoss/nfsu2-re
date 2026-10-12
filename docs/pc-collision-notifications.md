@@ -1,4 +1,4 @@
-# Collision notifications, profile readers and player camera option
+# Collision notifications, profile readers, player options and game events
 
 Reference: UG2 PC v1.2 `speed2.exe`, SHA-256
 `f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7`.
@@ -44,3 +44,30 @@ queue link and count are detected. `verify_pc_pause_options.py` passes with the 
 | `Value502FE0@MemoryCard83A9E0` | 0x502fe0 | 4 | 2000 | `e2716ac6dcee970cd16c7522928d79654211f8657ccbbba4bc89f0a7ceb4c3c2` |
 | `CycleCamera@PlayerSettings83AA64` | 0x502540 | 97 | 3000 | `d4eb79259ff258db087fc4e6c011850dbb8b357418352e4ebad32e66632fbeee` |
 | `Value5F2FA0@Player8900AC` | 0x5f2fa0 | 98 | 3000 | `03e7a94c557f3c75da0809229a4fa925785bd90484cc9ca8ad9ea61aaeb953fe` |
+
+## Game events (pause option changes)
+
+`Frontend/ReplayEvents.cpp` recovers the event record `0x578ef0` on the replay object
+`*0x8650b8` and the event apply `0x4a7b30`, replacing a native no-op. The record keeps up to 256
+`{type, frame 0x7fb724, player, value}` entries at `+0x40ec` (count `+0x40e4`) while recording
+(`+0x78` not -1, `+0x80` clear, `+0x8c` set), replacing the last entry when type, frame and
+player repeat, and stops the recording when full (`0x571830`). Every event is then applied:
+type 0 stores value and player at race status `+0xbec`/`+0xbf0`; type 1 (transmission) stores
+the player's `+0x20` and calls the car input's slot `+0x34`; type 2 (stability control) stores
+`+0x21` and car `+0x464`; type 3 (jump camera) stores the float at `+0x24`.
+`Physics/HumanDriverInput.cpp` recovers that slot, `0x407280`: modes 1 and 3 keep the current gear
+as the request, other modes clear it (mode 0 stays 0, the rest become 2), and a physics mover's
+drivetrain `+0x60` receives the mode. The pause menu's Transmission and Stability Control
+options therefore now act on the native car as in the original.
+
+`tools/verify_pc_replay_events.py` (**16,000 comparisons pass; byte matching
+is not established**) covers recording states, coalescing, a full table, every event type and
+transmission mode, with the input slot traced. Mutations of coalescing, event results and the
+mode mapping are detected.
+
+| Routine | Address | Bytes | Cases | SHA-256 |
+|---|---:|---:|---:|---|
+| `Value578EF0@Replay8650B8` | 0x578ef0 | 214 | 4000 | `6823ab37cbe9056c721e8a93daefdd721bcfe3fbcf5d311e07429d1fd965f309` |
+| `Overflow571830@Replay8650B8` | 0x571830 | 21 | 4000 | `ef4f04903a7c8219783130ad3eb2ea67835aedb799b5b5f5513477db60116bb7` |
+| `ApplyReplayEvent` | 0x4a7b30 | 131 | 4000 | `c37dd316dfa6fae97a0c42aea656199644c4ccca138ec912c44c421b4da14beb` |
+| `ApplyTransmission@HumanDriverInput` | 0x407280 | 140 | 4000 | `012f844e240996ea5bff9d34ca061831228502e69c56d24e17db615020f046db` |

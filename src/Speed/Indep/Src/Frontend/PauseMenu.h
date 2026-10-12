@@ -62,9 +62,24 @@ struct Network89CF48 {
 // Object at *0x8650b8; only the fields read by the replay item are named.
 struct Replay8650B8 {
     void Value578EF0(int type, int player, int value, bool record); // 0x578ef0
-    char unidentified0[0xb8];
+    void Overflow571830(); // 0x571830, event table full
+    char unidentified0[0x78];
+    int value78;          // -1: not recording
+    char unidentified7C[4];
+    int value80;          // nonzero: playing back
+    char unidentified84[8];
+    int value8C;
+    char unidentified90[0x28];
     int valueB8;
-    char unidentifiedBC[0x50ec - 0xbc];
+    char unidentifiedBC[0x40e4 - 0xbc];
+    int eventCount40E4;
+    char unidentified40E8[4];
+    struct ReplayEvent {
+        int type0;
+        int frame4;
+        int player8;
+        int valueC;
+    } events40EC[0x100];
     unsigned char value50EC;
 };
 UG2_CHECK_OFFSET(Replay8650B8, valueB8, 0xb8);

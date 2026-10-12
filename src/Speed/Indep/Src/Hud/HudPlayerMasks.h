@@ -35,7 +35,11 @@ struct PlayerRecord {
     int player8;
     char unidentifiedC[4];
     int index10;          // row of the player settings at 0x83aa64
-    char unidentified14[0x14];
+    char unidentified14[0xc];
+    unsigned char transmission20; // replay event types 1..3 (0x4a7b30)
+    unsigned char stability21;
+    char unidentified22[2];
+    float jumpCamera24;
     signed char mode28;
     char unidentified29[0x27];
     int value50;          // frame of the last restart request
@@ -60,6 +64,7 @@ struct PlayerRecord {
 };
 UG2_CHECK_OFFSET(PlayerRecord, index10, 0x10);
 UG2_CHECK_OFFSET(PlayerRecord, mode28, 0x28);
+UG2_CHECK_OFFSET(PlayerRecord, jumpCamera24, 0x24);
 UG2_CHECK_OFFSET(PlayerRecord, value50, 0x50);
 UG2_CHECK_OFFSET(PlayerRecord, state58, 0x58);
 UG2_CHECK_OFFSET(PlayerRecord, value234, 0x234);
@@ -73,10 +78,14 @@ struct RaceStatus890118 {
     char unidentified4[0x20];
     int value24;
     int value28;
+    char unidentified2C[0xbec - 0x2c];
+    int eventValueBEC;    // replay event type 0 (0x4a7b30)
+    int eventPlayerBF0;
     int Query5F85B0();    // 0x5f85b0
     void Reset5FCA90();   // 0x5fca90
 };
 UG2_CHECK_OFFSET(RaceStatus890118, value24, 0x24);
+UG2_CHECK_OFFSET(RaceStatus890118, eventPlayerBF0, 0xbf0);
 
 // Object at 0x85ef50.
 struct Object85EF50 {

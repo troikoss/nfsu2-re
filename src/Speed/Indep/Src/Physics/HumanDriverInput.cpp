@@ -36,6 +36,27 @@ int HumanDriverInput::ReadDirectGear() { return directGear1E8; }
 void HumanDriverInput::StoreGearRequest(int gear) { gearRequest1E4 = gear; }
 void HumanDriverInput::StoreDirectGear(int gear) { directGear1E8 = gear; }
 
+// Original 0x407280, human input slot 0x34: modes 1 and 3 keep the current gear as the
+// request; 0 and other modes clear it (0 stays 0, others become 2). A physics mover gets the
+// mode at its drivetrain +0x60.
+bool HumanDriverInput::ApplyTransmission(int mode) {
+    if (mode == 3) {
+        gearRequest1E4 = car2A8->gear434;
+        transmission2C0 = 3;
+    } else if (mode == 1) {
+        gearRequest1E4 = car2A8->gear434;
+        transmission2C0 = 1;
+    } else {
+        gearRequest1E4 = -1;
+        transmission2C0 = mode == 0 ? 0 : 2;
+    }
+    if (car2A8->moverType28 == 1) {
+        car2A8->mover34->drivetrain4C->status60 = transmission2C0;
+        return true;
+    }
+    return false;
+}
+
 // Original 0x407310, human input slot 0x30.
 void HumanDriverInput::SelectForward() {
     if (transmission2C0 != 1 && transmission2C0 != 3) {
