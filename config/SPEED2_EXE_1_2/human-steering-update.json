@@ -66,6 +66,90 @@
       "size": 25,
       "sha256": "aebdac7bdc60669022492b9ac895e9056df1de77347e3c232ca651e29b554208",
       "method": "Query4018F0"
+    },
+    {
+      "address": 4317120,
+      "size": 145,
+      "sha256": "344fae057db5caa2869a57dd1c510932504742150f7cb410b25d5262399c4dc8",
+      "method": "Update@HumanSteering"
+    },
+    {
+      "address": 4317888,
+      "size": 433,
+      "sha256": "5b274a39444afce4c6a4cdb472998fa192827cb67ef23569bca2f864c069e9ea",
+      "method": "Update@HumanDriverInput"
+    },
+    {
+      "address": 4224704,
+      "size": 143,
+      "sha256": "3900b749124ab0eed0b54d24bcae68f2293a4f834c9441bf966162b06ae2e340",
+      "method": "ClearActions"
+    },
+    {
+      "address": 4223856,
+      "size": 142,
+      "sha256": "8e05f0740a35602750196c825705a9af7b32e3cc8bdd1367d0f46caca9348811",
+      "method": "CanUseWheelControl"
+    },
+    {
+      "address": 4224000,
+      "size": 693,
+      "sha256": "433984e7e98e716317d7bc089a9a40fa93a75105c59e2f759b96b3b3e2942207",
+      "method": "UpdateWheelControl"
+    },
+    {
+      "address": 5708384,
+      "size": 19,
+      "sha256": "b82bbc4424388e0e264da906155556431c14beaec06642890b79110d61363dd1",
+      "method": "IsInputDeviceAssigned"
+    },
+    {
+      "address": 5851408,
+      "size": 160,
+      "sha256": "2828e1226fbb58658203a50b828d4f9e39be2b48600555bd54076dea57ebcca7",
+      "method": "SetClutchInput"
+    },
+    {
+      "address": 6212976,
+      "size": 26,
+      "sha256": "fd119cbf1a5034fac7ed2db7feda4b2ecffe71c5c80be5c521f5ea9ec347bdf8",
+      "method": "HasPendingShift"
+    },
+    {
+      "address": 6214768,
+      "size": 25,
+      "sha256": "838d785158b95b0ffcca15bb7b5e2307c6c123bd3dbb843e729b4b7c2eaa942c",
+      "method": "GetWheelState"
+    },
+    {
+      "address": 4200784,
+      "size": 50,
+      "sha256": "02349383764e82723c3286a98ab92e5eaa04ed94e69597f6368f5a3cec0143b8",
+      "method": "Query401950"
+    },
+    {
+      "address": 6145040,
+      "size": 79,
+      "sha256": "c8b77474aa689608c96dc3e2d53a196ac0b39704dd85bdf65072fbd28fc06d12",
+      "method": "UpdateColliderFaceRecords"
+    },
+    {
+      "address": 6144864,
+      "size": 169,
+      "sha256": "6f977255768a27279efb0304f18c271f687d30e2ae23c04c085cf7abdba62d12",
+      "method": "TrackColliderFace"
+    },
+    {
+      "address": 6144672,
+      "size": 191,
+      "sha256": "48b0e395f8b32e5749f41fe2fd545480aacddbae84d20beeedf04c6d08a5ba68",
+      "method": "Initialise@ColliderFaceRecord"
+    },
+    {
+      "address": 4203200,
+      "size": 1,
+      "sha256": "ae3f4619b0413d70d3004b9131c3752153074e45725be13b9a148978895e359e",
+      "method": "HumanInputHook4022C0"
     }
   ]
 }

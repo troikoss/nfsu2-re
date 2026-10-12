@@ -23,6 +23,8 @@ extern DriveFeedbackCurve pairCurve890150;
 extern DriveFeedbackCurve pairCurve89E798;
 extern DriveFeedbackCurve moverEventCurve;
 extern DriveFeedbackCurve guideCurve;
+extern DriveFeedbackCurve steeringRecoveryCurve;
+extern DriveFeedbackPair pairTable7E9F58[];
 extern DriveFeedbackPair pairTable7FC880[];
 extern DriveFeedbackPair pairTable7FC8A0[];
 extern DriveFeedbackPair pairTable7FC8C8[];
@@ -70,6 +72,8 @@ static void SetPair(DriveFeedbackPair *pair, float coordinate, float value) {
 }
 
 void RunPhysicsStaticInitializers() {
+    // 0x77a7e0: steering limit recovery curve read by 0x405dc0.
+    ConstructDriveFeedbackCurve(&steeringRecoveryCurve, pairTable7E9F58, 4);
     // 0x77de60
     physicsValue86B4BC = Bits(0x3f800000) / physicsDivisor7A17BC;
     // 0x77de80, 0x77dea0, 0x77df40, 0x77df60

@@ -2,8 +2,9 @@
 
 Reference: UG2 PC v1.2 executable SHA-256
 `f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7`.
-This checkpoint recovers construction, destruction and the steering rate helper;
-it does **not** replace the demo's steering smoothing or ±30° scale yet.
+Native steering now runs entirely through recovered original code: the demo's
+former 2.5 units/s smoothing and ±30° scaling are removed (see "Human input
+update" below).
 
 ## Recovered source and layouts
 
@@ -137,8 +138,48 @@ both sides, records every call with its receiver and arguments, scripts their
 boolean answers and compares the traces: 3,000 FF cases and 3,000 each for the
 three helpers, **21,401** comparisons in all. `0x440f70` (vector length) runs
 as original code. Mutations of a surface kind, the jolt interval and the
-torque clamp were detected. Dispatcher `0x41dfc0` remains, so native steering
-still uses its substitutes.
+torque clamp were detected.
+
+## Human input update
+
+`HumanDriverUpdate.cpp` recovers the per-frame human input update `0x41e2c0`
+and its helpers: empty hook `0x4022c0`, device-slot test `0x571a60`
+(`0x864788[device] != 0xff`), action reset `0x4076c0`, per-wheel control gate
+`0x407370` and per-wheel control `0x407400`, plus session query `0x401950`.
+`HumanSteeringUpdate.cpp` adds dispatcher `0x41dfc0` (alternate, analog or
+keyboard steering, force feedback, 0.55 s input history, +0x84, angle return);
+`DrivetrainClutchInput.cpp` adds manual clutch input `0x594910` and owner
+queries `0x5ecd70` (pending shift) and `0x5ed470` (wheel state); and
+`World/WColliderFaceRecords.cpp` adds collider face records `0x5dc410`,
+`0x5dc360`, `0x5dc2a0` and list end `0x502fd0`. The update records collider
+faces (when pool `*0x883e5c` and `0x883e60` are set), clears actions for an
+unassigned device slot, forces brake while +0x2b8 is set, runs pedals
+`0x407a30`, sets the angle at +0x1e0 from the steering axis +0x2c8 unless
+per-wheel mode is active, holds brake while +0x2b4 is set, handles manual
+transmission states 3/4 with the clutch at +0x2f4, latches the drivetrain
+handbrake lock above 0.6 in session group 3, and updates per-wheel control.
+
+The native demo now calls `HumanDriverInput::Update` each frame instead of the
+pedal routine alone. SDL writes the action fields the original input event
+handlers write (pedals, handbrake, raw -1..1 steering axis at +0x2c8); the
+native partial constructor mirrors `0x425fc0`/`0x423330` (using recovered
+`0x405c60` and `0x4076c0`; route reset `0x41d160` is unrecovered), selects
+device slot 0 (assigned in the retail image) and, as the free-drive entry
+seam, releases the pre-race brake hold +0x2b4 that the constructor sets
+outside race phase 4. Static initializer `0x77a7e0` now builds recovery
+curve `0x81e5b0`. Driving checks pass; the scripted 0.3 steering input now
+follows the original speed-limited keyboard steering, and the forward smoke
+maximum is 123.6 km/h (reverse 76.8). Full ±1 steering turns the car in both
+directions.
+
+The verifier adds 2,500 cases each for the input update, dispatcher, action
+reset, wheel-control gate and update, device test, owner queries, session
+query and hook, 60 clutch cases (boundaries, rising/falling, NaN) and 400
+collider-face cases with an original-layout slot pool, for **54,861**
+comparisons. Pedals `0x407a30` are hooked and traced rather than executed;
+slot-pool routines `0x43cd10`/`0x43f8f0` run as original code. Mutations of
+the transmission condition, a per-wheel mapping and the face filter were
+detected. Byte matching is not established.
 
 ## Remaining steering chain
 

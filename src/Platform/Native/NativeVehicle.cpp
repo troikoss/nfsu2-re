@@ -432,16 +432,25 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     owner->moverType28 = 1;
     NativeControls *controls = static_cast<NativeControls *>(calloc(1, sizeof(NativeControls)));
     new (controls) NativeControls;
-    // Partial constructor seam. These fields are observed in 0x423330/0x425fc0;
-    // full input construction and device capture remain unrecovered.
+    // Partial constructor seam mirroring human input constructor 0x425fc0 and
+    // base 0x423330 (whose route subobject reset 0x41d160 is unrecovered):
+    // fields are set as those constructors set them, using recovered
+    // steering construction 0x405c60 and action reset 0x4076c0.
     controls->gearRequest1E4 = 1;
     controls->directGear1E8 = 1;
-    controls->car2A8 = owner;
-    controls->device2AC = -1;
     controls->steering220.Construct(owner);
+    controls->car2A8 = owner;
+    controls->ClearActions();
+    controls->flag2B4 = !(raceState890118 && *raceState890118 == 4);
+    controls->clutch2F4 = 1.0f;
+    controls->steeringEnabled2F8 = 1;
+    // Native device seam: the original profile/controller setup assigns a
+    // device slot; slot 0 is assigned in the retail image (0x864788).
+    controls->device2AC = 0;
     // Native free-drive entry seam: the original session entry is unresolved.
-    // Select drive through the recovered human slot rather than leaving the
-    // constructor's neutral request active throughout this standalone demo.
+    // It releases the pre-race brake hold (+0x2b4) and selects drive through
+    // the recovered human slot instead of the constructor's neutral request.
+    controls->flag2B4 = 0;
     controls->SelectForward();
     owner->input30 = controls;
     // Car object defaults from its constructor 0x604260 that the mover reads.
@@ -498,13 +507,13 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
 
 void SetNativeControls(NativeVehicle *vehicle, float throttle, float brake, float handbrake, float steer) {
     NativeControls *controls = vehicle->controls;
-    // SDL/profile capture seam supplies original human-input action fields.
+    // SDL capture seam: writes the action fields the original input event
+    // handlers write (pedals and the raw -1..1 steering axis at +0x2c8).
+    // Recovered human update 0x41e2c0 turns them into pedals and the angle.
     controls->throttle2D4 = throttle;
     controls->brake2DC = brake;
     controls->handbrake2EC = handbrake;
-    // Scaffold: +/-30 degree road-wheel angle in 16-bit angle units.
-    int units = (int)(steer * (30.0f / 360.0f) * 65536.0f);
-    controls->steering1E0 = (unsigned short)units;
+    controls->steering2C8 = steer;
 }
 
 float StepNativeVehicle(NativeVehicle *vehicle, float duration) {
@@ -512,7 +521,7 @@ float StepNativeVehicle(NativeVehicle *vehicle, float duration) {
     // Advance runs the car update, i.e. the mover step) and then resolve collisions
     // (0x5ffa50). Scaffold: the world clock (0x57a0e0) is advanced after the step so the
     // mover keeps reading a zero frame duration as before.
-    vehicle->controls->UpdatePedals(duration);
+    vehicle->controls->Update(duration);
     vehicle->owner->SnapshotFrameKinematics(duration);
 #ifdef UG2_ENABLE_MODDING
     NativeModsBeforeStep(vehicle, duration);

@@ -269,3 +269,19 @@ float HumanSteering::UpdateAlternate(float input, float duration, int device) {
     angle7C = (unsigned short)(units / 360);
     return input;
 }
+
+extern int steeringAlternateMode81CB8C;
+
+// 0x41dfc0 selects alternate (global 0x81cb8c), analog (0x5c1000) or keyboard
+// steering, applies force feedback, records the result in the 0.55 s input
+// history and as +0x84, and returns the angle at +0x7c.
+unsigned short HumanSteering::Update(float input, float duration, int device) {
+    float value;
+    if (steeringAlternateMode81CB8C) value = UpdateAlternate(input, duration, device);
+    else if (IsAnalogInputDevice(device)) value = UpdateAnalog(input, duration, device);
+    else value = UpdateKeyboard(input, duration, device);
+    UpdateForceFeedback(value, device);
+    inputHistory14.Advance(value, (float)drivetrainClock * drivetrainClockScale);
+    previous84 = value;
+    return angle7C;
+}

@@ -30,7 +30,9 @@ extern ForceFeedbackManager *forceFeedbackManager870760;
 struct GameSession89E7A0 {
     char unidentified0[0x38];
     unsigned char flag38;
+    unsigned char flag39;
     bool Query4018F0(); // 0x4018f0
+    bool Query401950(); // 0x401950
 };
 
 #endif

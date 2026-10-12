@@ -26,16 +26,22 @@ MALLOC, FREE = 0x75c6c8, 0x75c6da
 # Already verified routines executed as original code on both sides.
 CONTROLLED = {'?GetSlipAngle@DrivetrainAuxiliary@@QAEMXZ': 0x591d90,
               '?GetPhysicsSpeed@PhysicsParameters@@QAEMXZ': 0x5b5930,
-              '?WheelLength@@YAMPAUWheelVector@@@Z': 0x440f70}
+              '?WheelLength@@YAMPAUWheelVector@@@Z': 0x440f70,
+              '?bIsSlotPoolFull@@YAHPAX@Z': 0x43cd10, '?bSlotPoolAllocate@@YAPAXPAX@Z': 0x43f8f0}
 # Unrecovered force-feedback manager methods: hooked on both sides, which
 # record each call and return scripted answers. Values are argument counts.
 FF_METHODS = {0x5bfd70: 1, 0x5bfd90: 2, 0x5bfe00: 1, 0x5bfe70: 1, 0x5c9150: 4, 0x5c9040: 2, 0x5c9550: 3,
               0x5c9590: 2, 0x5c9760: 2, 0x5c9d90: 2, 0x5c9fd0: 4, 0x5cd850: 1, 0x5cd910: 1, 0x5cd9d0: 1,
-              0x5cda10: 1, 0x5cdbb0: 1}
+              0x5cda10: 1, 0x5cdbb0: 1,
+              0x407a30: 1}  # pedals 0x407a30 (verified separately) are traced, not executed
 FF_MANAGER = 0x2100f00
 FLOATING = ('CalculateMaximum', 'UpdateKeyboard', 'UpdateAnalog', 'GetSteeringSlip', 'UpdateAlternate', 'Invert')
 CLEANUP = dict(CalculateMaximum=12, UpdateKeyboard=12, UpdateAnalog=12, GetSteeringSlip=0, IsAnalogInputDevice=0,
-               UpdateAlternate=12, Invert=4, UpdateForceFeedback=8, GetBlendedBasis=4, QueryFlag5EB420=0, Query4018F0=0)
+               UpdateAlternate=12, Invert=4, UpdateForceFeedback=8, GetBlendedBasis=4, QueryFlag5EB420=0, Query4018F0=0,
+               **{'Update@HumanSteering': 12, 'Update@HumanDriverInput': 4, 'ClearActions': 0, 'CanUseWheelControl': 4,
+                  'UpdateWheelControl': 4, 'IsInputDeviceAssigned': 0, 'SetClutchInput': 4, 'HasPendingShift': 0,
+                  'GetWheelState': 4, 'Query401950': 0, 'UpdateColliderFaceRecords': 0, 'TrackColliderFace': 0,
+                  'Initialise@ColliderFaceRecord': 8, 'HumanInputHook4022C0': 0})
 SAVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 FLAGS8 = (0x89e7d8, 0x89e7d9, 0x89e7e2)
 FLAGS32 = (0x890100, 0x890104, 0x890108, 0x890110, 0x890114)
@@ -60,7 +66,8 @@ def main():
             result.append((address, address + entry['size']))
         return result
 
-    original_ranges = ranges_for([f['address'] for f in manifest['functions']])
+    # 0x41e2c0 is absent from the static call graph; add its direct callees.
+    original_ranges = ranges_for([f['address'] for f in manifest['functions']] + [0x5eb8f0])
     controlled_ranges = ranges_for(list(CONTROLLED.values()))
     constructor_ranges = ranges_for([0x405c60])
     BUILD.mkdir(parents=True, exist_ok=True)
@@ -77,14 +84,20 @@ def main():
     objects = [compile_unit('steering-dependencies', (
         'src/Speed/Indep/Libs/bWare/TimedAverage.cpp', 'src/Speed/Indep/Src/Physics/EngineCurve.cpp',
         'src/Speed/Indep/Src/Physics/DriveFeedbackCurve.cpp', 'src/Speed/Indep/Src/Physics/PairCurveLookup.cpp',
-        'src/Speed/Indep/Src/Physics/HumanSteering.cpp', 'src/Speed/Indep/Src/Physics/EngineMath.cpp'), False),
+        'src/Speed/Indep/Src/Physics/HumanSteering.cpp', 'src/Speed/Indep/Src/Physics/EngineMath.cpp',
+        'src/Speed/Indep/Src/Physics/MoverInput.cpp'), False),
         compile_unit('curve-invert', ('src/Speed/Indep/Src/Physics/EngineCurveInvert.cpp',), True),
         compile_unit('steering-update', ('src/Speed/Indep/Src/Physics/HumanSteeringUpdate.cpp',
-                                         'src/Speed/Indep/Src/Physics/HumanSteeringFeedback.cpp'), True)]
+                                         'src/Speed/Indep/Src/Physics/HumanSteeringFeedback.cpp',
+                                         'src/Speed/Indep/Src/Physics/HumanDriverUpdate.cpp',
+                                         'src/Speed/Indep/Src/Physics/DrivetrainClutchInput.cpp',
+                                         'src/Speed/Indep/Src/World/WColliderFaceRecords.cpp'), True)]
+    externals_extra = {'?UpdatePedals@HumanDriverInput@@QAEXM@Z': 0x407a30}
     globals_ = {name: int(address, 16) for name, address in re.findall(r'^(\w+) = (0x[0-9a-f]+);',
                 (ROOT / 'src/Platform/Native/OriginalSymbols.ld').read_text(), re.M)}
     externals = {'_malloc': MALLOC, '_free': FREE, '__ftol2': CONVERSION[0], '__fltused': BASE + 0xff00, '__CIsqrt': CISQRT}
     externals.update(CONTROLLED)
+    externals.update(externals_extra)
     for obj in objects:
         for symbol in read_object(obj)['symbols'].values():
             match = re.match(r'^\?(\w+)@@', symbol['name'])
@@ -182,8 +195,12 @@ def main():
             else:
                 run(uc, entries[method][side], [STOP] + words, receiver)
                 assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4 + CLEANUP[method], method
-                result = uc.reg_read(UC_X86_REG_EAX) & (0xffffffff if method == 'QueryFlag5EB420' else 0xff)
-                if method in ('UpdateForceFeedback', 'GetBlendedBasis'):
+                widths = {'QueryFlag5EB420': 0xffffffff, 'IsInputDeviceAssigned': 0xffffffff, 'GetWheelState': 0xffffffff,
+                          'Update@HumanSteering': 0xffff, 'Initialise@ColliderFaceRecord': 0xffffffff}
+                result = uc.reg_read(UC_X86_REG_EAX) & widths.get(method, 0xff)
+                if method in ('UpdateForceFeedback', 'GetBlendedBasis', 'Update@HumanDriverInput', 'ClearActions',
+                              'UpdateWheelControl', 'SetClutchInput', 'UpdateColliderFaceRecords', 'TrackColliderFace',
+                              'HumanInputHook4022C0'):
                     result = None
             assert (uc.reg_read(UC_X86_REG_FPSW) >> 11) & 7 == 0, method
             outcomes.append((bytes(uc.mem_read(BASE, 0x10000)), result))
@@ -304,6 +321,114 @@ def main():
         compare('GetBlendedBasis', state, globals_state, (BASE + 0xce00,), BASE + wheel0)
         compare('QueryFlag5EB420', state, globals_state, (), BASE + entry)
         compare('Query4018F0', state, globals_state, (), 0x89e7a0)
+    # Human input update chain. A second steering object lives at input
+    # +0x220, built with the original constructor like the first.
+    HUMAN = BASE + 0x4000
+    uc0.mem_write(BASE, bytes(constructed))
+    cursors[0] = BASE + 0x6000
+    run(uc0, construct[0], [STOP, CAR], HUMAN + 0x220)
+    human_state = bytearray(uc0.mem_read(BASE, 0x10000))
+    rng = random.Random(0x41e2c0)
+    for trial in range(2500):
+        state = bytearray(human_state)
+        row = rows[trial % len(rows)]
+        info = INFO - BASE
+        state[info + 0x40:info + 0x40 + 0x2b0] = row[:0x2b0]
+        struct.pack_into('<ibxxxf', state, info + 0x10, -1, 1, 0.0)
+        struct.pack_into('<ifffI', state, info + 0x10 + 0x55c, 64, 0.0, 55.5555572509765625, 1.13399994373321533203125, INFO + 0x10 + 0x45c)
+        for i in range(64):
+            struct.pack_into('<f', state, info + 0x10 + 0x45c + 4 * i, rng.uniform(1, 12) if i < 60 else 0.0)
+        car = CAR - BASE
+        mover, drive = 0xc000, 0xc600
+        struct.pack_into('<I', state, car + 0x10, INFO)
+        struct.pack_into('<I', state, car + 0x20, INFO + 0x40)
+        struct.pack_into('<I', state, car + 0x30, INPUT)
+        struct.pack_into('<I', state, car + 0x3c, BODY)
+        struct.pack_into('<i', state, car + 0x28, (1, 1, 1, 0)[trial % 4])
+        struct.pack_into('<I', state, car + 0x18, 0)
+        struct.pack_into('<I', state, car + 0x34, BASE + mover)
+        struct.pack_into('<I', state, mover + 0x4c, BASE + drive)
+        struct.pack_into('<4i', state, mover + 0x74, *(rng.choice((0, 1, 2)) for _ in range(4)))
+        struct.pack_into('<f', state, drive + 0x14, rng.uniform(0, 1))
+        struct.pack_into('<i', state, drive + 0x48, rng.randrange(2))
+        struct.pack_into('<f', state, car + 0x42c, rng.choice((0.0, rng.uniform(0, 70))))
+        struct.pack_into('<f', state, car + 0x430, rng.choice((0.0, rng.uniform(0, 20))))
+        struct.pack_into('<i', state, car + 0x434, rng.randrange(-1, 6))
+        struct.pack_into('<fff', state, car + 0x70, *(rng.uniform(-40, 40) for _ in range(3)))
+        struct.pack_into('<i', state, car + 0x5c4 + 0x2e0, 0)
+        struct.pack_into('<i', state, BODY - BASE + 0x140, rng.choice((0, 0x7fffffff, 3990)))
+        struct.pack_into('<fff', state, INPUT - BASE + 0x20c, rng.uniform(0, 1), 0.0, rng.uniform(0, 1))
+        h = HUMAN - BASE
+        struct.pack_into('<H', state, h + 0x1e0, rng.randrange(65536))
+        struct.pack_into('<ii', state, h + 0x1e4, rng.randrange(-1, 6), 1)
+        struct.pack_into('<I', state, h + 0x2a8, CAR)
+        struct.pack_into('<i', state, h + 0x2ac, (-1, 0, 1, 2)[trial % 4])
+        struct.pack_into('<B', state, h + 0x2b4, int(trial % 9 == 0))
+        struct.pack_into('<i', state, h + 0x2b8, int(trial % 13 == 0))
+        struct.pack_into('<i', state, h + 0x2c0, rng.choice((0, 3, 4)))
+        struct.pack_into('<f', state, h + 0x2c8, rng.choice((0.0, 1.0, -1.0, rng.uniform(-1, 1))))
+        struct.pack_into('<fff', state, h + 0x2d4, rng.uniform(0, 1), 0.0, rng.uniform(0, 1))
+        struct.pack_into('<f', state, h + 0x2ec, rng.choice((0.0, 0.5, 1.0)))
+        struct.pack_into('<f', state, h + 0x2f4, rng.choice((1.0, 0.0, 0.5, 0.97, 0.02, rng.uniform(0, 1))))
+        struct.pack_into('<BBBBb', state, h + 0x2f8, int(trial % 5 != 0), rng.randrange(2), rng.choice((0, 0xaa, 1)),
+                         rng.choice((0, 1, 2)), rng.choice((0, 0, 1, -1)))
+        struct.pack_into('<i', state, h + 0x300, rng.choice((0, 0x7fffffff, 1000, 3990)))
+        struct.pack_into('<4f', state, h + 0x304, *(rng.choice((0.0, 0.9, -0.9, 0.5, rng.uniform(-1, 1))) for _ in range(4)))
+        mode = modes[trial % len(modes)]
+        globals_state = [(a, bytes([int(a in mode)])) for a in FLAGS8] + \
+                        [(a, struct.pack('<i', int(a in mode))) for a in FLAGS32] + \
+                        [(0x86518c, struct.pack('<i', 4000 + trial % 7)),
+                         (0x864788, bytes((0, 0xff, rng.choice((0, 0xff))))),
+                         (0x81cb8c, struct.pack('<i', int(trial % 11 == 0))),
+                         (0x89e7a0 + 0x38, bytes((int(trial % 7 == 0), rng.randrange(2)))),
+                         (0x89e7e3, bytes((int(trial % 17 == 0),))), (0x89010c, struct.pack('<i', int(trial % 19 == 0))),
+                         (0x7e94a0, bytes((int(trial % 3 != 0),)))]
+        pairs = [(0.0, 0.3), (0.01, 0.6), (0.03, 0.9), (2.0, 1.0)]
+        for i, pair in enumerate(pairs):
+            struct.pack_into('<ff', state, 0xf000 + 8 * i, *pair)
+        globals_state.append((0x81e5b0, struct.pack('<Ii', BASE + 0xf000, 4)))
+        duration = rng.choice((1 / 60, 1 / 120, 0.1))
+        compare('Update@HumanDriverInput', state, globals_state, (struct.unpack('<I', struct.pack('<f', duration))[0],), HUMAN)
+        compare('Update@HumanSteering', state, globals_state, (struct.unpack('<I', struct.pack('<f', rng.uniform(-1, 1)))[0],
+                struct.unpack('<I', struct.pack('<f', duration))[0], rng.randrange(3)), HUMAN + 0x220)
+        compare('ClearActions', state, globals_state, (), HUMAN)
+        compare('CanUseWheelControl', state, globals_state, (rng.choice((0, 1, 0x100)),), HUMAN)
+        compare('UpdateWheelControl', state, globals_state, (0,), HUMAN)
+        compare('HasPendingShift', state, globals_state, (), CAR)
+        compare('GetWheelState', state, globals_state, (rng.randrange(4),), CAR)
+        compare('Query401950', state, globals_state, (), 0x89e7a0)
+        compare('HumanInputHook4022C0', state, globals_state, (CAR,))
+        compare('IsInputDeviceAssigned', state, globals_state, (rng.randrange(3),))
+    # Clutch input boundaries, rising/falling and NaN.
+    for previous in (0.0, 0.5, 1.0, nan):
+        for value in (0.0, -0.0, 0.0499999, 0.05, 0.0500001, 0.5, 0.94999, 0.95, 0.950001, 1.0, 1.5, -1.0, nan, 0.4, 0.6):
+            state = bytearray(constructed)
+            struct.pack_into('<f', state, 0xc600 + 0x14, previous)
+            compare('SetClutchInput', state, [], (struct.unpack('<I', struct.pack('<f', value))[0],), BASE + 0xc600)
+    # Collider face records with an original-layout slot pool and list.
+    for trial in range(400):
+        state = bytearray(constructed)
+        pool, faces, records = 0xd000, 0xd100, 0xe800
+        count = rng.choice((0, 1, 3, 6))
+        capacity = rng.choice((2, 4, 8))
+        free = [BASE + records + i * 0xc0 for i in range(capacity)]
+        for i, node in enumerate(free):
+            struct.pack_into('<I', state, node - BASE, free[i + 1] if i + 1 < capacity else 0)
+        struct.pack_into('<IIii', state, pool + 0x10, free[0], 0, rng.randrange(0, 2), 0)
+        struct.pack_into('<i', state, pool + 0x2c, capacity)
+        for i in range(count):
+            face = faces + i * 0x80
+            struct.pack_into('<BBBb', state, face + 8, 0, 4, rng.choice((0, 2, 4, 6, 8, 10)), 0)
+            struct.pack_into('<I', state, face + 0xc, rng.choice((0, 0x1000 + i, 0x1001)))
+            for v in range(20):
+                struct.pack_into('<f', state, face + 0x30 + 4 * v, rng.uniform(-100, 100))
+            struct.pack_into('<I', state, car + 0x5c4 + 0x3c + 4 * i, BASE + face)
+        struct.pack_into('<i', state, car + 0x5c4 + 0x2e0, count)
+        globals_state = [(0x88eadc, struct.pack('<II', 0x88eadc, 0x88eadc)),
+                         (0x883e5c, struct.pack('<I', 0 if trial % 9 == 0 else BASE + pool)),
+                         (0x883e60, struct.pack('<i', int(trial % 11 != 0))),
+                         (0x802040, struct.pack('<i', trial % 2)), (0x7fb720, struct.pack('<i', trial))]
+        compare('UpdateColliderFaceRecords', state, globals_state, (CAR + 0x5c4, CAR + 0x60))
     for device in range(-1, 9):
         for present in (0, 1):
             for flag in (0, 1, 0x80):

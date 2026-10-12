@@ -82,6 +82,12 @@ void bFree(void *pool, void *memory) {
     free(memory);
 }
 
+// 0x43f8f0 is the inline slot-pool allocation used by recovered 0x5dc360;
+// it shares this scaffold until the bWare slot pool itself is recovered.
+void *bSlotPoolAllocate(void *pool) {
+    return bOMalloc(pool);
+}
+
 int bIsSlotPoolFull(void *pool) {
     SlotPool *slots = static_cast<SlotPool *>(pool);
     return slots->capacity && slots->used == slots->capacity;

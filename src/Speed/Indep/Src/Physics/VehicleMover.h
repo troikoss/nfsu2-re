@@ -460,6 +460,9 @@ struct MoverModeOwner {
     float resetDuration978;
     char unidentified97C[0x1c];
     unsigned char effectsSuppressed998;
+    bool HasPendingShift(); // 0x5ecd70
+    int GetWheelState(int wheel); // 0x5ed470
+    struct WCollider *Collider() { return reinterpret_cast<struct WCollider *>(reinterpret_cast<char *>(this) + 0x5c4); }
     DrivetrainAuxiliary *State() {
         return reinterpret_cast<DrivetrainAuxiliary *>(unidentified40);
     }

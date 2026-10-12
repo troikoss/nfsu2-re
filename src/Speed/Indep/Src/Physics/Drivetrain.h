@@ -331,6 +331,7 @@ struct Drivetrain {
     int IsWithinComponentTolerance();
     void RefreshVariations();
     void UpdateAfterIntegration();
+    void SetClutchInput(float value); // 0x594910
 };
 
 UG2_CHECK_OFFSET(DrivetrainWheel, matrix30, 0x30);

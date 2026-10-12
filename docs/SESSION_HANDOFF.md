@@ -82,9 +82,12 @@ probe wrapper at the same address for a different target; also reset FPTAG.
    one trial) and builds the native car. Remaining seams: CarTypeInfo chunk
    loader, tuning-table (`0x86b340`) loader and the caller binding tuning to
    its car; recover them to make native tuning run.
-4. Continue human steering (`0x405dc0`, `0x41dfc0`, keyboard `0x416bb0`, analog
-   `0x4061c0`, alternate `0x406a40`, device capture `0x571a60`, constructors).
-   The native smoothing at 2.5 units/s and ±30° angle scaling remain substitutes.
+4. Human steering and input update are recovered and integrated
+   (`tools/verify_pc_human_steering_update.py`). Remaining: constructors
+   `0x425fc0`/`0x423330` with route reset `0x41d160`, the input event
+   handlers that write action fields, and the bWare slot pool (`0x440df0`,
+   `0x440d40`, `0x43f8f0`, `0x43f920`, `0x43cd10`) that native `SlotPool`
+   still replaces.
 5. Follow the audit inventory through vehicle/session construction, complete
    update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/
    presentation. Keep committing/pushing verified checkpoints before pauses.

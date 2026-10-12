@@ -579,8 +579,7 @@ int main(int argc, char **argv) {
                 target = t > 2.0f ? (float)atof(getenv("UG2_STEER")) : 0.0f;
             }
         }
-        float rate = 2.5f * duration;
-        steer += (target - steer) > rate ? rate : ((target - steer) < -rate ? -rate : target - steer);
+        steer = target;
         if (!paused) {
             SetNativeControls(&vehicle, throttle, brake, handbrake, steer);
             StepNativeVehicle(&vehicle, duration);
