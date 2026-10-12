@@ -27,7 +27,7 @@ GLOBALS = {'tweenSixth786D94': 0x786d94, 'frontendDelta865198': 0x865198, 'realC
            'scrollerClock8641A0': 0x8641a0, 'fengEpsilon7992EC': 0x7992ec,
            'fengStateKeys7992F4': 0x7992f4, 'fengVisibilityDirty8384D4': 0x8384d4}
 INTERFACES = {'FngFormatHash': (0x50b9c0, 1, False), 'FngSetObjectScript': (0x51cf70, 3, False), 'Update': (0x538080, 3, True),
-              'UpdateArrows': (0x52fa70, 1, True), 'FindFEngFont': (0x51bd70, 1, False),
+              'FindFEngFont': (0x51bd70, 1, False),
               'LineWidth': (0x50bce0, 4, True)}
 ARENA, STACK, STOP = 0x2000000, 0x200f000, 0x2100000
 SELECT, FLOAT_STOP, FLOAT_RESULT = STOP + 0x100, STOP + 0x40, ARENA + 0xe000
@@ -103,7 +103,7 @@ def main():
                     uc.mem_write(this + 0xc, struct.pack('<I', words[1]))
                     uc.mem_write(this + 0xc8, struct.pack('<I', state['selected_index']))
                     uc.reg_write(UC_X86_REG_EAX, 1)
-                elif name in ('Update', 'UpdateArrows'):
+                elif name == 'Update':
                     state['trace'].append(('tween_at_call', bytes(uc.mem_read(state['scroller'] + 0x90, 0x30)).hex()))
                 uc.reg_write(UC_X86_REG_ESP, sp + 4 + (4 * argc if member else 0))
                 uc.reg_write(UC_X86_REG_EIP, words[0])

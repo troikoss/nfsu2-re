@@ -202,7 +202,7 @@ public:
     void LayoutIcon(IconScrollerIcon *icon); // 0x52f8c0
     void ResetLayout(int index); // 0x538a30
     void UpdateLayout(); // 0x538940
-    void UpdateArrows(int direction); // 0x52fa70, remaining interface
+    void UpdateArrows(int direction); // 0x52fa70
     bool AtFirst(); // 0x5276d0, only AL is defined
     bool AtLast(); // 0x527700, only AL is defined
     void Next(); // 0x527730

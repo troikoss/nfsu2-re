@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Original/rebuilt colour channels, state writes and scroller lock-script policy."""
+"""Original/rebuilt colour channels, state writes and scroller lock/arrow-script policies."""
 import argparse
 import hashlib
 import json
@@ -19,7 +19,8 @@ BUILD = ROOT / 'build/analysis/feng-colour-scripts'
 FUNCTIONS = {'Pack': (0x5054d0, 142), 'FEngCopyColour': (0x50ccc0, 60), 'FEngGetColour': (0x495570, 32),
              'FEngColourNear': (0x504640, 98), 'SetColourState': (0x517ad0, 307),
              'FEngSetColour': (0x51d7f0, 111), 'FngObjectScriptActive': (0x51d040, 47),
-             'UpdateIconLockScripts': (0x51df00, 182)}
+             'UpdateIconLockScripts': (0x51df00, 182), 'SetArrow2Static': (0x527660, 70),
+             'SetArrow1Blink': (0x495810, 49), 'UpdateArrows': (0x52fa70, 303)}
 ARENA, STACK, STOP = 0x2000000, 0x200f000, 0x2100000
 REGISTERS = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 
@@ -34,7 +35,7 @@ def main():
     image = pefile.PE(data=raw).get_memory_mapped_image()
     BUILD.mkdir(parents=True, exist_ok=True)
     objects = []
-    for i, source in enumerate((args.colour_source, args.script_source)):
+    for i, source in enumerate((args.colour_source, args.script_source, 'src/Speed/Indep/Src/Hud/HudVisibility.cpp')):
         obj = BUILD / ('colour-script-%d.obj' % i)
         subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo', '/c',
                         '/Ox', '/Ob0', '/Z7', '/EHsc', '/Fo' + str(obj.relative_to(ROOT)),
@@ -43,7 +44,7 @@ def main():
     symbols = [s for o in objects for s in read_object(o)['symbols'].values()]
     defined = {s['name'] for s in symbols if s['section'] > 0}
     targets = {'fengStateKeys7992F4': 0x7992f4, 'FEngStateOffset': 0x5046f0,
-               'FngFormatHash': 0x50b9c0, 'FngSetObjectScript': 0x51cf70}
+               'fengVisibilityDirty8384D4': 0x8384d4, 'FngFormatHash': 0x50b9c0, 'FngSetObjectScript': 0x51cf70}
     externals = {s['name']: targets[s['name'][1:].split('@')[0]] for s in symbols
                  if s['section'] == 0 and s['name'] not in defined and s['name'].startswith('?')}
     linked = link_objects(objects, externals)
@@ -56,7 +57,7 @@ def main():
         uc.mem_map(linked['address'], linked['allocation'])
         for address, body in linked['blocks']: uc.mem_write(address, body)
         ranges = linked['ranges'] if rebuilt else [(a, a + n) for a, n in FUNCTIONS.values()]
-        ranges = ranges + [(0x5046f0, 0x504755)]
+        ranges = ranges + [(0x5046f0, 0x504755), (0x50ca00, 0x50ca45), (0x50ca50, 0x50caa2)]
 
         def string(uc, address):
             out = bytearray()
@@ -90,12 +91,13 @@ def main():
             uc.mem_write(ARENA, bytes(memory)); uc.mem_write(STACK, struct.pack('<I', STOP) + struct.pack('<'+'I'*len(args), *[a & 0xffffffff for a in args]))
             uc.reg_write(UC_X86_REG_ESP, STACK); uc.reg_write(UC_X86_REG_ECX, this)
             for reg in REGISTERS: uc.reg_write(reg, 0x12345678)
-            state.update(trace=[], hashes={'FadeIn': 123, 'Animate': 456}, hash=789)
+            uc.mem_write(0x8384d4, struct.pack('<I', 0))
+            state.update(trace=[], hashes={'FadeIn': 123, 'Animate': 456, 'Static': 111, 'Blink': 222}, hash=789)
             uc.emu_start(entries[name] if rebuilt else FUNCTIONS[name][0], STOP, count=30000)
             assert uc.reg_read(UC_X86_REG_EIP) == STOP
             assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4 + cleanup, (name, rebuilt)
             assert all(uc.reg_read(r) == 0x12345678 for r in REGISTERS)
-            outputs.append((uc.reg_read(UC_X86_REG_EAX) & mask, state['trace'], bytes(uc.mem_read(ARENA, 0xe000))))
+            outputs.append((uc.reg_read(UC_X86_REG_EAX) & mask, state['trace'], bytes(uc.mem_read(ARENA, 0xe000)) + bytes(uc.mem_read(0x8384d4, 4))))
         if outputs[0] != outputs[1]:
             diff = [(hex(i), outputs[0][2][i], outputs[1][2][i]) for i in range(0xe000) if outputs[0][2][i] != outputs[1][2][i]][:12]
             print('difference', name, args, diff, outputs[0][:2], outputs[1][:2])
@@ -135,9 +137,22 @@ def main():
         memory[0x822], memory[0x823] = rng.choice((0, 1, 0x80)), rng.choice((0, 1, 0x80))
         compare('FngObjectScriptActive', memory, [rng.choice((0, button)), ARENA + 0xd00], mask=0xff)
         compare('UpdateIconLockScripts', memory, [icon, rng.choice((0, lock)), rng.choice((0, button))])
+    for trial in range(3500):
+        memory = bytearray(0x10000)
+        for off in (0xb54, 0xc54): struct.pack_into('<I', memory, off, rng.choice((0, script)))
+        struct.pack_into('<ii', memory, 0xa0c, rng.choice((-1, 0, 100, 200)), rng.choice((-1, 0, 99, 100, 101, 201)))
+        struct.pack_into('<I', memory, 0xa30, rng.choice((0, 111, 222, 123)))
+        for off in (0xb1c, 0xc1c): struct.pack_into('<I', memory, off, rng.getrandbits(32))
+        struct.pack_into('<II', memory, 0x180, rng.choice((0, lock)), rng.choice((0, button)))
+        first, last = rng.choice((0, object_, ARENA + 0x200)), rng.choice((0, object_, ARENA + 0x300))
+        current = rng.choice((0, first, last, icon, object_))
+        struct.pack_into('<III', memory, 0x104, first + 4 if first else 0, last + 4 if last else 0, current)
+        compare('SetArrow2Static', memory, this=object_ + 0x38)
+        compare('SetArrow1Blink', memory, this=object_ + 0x38)
+        compare('UpdateArrows', memory, [rng.choice((-11, -10, -9, -1, 0, 1, 2, 10, 11))], object_, 4)
     report = {'comparisons': counts, 'total': sum(counts.values()), 'byte_matching': 'not established',
               'controlled_interfaces': ['formatted hash 0x50b9c0', 'script activation 0x51cf70'],
-              'retained_dependency': 'previously verified state offset 0x5046f0',
+              'retained_dependency': 'previously verified state offset 0x5046f0 and visibility 0x50ca00/0x50ca50',
               'fingerprints': {n: {'address': hex(a), 'size': size, 'sha256': hashlib.sha256(image[a-0x400000:a-0x400000+size]).hexdigest()}
                                for n,(a,size) in FUNCTIONS.items()}}
     (BUILD / 'verification.json').write_text(json.dumps(report, indent=2)+'\n'); print(json.dumps(report, indent=2))

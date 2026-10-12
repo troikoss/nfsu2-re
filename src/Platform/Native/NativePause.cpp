@@ -499,6 +499,9 @@ public:
         S().master = static_cast<FengObject *>(FngFindObject(owner->package4, FngHash("OPTION_MASTER")));
         object14 = NativeFrontendPackage(owner->package4)->Find("LOCK");
         object18 = NativeFrontendPackage(owner->package4)->Find("BUTTON_MASTER");
+        // ScrollBar 0x542ac0 names; full construction remains a native seam.
+        scrollBar38.arrow48 = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Arrow_1");
+        scrollBar38.arrow4C = NativeFrontendPackage(owner->package4)->Find("ScrollBar_Arrow_2");
         if (S().master) {
             masterD4 = S().master->position[0];
             masterD8 = S().master->position[1];
@@ -645,9 +648,6 @@ unsigned int FngFormatHash(const char *format, ...) {
 }
 void ScrollerScrollBar::Update(int, int, int) {
     // The original ScrollBar constructor/controls have not yet been integrated.
-}
-void IconScroller4C::UpdateArrows(int) {
-    // Native constructors do not bind original ScrollBar arrow objects/scripts.
 }
 
 // ---- IconScroller base seams --------------------------------------------------------------

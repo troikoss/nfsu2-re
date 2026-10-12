@@ -28,5 +28,17 @@ unsigned int FngFormatHash(const char *format, ...); // 0x50b9c0, formatting int
 bool FngObjectScriptActive(void *object, const char *name); // 0x51d040
 struct IconScrollerIcon;
 void UpdateIconLockScripts(IconScrollerIcon *icon, void *lock, void *button); // 0x51df00
-struct ScrollerScrollBar { char unidentified0[0x58]; void Update(int page, int count, int selected); }; // 0x538080, remaining interface
+struct ScrollerScrollBar {
+    char unidentified0[0x48];
+    HudVisibilityObject *arrow48;
+    HudVisibilityObject *arrow4C;
+    void *unidentified50;
+    void *unidentified54;
+    void SetArrow2Static(); // 0x527660
+    void SetArrow1Blink(); // 0x495810
+    void Update(int page, int count, int selected); // 0x538080, remaining interface
+};
+UG2_CHECK_OFFSET(ScrollerScrollBar, arrow48, 0x48);
+UG2_CHECK_OFFSET(ScrollerScrollBar, arrow4C, 0x4c);
+UG2_CHECK_SIZE(ScrollerScrollBar, 0x58);
 #endif

@@ -30,3 +30,55 @@ void UpdateIconLockScripts(IconScrollerIcon *icon, void *lock, void *button) {
         }
     }
 }
+
+// Original 0x527660. This helper hashes directly rather than calling 0x51d040.
+void ScrollerScrollBar::SetArrow2Static() {
+    HudVisibilityObject *object = arrow4C;
+    if (object) {
+        unsigned int hash = FngFormatHash("Static");
+        if (!object->currentScript54 || object->currentScript54->hash30 != hash ||
+            object->currentScript54->lengthC < object->currentScript54->time10)
+            FngSetObjectScript(arrow4C, "Static", true);
+    }
+}
+
+// Original 0x495810.
+void ScrollerScrollBar::SetArrow1Blink() {
+    if (arrow48 && !FngObjectScriptActive(arrow48, "Blink"))
+        FngSetObjectScript(arrow48, "Blink", true);
+}
+
+// Original 0x52fa70: script requests precede endpoint visibility, including early returns.
+void IconScroller4C::UpdateArrows(int direction) {
+    if (direction == 1 || direction == -10) {
+        HudVisibilityObject *object = scrollBar38.arrow48;
+        if (object) {
+            unsigned int hash = FngFormatHash("Static");
+            if (!object->currentScript54 || object->currentScript54->hash30 != hash ||
+                object->currentScript54->lengthC < object->currentScript54->time10)
+                FngSetObjectScript(scrollBar38.arrow48, "Static", true);
+        }
+        object = scrollBar38.arrow4C;
+        if (object) {
+            unsigned int hash = FngFormatHash("Blink");
+            if (!object->currentScript54 || object->currentScript54->hash30 != hash ||
+                object->currentScript54->lengthC < object->currentScript54->time10)
+                FngSetObjectScript(scrollBar38.arrow4C, "Blink", true);
+        }
+    } else if (direction == -1 || direction == 10) {
+        scrollBar38.SetArrow2Static();
+        scrollBar38.SetArrow1Blink();
+    }
+    IconScrollerIcon *first = next4 ? reinterpret_cast<IconScrollerIcon *>(static_cast<char *>(next4) - 4) : 0;
+    if (currentC == first) {
+        HudHideObject(scrollBar38.arrow48);
+        return;
+    }
+    IconScrollerIcon *last = previous8 ? reinterpret_cast<IconScrollerIcon *>(static_cast<char *>(previous8) - 4) : 0;
+    if (currentC == last) {
+        HudHideObject(scrollBar38.arrow4C);
+        return;
+    }
+    HudShowObject(scrollBar38.arrow48);
+    HudShowObject(scrollBar38.arrow4C);
+}

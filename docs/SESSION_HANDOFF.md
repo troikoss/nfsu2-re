@@ -29,7 +29,7 @@ unless the user or applicable repository/skill instructions request delegation.
 ## Authoritative checkpoint
 
 Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`, branch `main`.
-Latest verified checkpoint: **Recover FEng colours and pause icon lock scripts**
+Latest verified checkpoint: **Recover pause scroller arrow scripts and visibility**
 (see Git history for its commit). Navigation checkpoint: `c0b18f1`; package mask/focus
 checkpoint: `3878b16`. Direct user authorization to commit and push to `main` was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
 FEng objects the original object and script prefix**.
@@ -126,12 +126,19 @@ classes write FEng internals directly, so the work is staged:
    Native colours delegate to recovered setter; LOCK/BUTTON_MASTER bind retail objects.
    Layout chain's 14,762 comparisons now execute real recovered colours and lock policy.
    Formatted hash `0x50b9c0`, script activation `0x51cf70`, scrollbar `0x538080` and
-   arrows `0x52fa70` remain interfaces. Native build, pause/options verifiers, 19 settings,
+   arrows were subsequently recovered below. Native build, pause/options verifiers, 19 settings,
    10 Controls and rendered motion pass. Byte matching remains unestablished.
+   **Arrows done**: `0x52fa70`, `0x527660`, `0x495810` preserve Static/Blink requests,
+   helper call boundaries, inclusive expiry and first/last visibility early returns.
+   ScrollBar exposes arrows +0x48/+0x4c and native construction binds retail
+   ScrollBar_Arrow_1/2. Expanded colour/scripts verifier passes 39,700 comparisons
+   (10,500 new), with five rejected arrow mutations; layout's 14,762 comparisons now
+   execute actual recovered arrow code. Native build, 19 settings, 10 Controls and
+   rendered motion pass. Scrollbar update and geometry/constructor remain seams.
    **Next**: recover the rest of IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
    IconScrollerFNGObject `+0x4c`) replacing `NativeIconScroller`:
    ctors `0x543840`/`0x543a90`, ScrollBar `0x542ac0` (at scroller `+0x38`), slots `0x543bf0`,
-   `0x543c10`, `0x538b80`, `0x51f870`; helpers `0x51fb70`, `0x538080`, `0x52fa70`,
+   `0x543c10`, `0x538b80`, `0x51f870`; helpers `0x51fb70`, `0x538080`,
    `0x538130`, `0x52e4e0`, `0x52e670`, `0x52e200`, `0x52e320`, `0x51fd10`, `0x51fd60`,
    list helper `0x43be80`; script activation `0x51cf70`/`0x517720`.
    Layout notes: `+4/+8` icon list sentinel (icon node at icon `+4`), `+0xc` current icon,

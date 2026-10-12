@@ -342,8 +342,8 @@ The native menu now calls recovered reset/frame/placement code; its old direct l
 is removed. The platform frame delta is supplied at `0x865198`, and the original scroller
 clock is bound at `0x8641a0`. Native construction and icon insertion still supply initial
 state, geometry and bindings and remain seams. Colour read/write and lock policy are now
-recovered as described below. Scrollbar update `0x538080` and arrow scripts `0x52fa70`
-remain controlled interfaces and native no-ops. This is not complete IconScroller or FNG-base recovery.
+recovered as described below. Scrollbar update `0x538080` remains a controlled interface and native no-op.
+Arrow policy is now recovered as described below. This is not complete IconScroller or FNG-base recovery.
 
 `build/venv/bin/python tools/verify_pc_icon_scroller_layout.py`: **14,762 original/rebuilt
 comparisons**. Tween cases run with 53-/64-bit x87 precision and cover states/modes, limits,
@@ -351,7 +351,7 @@ completion thresholds, zero/negative/infinite/NaN duration and arithmetic order.
 cases cover empty/null frame paths, every alignment, first/current/other selection, reset
 indices, window edges, disabled alpha policy and fade flags. Actual recovered coordinate,
 state-write, visibility, colour and lock-policy routines execute on both sides; selection,
-formatted hash, script activation, scrollbar and arrow callbacks remain controlled and
+formatted hash, script activation and scrollbar callbacks remain controlled and
 traced, including tween state at callbacks. The original list
 helper and `0x75bed4` conversion runtime are retained dependencies. Placement fixtures are
 image objects, not proof of arbitrary font/group layout. Memory, global clock, callback
@@ -413,7 +413,44 @@ Fingerprints/results remain in ignored `build/analysis/feng-colour-scripts/verif
 
 Native FEng colour writes now use the recovered setter, including script baseline updates.
 Native construction binds the retail LOCK and BUTTON_MASTER objects so recovered lock policy
-can run. Construction, formatted hashing, script activation/playback, scrollbar and arrows
+can run. Construction, formatted hashing, script activation/playback and scrollbar updates
 remain seams. The layout verifier passes its 14,762 comparisons with actual recovered colour
 and lock-policy routines linked in. Native build, pause/options regression verifiers,
 19 settings scenarios, 10 Controls scenarios and rendered scroller motion pass.
+
+
+## Scroller arrow scripts and endpoint visibility
+
+`IconScrollerScripts.cpp` now also recovers `IconScroller4C::UpdateArrows` (`0x52fa70`),
+`ScrollerScrollBar::SetArrow2Static` (`0x527660`) and `SetArrow1Blink` (`0x495810`).
+The scrollbar exposes its two original arrow pointers at +0x48/+0x4c (scroller +0x80/+0x84);
+its remaining unknown fields stay offset-based.
+
+Directions 1/-10 request Static on arrow 1, then Blink on arrow 2. Directions -1/10
+call the original arrow-2 Static helper, then arrow-1 Blink helper. Other directions do
+not request scripts. Null arrows skip hashing. Matching current scripts are active through
+time equal to length, and only absent, mismatched or expired scripts restart. The Static
+helper directly hashes/tests state; the Blink helper calls recovered `0x51d040`, preserving
+that original call boundary.
+
+After script policy, the routine compares current icon with first, then last. At first it
+hides arrow 1 and returns; at last it hides arrow 2 and returns. Those early returns leave
+the other arrow's visibility unchanged. At neither endpoint it shows both. Null links map
+to null icons; an empty intrusive list uses its sentinel instead. Native construction binds
+`ScrollBar_Arrow_1`/`ScrollBar_Arrow_2` by their original constructor names, and the arrow
+no-op is removed. Full scrollbar/scroller construction and geometry remain unrecovered.
+
+The expanded `verify_pc_feng_colour_scripts.py` passes **39,700 comparisons**, including
+**10,500 new arrow/helper comparisons**. Cases cover all four directional requests and
+other directions, null arrows/current scripts, hash mismatches, inclusive expiry, signed
+times, first/last/neither/null/sentinel selection and pre-existing visibility flags. Actual
+recovered visibility routines execute on both sides; object memory, visibility global,
+script/hash traces, arguments, cleanup and preserved registers are compared. Five arrow
+mutations are rejected: wrong direction, wrong helper arrow, exclusive expiry, wrong
+endpoint visibility, and removing the first endpoint's early return. Formatted hashing
+and script activation remain controlled boundaries. **Byte matching is not established.**
+
+The layout verifier's 14,762 comparisons now execute actual recovered arrow code along
+with colour/lock/coordinate/visibility code. Native build, all 19 settings scenarios,
+10 Controls scenarios and rendered icon motion pass. These finite smoke checks establish
+integration for their exercised paths, not complete FEng animation or menu recovery.
