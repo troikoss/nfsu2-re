@@ -1,4 +1,8 @@
 #include "HudFreeroam.h"
+#include "HudPlayerMasks.h"
+
+extern HudFlagHolder hudHolder85B940;
+extern CareerBank861E74 careerBank861E74;
 
 extern unsigned char hudDrag89E7D8;
 extern int hudDragOverride890108;
@@ -313,7 +317,7 @@ void HudRegionFeature::Update(HudRegionPlayer *player) {
 
 // Original 0x4a9ef0. Cash producers and FEng animation stay at call boundaries.
 void HudCashFeature::Update(HudPlayerSlot *) {
-    if (((current18 & mask10) || (current1C & mask14)) && !HudCashSuppressed()) {
+    if (((current18 & mask10) || (current1C & mask14)) && !hudHolder85B940.IsCashSuppressed()) {
         HudShowObject(bank20);
         HudShowObject(data24);
         HudShowObject(static_cast<HudVisibilityObject *>(HudLookupObject(package8, HudObjectHash("Cash_header"))));
@@ -324,7 +328,7 @@ void HudCashFeature::Update(HudPlayerSlot *) {
             reward28 = 0;
             animated2C = 1;
         }
-        HudTextPrint(data24, "%$d", HudBankBalance());
+        HudTextPrint(data24, "%$d", careerBank861E74.GetBalance());
     } else {
         HudHideObject(bank20);
         HudHideObject(data24);
@@ -341,7 +345,7 @@ void HudRewardFeature::Update(HudPlayerSlot *) {
     }
     if (0 < hudRewardDelay8364AC) --hudRewardDelay8364AC;
     if (!hudRewardPending83649C || hudRewardDelay8364AC) return;
-    const char *separator = HudLanguage() == 1 ? " " : "";
+    const char *separator = GetLanguage4FF970() == 1 ? " " : "";
     if (hudRewardType8364A8 == 3 || hudRewardType8364A8 == 1) {
         HudTextPrint(reward20, "%s%s: %$d", HudLocalisedText(0xaba1e56fu), separator,
                      hudRewardExtra8364A4 + hudRewardBase8364A0);

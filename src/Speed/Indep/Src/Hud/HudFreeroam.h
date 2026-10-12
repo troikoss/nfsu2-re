@@ -13,9 +13,12 @@ void *HudLookupObject(void *package, unsigned int hash); // 0x537a10
 unsigned int HudObjectHash(const char *name); // 0x505450
 const char *HudLocalisedText(unsigned int hash); // 0x4ffa80
 void HudObjectScript(void *object, const char *name, int restart); // 0x51cf70
-bool HudCashSuppressed(); // 0x501680
-int HudBankBalance(); // 0x500f90
-int HudLanguage(); // 0x4ff970
+// Career bank at 0x861e74.
+struct CareerBank861E74 {
+    int balance0;
+    int GetBalance(); // 0x500f90
+};
+int GetLanguage4FF970(); // 0x4ff970, reads 0x7f70d0
 void HudVerticalBar(void *object, float value, float maximum, float start, float end, int flag); // 0x4c66f0
 void HudHorizontalBar(void *object, float value, float maximum, float start, float end, int flag); // 0x4c67e0
 int HudGpsMode(); // 0x501100, route manager 0x838590

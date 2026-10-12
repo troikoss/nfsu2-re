@@ -1,6 +1,7 @@
 #include "HudPlayerMasks.h"
 #include "../Frontend/PauseOptions.h"
 #include "../Physics/ForceFeedback.h"
+#include "HudFreeroam.h"
 
 extern GameFlow8900D8 *gameFlow8900D8;
 extern RaceStatus890118 *raceStatus890118;
@@ -35,6 +36,7 @@ extern float hudZero7D7D3C;
 extern float replayFinishDelay7A5700; // 3.0
 extern float restartWindow7A5498;   // 3.0
 extern float restartLimit7844F8;    // 4.0
+extern int language7F70D0;
 
 // Original 0x401860 on the car state (+0x40): the +0x414 timer in seconds.
 float DrivetrainAuxiliary::GetTimer414Seconds() {
@@ -85,6 +87,12 @@ bool HudFlagHolder::IsSet() { return value8 != 0; }
 
 // Original 0x501680.
 bool HudFlagHolder::IsCashSuppressed() { return value11C == 1; }
+
+// Original 0x500f90.
+int CareerBank861E74::GetBalance() { return balance0; }
+
+// Original 0x4ff970.
+int GetLanguage4FF970() { return language7F70D0; }
 
 // Original 0x502420.
 bool CareerState861E7C::Query502420() {

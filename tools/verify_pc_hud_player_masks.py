@@ -42,6 +42,8 @@ FUNCTIONS = {
     "?Debug510050@": (0x510050, 6),
     "?IsSet@HudFlagHolder@": (0x501690, 9),
     "?IsCashSuppressed@HudFlagHolder@": (0x501680, 11),
+    "?GetBalance@CareerBank861E74@": (0x500f90, 3),
+    "?GetLanguage4FF970@": (0x4ff970, 6),
     "?Query502420@CareerState861E7C@": (0x502420, 17),
     "?Query502440@CareerState861E7C@": (0x502440, 25),
     "?Query502460@CareerState861E7C@": (0x502460, 37),
@@ -63,12 +65,12 @@ GLOBALS = {
     "gameFlag89010C": 0x89010c, "frameTotal7FB720": 0x7fb720, "drivetrainClock": 0x86518c,
     "drivetrainClockScale": 0x784268, "worldFramePeriod": 0x7875bc, "hudZero7D7D3C": 0x7d7d3c,
     "replayFinishDelay7A5700": 0x7a5700, "restartWindow7A5498": 0x7a5498,
-    "restartLimit7844F8": 0x7844f8,
+    "restartLimit7844F8": 0x7844f8, "language7F70D0": 0x7f70d0,
 }
 # Writable global ranges randomised per case and compared afterwards.
 STATE_RANGES = [(0x7fb720, 4), (0x82a3a4, 4), (0x83a7a4, 4), (0x83aa18, 0xa0),
                 (0x850078, 4), (0x850088, 4), (0x85b940, 0x120), (0x85ef50, 0x20), (0x86518c, 4),
-                (0x861e7c, 0xc), (0x8669f4, 4), (0x866a14, 4), (0x8900b4, 0xc), (0x890104, 0xc),
+                (0x861e74, 0x14), (0x7f70d0, 4), (0x8669f4, 4), (0x866a14, 4), (0x8900b4, 0xc), (0x890104, 0xc),
                 (0x890118, 4), (0x8900d8, 4), (0x89cf48, 0x60), (0x89e7a0, 0x8d)]
 ARENA, STACK, STOP = 0x2000000, 0x20ff000, 0x2100000
 RESET = STOP + 0x100      # MoverOwnerObject::Reset5FC2A0 (thiscall, one argument)
@@ -284,7 +286,7 @@ def main():
                 result = (eax, edx)
             elif floating:
                 result = bytes(uc.mem_read(FLOAT_OUT, 10))
-            elif prefix.startswith(("?GetCameraMask", "?Query5F85B0", "?QueryState5F0880", "?Query5EA190")):
+            elif prefix.startswith(("?GetCameraMask", "?Query5F85B0", "?QueryState5F0880", "?Query5EA190", "?GetBalance", "?GetLanguage")):
                 result = eax
             elif prefix.startswith("?Reset5FCA90"):
                 result = None
@@ -299,7 +301,8 @@ def main():
     receivers = {"PlayerRecord": (player0, player1), "RaceStatus890118": (race,), "ReplayRecorder": (0x89cf48,),
                  "Object865480": (0x865480,), "DrivetrainAuxiliary": (car + 0x40,),
                  "GameSession89E7A0": (0x89e7a0,), "GameFlow8900D8": (flow,), "ProfileData83A9D0": (0x83a9d0,),
-                 "Object85EF50": (0x85ef50,), "HudFlagHolder": (0x85b940,), "CareerState861E7C": (0x861e7c,)}
+                 "Object85EF50": (0x85ef50,), "HudFlagHolder": (0x85b940,), "CareerState861E7C": (0x861e7c,),
+                 "CareerBank861E74": (0x861e74,)}
     masks = {}
     for trial in range(TRIALS):
         memory, globals_ = scenario()

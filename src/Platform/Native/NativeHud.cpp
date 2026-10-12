@@ -13,6 +13,8 @@ extern int trackNumber89E7A0;
 extern unsigned char exploreMapMode83AA1C;
 extern HudPlayerSlot *hudPlayerSlots8900AC[];
 extern PlayerRecord *players8900B4[2];
+extern CareerBank861E74 careerBank861E74;
+extern int language7F70D0;
 extern int playerCount8900BC;
 void NativeTrap(const char *what);
 void HudMinimapSeam(const char *what) { NativeTrap(what); }
@@ -20,7 +22,6 @@ void HudMinimapSeam(const char *what) { NativeTrap(what); }
 namespace {
 NativeHud *activeHud = 0;
 NativeTextureCache *hudTextures = 0;
-int nativeBankBalance = 0;
 
 void OpsHide(void *object) { FengPackage::Hide(static_cast<FengObject *>(object)); }
 void OpsShow(void *object) { FengPackage::Show(static_cast<FengObject *>(object)); }
@@ -112,9 +113,6 @@ void NativeChaseCameraMover::Virtual24() { NativeTrap("camera mover slot +0x24")
 // Original 0x404800, the kind-1 chase mover's slot +0x28.
 bool NativeChaseCameraMover::Query28() { return false; }
 
-bool HudCashSuppressed() { return false; } // Native context has no modal career screen.
-int HudBankBalance() { return nativeBankBalance; } // Set only through SetCareerHudState.
-int HudLanguage() { return 0; } // The native loader currently reads English.bin.
 void HudTextPrint(void *o, const char *format, ...) {
     // FEng's %$d inserts digit grouping; libc does not implement that extension.
     std::string text;
@@ -279,6 +277,9 @@ bool NativeHud::Load(const char *gameDirectory, NativeTextureCache *textures, co
             offset += 8 + length;
         }
     }
+    // Platform seam: the loader reads English.bin, so publish language 0 at 0x7f70d0
+    // (the retail image holds -1 until startup selects a language).
+    language7F70D0 = 0;
     ReadNativeFile(base + "/LANGUAGES/English.bin", &language_);
     if (!font_.Load(gameDirectory, textures, fontPath)) fprintf(stderr, "ug2demo: no HUD font found; HUD text is not drawn\n");
     loaded_ = true;
@@ -474,7 +475,7 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
 }
 
 void NativeHud::SetCareerHudState(int balance, unsigned int regionHash) {
-    nativeBankBalance = balance;
+    careerBank861E74.balance0 = balance;
     regionPlayer_.region9B8 = regionHash;
     // Region/cash/reward visibility follows the 0x600090 masks applied by the controller.
     controller_.feature74 = &region_;

@@ -89,9 +89,9 @@ probe wrapper at the same address for a different target; also reset FPTAG.
    (`docs/pc-bware-slotpool.md`); the bWare heap stays a platform seam.
 5. HUD mask producer `0x600090` and its helpers are recovered and drive the
    native HUD (`HudPlayerMasks.cpp`, `tools/verify_pc_hud_player_masks.py`, ~3 min).
-   Next HUD targets: caller `0x600590` with controller update `0x4ec5a0`, the
-   trivial career/language readers behind `HudCashSuppressed`/`HudBankBalance`/
-   `HudLanguage` (`0x501680`/`0x500f90` on `0x861e74`/`0x4ff970`), and `0x5f1e10`.
+   The cash/language readers `0x501680`/`0x500f90`/`0x4ff970` replace native stubs
+   (native seams: bank storage at `0x861e74`, language 0 at `0x7f70d0`). Next HUD
+   targets: caller `0x600590` with controller update `0x4ec5a0`, and `0x5f1e10`.
 6. Follow the audit inventory through vehicle/session construction, complete
    update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/
    presentation. Keep committing/pushing verified checkpoints before pauses.

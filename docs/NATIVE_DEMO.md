@@ -246,7 +246,9 @@ Recovered `0x600090` produces the masks and recovered `0x4ca090` applies them; l
 `tach_fill` colouring remain seams.
 The shift-light tail, turbo and NOS updates are now recovered. Region/cash/reward
 widgets accept external career state; their visibility follows the recovered masks
-(cash needs career mode `0x850078` = 1, which the demo leaves 0). GPS, heat and notification scheduling have bounded source
+(cash needs career mode `0x850078` = 1, which the demo leaves 0). The bank balance is stored at the
+original `0x861e74` and read by recovered `0x500f90`; the native loader publishes
+language 0 (English) at `0x7f70d0` for recovered `0x4ff970`. GPS, heat and notification scheduling have bounded source
 verification but are not live native features. Message-script playback supports
 retained noncycling vector/colour tracks with recovered arithmetic. Complete NOS
 stencil rendering and full FEng scripts remain unresolved; see

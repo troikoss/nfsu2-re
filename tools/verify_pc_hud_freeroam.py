@@ -54,7 +54,7 @@ GLOBAL_ADDRESSES = {
     'gearboxMatchWindow': 0x7fbf5c, 'hudRewardPending83649C': 0x83649c,
     'hudRewardBase8364A0': 0x8364a0, 'hudRewardExtra8364A4': 0x8364a4,
     'hudRewardType8364A8': 0x8364a8, 'hudRewardDelay8364AC': 0x8364ac,
-    'hudDrift89E7D9': 0x89e7d9, 'hudDriftOverride890104': 0x890104, 'hudRaceType89E7B0': 0x89e7b0,
+    'hudDrift89E7D9': 0x89e7d9, 'hudHolder85B940': 0x85b940, 'careerBank861E74': 0x861e74, 'hudDriftOverride890104': 0x890104, 'hudRaceType89E7B0': 0x89e7b0,
 }
 # Original address, stack argument count, callee cleanup. GetNitrousElapsed
 # and vehicle readers have thiscall contracts; FEng calls are cdecl.
@@ -63,8 +63,8 @@ INTERFACES = {
     'HudObjectRotation': (0x51ced0, 2, 0), 'HudObjectColour': (0x51d7f0, 2, 0),
     'HudTextPrint': (0x537be0, 0, 0), 'HudLookupObject': (0x537a10, 2, 0),
     'HudObjectHash': (0x505450, 1, 0), 'HudLocalisedText': (0x4ffa80, 1, 0),
-    'HudObjectScript': (0x51cf70, 3, 0), 'HudCashSuppressed': (0x501680, 0, 0),
-    'HudBankBalance': (0x500f90, 0, 0), 'HudLanguage': (0x4ff970, 0, 0),
+    'HudObjectScript': (0x51cf70, 3, 0), 'IsCashSuppressed': (0x501680, 0, 0),
+    'GetBalance': (0x500f90, 0, 0), 'GetLanguage4FF970': (0x4ff970, 0, 0),
     'HudVerticalBar': (0x4c66f0, 6, 24), 'HudHorizontalBar': (0x4c67e0, 6, 24),
     'GetNitrousElapsed': (0x5925b0, 0, 0),
     'ApplyMasks': (0x4c6690, 2, 8),
@@ -198,9 +198,9 @@ def main():
                 for c in args[0].upper().encode(): result = (result * 33 + c) & 0xffffffff
             elif name in ('HudLookupObject', 'HudLookupAnyObject'): result = arena + 0x1300
             elif name == 'HudLocalisedText': result = arena + 0x9000
-            elif name == 'HudCashSuppressed': result = state['suppressed']
-            elif name == 'HudBankBalance': result = state['balance']
-            elif name == 'HudLanguage': result = state['language']
+            elif name == 'IsCashSuppressed': result = state['suppressed']
+            elif name == 'GetBalance': result = state['balance']
+            elif name == 'GetLanguage4FF970': result = state['language']
             elif name == 'HudGpsMode': result = state['gps_mode']
             elif name == 'HudPackageScriptActive': result = state['script_active']
             uc.reg_write(UC_X86_REG_EAX, result)

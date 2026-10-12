@@ -140,6 +140,18 @@
       "method": "IsCashSuppressed@HudFlagHolder"
     },
     {
+      "address": 5246864,
+      "size": 3,
+      "sha256": "19d200194d49b34530548575f37a1bb4203ee60f18d42f0084e86b7a8c899faa",
+      "method": "GetBalance@CareerBank861E74"
+    },
+    {
+      "address": 5241200,
+      "size": 6,
+      "sha256": "44a8eebb7d68da0ae7a2918de43130edc0eadfe4df9a2ced65e3ad6940ca633d",
+      "method": "GetLanguage4FF970"
+    },
+    {
       "address": 5252128,
       "size": 17,
       "sha256": "f83dd6a10a0a8e343152f95ab7d216b9bc3729f42b560d5dac54328017cf5d59",

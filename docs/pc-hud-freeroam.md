@@ -39,7 +39,9 @@ ambient tail `0x5f34c0`, restart wait `0x5fff50`, race-status queries `0x5f85b0`
 `0x5fca90`, replay query `0x5f0880`, `0x571250`, the `+0x414` timer reader
 `0x401860`, session queries `0x401910`/`0x401930`/`0x5ed990`, game-flow `0x5ea190`,
 profile `0x457ba0`, flags `0x5012c0`/`0x5012d0`/`0x510050`, holder `0x501690`/
-`0x501680` and career-state queries `0x502420`–`0x5024b0`. The player record keeps
+`0x501680`, career bank `0x500f90` (on `0x861e74`), language `0x4ff970` (reads
+`0x7f70d0`) and career-state queries `0x502420`–`0x5024b0`. The cash feature calls
+the recovered `0x501680`/`0x500f90` and its separator choice calls `0x4ff970`. The player record keeps
 offset names (`+0x10` settings row, `+0x28` mode, `+0x50` restart frame, `+0x58`
 state, `+0x234`, `+0x238` camera mover, `+0x249`, `+0x24a`). Camera mover kind
 `+0xc` 1 is the chase mover (`0x451660`, vtable `0x787f28`); kinds 2/3 return mask 1
@@ -47,7 +49,7 @@ and 4/`0x12` return 0. The per-car race reset `0x5fc2a0` is not recovered.
 
 `tools/verify_pc_hud_player_masks.py` (manifest `hud-player-masks.json`) runs the
 original and the MSVC 7.1 rebuild on 20,000 randomised player/flow/race/camera/
-settings/replay scenarios: 690,050 comparisons of EAX:EDX (or bool/int/80-bit x87
+settings/replay scenarios: 730,040 comparisons of EAX:EDX (or bool/int/80-bit x87
 results), callee traces, the arena and every read global range, stack cleanup and
 callee-saved registers, all equal (150 distinct `0x600090` masks). `0x5f00f0` and
 `0x4018f0` run as original bytes on both sides; `0x5fc2a0` and the camera vtable
