@@ -1,6 +1,7 @@
 #include "HudMinimap.h"
 #include "../Physics/VehicleMover.h"
 #include "../Physics/Engine.h"
+#include "HudPlayerMasks.h"
 
 extern "C" double __cdecl sqrt(double);
 #pragma intrinsic(sqrt)
@@ -49,7 +50,7 @@ extern float hudMapZoom8364D0;
 extern HudPlayerSlot *hudPlayerSlots8900AC[];
 extern int hudFlag862838;
 
-// The GPS state object 0x838590 read by 0x501100, and the object 0x85b940 read by 0x501690.
+// The GPS state object 0x838590 read by 0x501100.
 struct HudGpsState {
     char unidentified0[0x28];
     unsigned char latched28;
@@ -58,10 +59,6 @@ struct HudGpsState {
 extern HudGpsState hudGps838590;
 extern int hudGpsMode81CBC4;
 extern int hudGpsMode81CBC8;
-struct HudFlagHolder {
-    char unidentified0[8];
-    int value8;
-};
 extern HudFlagHolder hudHolder85B940;
 
 void HudMinimapSeam(const char *what);
@@ -88,11 +85,6 @@ int GetGpsState(HudGpsState *gps) {
         return 1;
     }
     return state;
-}
-
-// Original 0x501690.
-bool HolderSet(HudFlagHolder *holder) {
-    return holder->value8 != 0;
 }
 
 }  // namespace
@@ -400,7 +392,7 @@ void HudMinimap::Update() {
         if (raceActive89E7B0 == 0) {
             if (GetGpsState(&hudGps838590) == 3 || GetGpsState(&hudGps838590) == 0 ||
                 GetGpsState(&hudGps838590) == 1 || GetGpsState(&hudGps838590) == 2 || hudFlag862838 == 0 ||
-                HolderSet(&hudHolder85B940)) {
+                hudHolder85B940.IsSet()) {
                 limit = 10.0f;
             }
         }

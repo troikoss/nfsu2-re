@@ -183,6 +183,7 @@ unsigned int bGetTicker() {
 
 // Unrecovered original routines. The demo state never reaches them; if it does, stop.
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
+void MoverOwnerObject::Reset5FC2A0(MoverModeOwner *) { NativeTrap("car race object reset 0x5fc2a0"); }
 // Force-feedback device manager (*0x870760) methods are unrecovered DirectInput effects.
 // Natively the manager pointer is null, so recovered 0x406460 never reaches them.
 bool ForceFeedbackManager::HasDevice5BFD70(int) { NativeTrap("force feedback 0x5bfd70"); return false; }

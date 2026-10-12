@@ -12,6 +12,8 @@ extern int hudPlayerCount89E7C0;
 extern int trackNumber89E7A0;
 extern unsigned char exploreMapMode83AA1C;
 extern HudPlayerSlot *hudPlayerSlots8900AC[];
+extern PlayerRecord *players8900B4[2];
+extern int playerCount8900BC;
 void NativeTrap(const char *what);
 void HudMinimapSeam(const char *what) { NativeTrap(what); }
 
@@ -91,6 +93,25 @@ const char *HudLocalisedText(unsigned int hash) {
 void HudObjectScript(void *o, const char *name, int restart) {
     FengPackage::PlayScript(static_cast<FengObject *>(o), name, restart != 0);
 }
+NativeChaseCameraMover::NativeChaseCameraMover() {
+    memset(unidentified4, 0, sizeof(unidentified4));
+    kindC = 1;
+    value10 = 0;
+    active14 = 1;
+}
+void NativeChaseCameraMover::Virtual00() { NativeTrap("camera mover slot +0x00"); }
+void NativeChaseCameraMover::Virtual04() { NativeTrap("camera mover slot +0x04"); }
+void NativeChaseCameraMover::Virtual08() { NativeTrap("camera mover slot +0x08"); }
+void NativeChaseCameraMover::Virtual0C() { NativeTrap("camera mover slot +0x0c"); }
+void NativeChaseCameraMover::Virtual10() { NativeTrap("camera mover slot +0x10"); }
+void NativeChaseCameraMover::Virtual14() { NativeTrap("camera mover slot +0x14"); }
+void NativeChaseCameraMover::Virtual18() { NativeTrap("camera mover slot +0x18"); }
+void NativeChaseCameraMover::Virtual1C() { NativeTrap("camera mover slot +0x1c"); }
+void NativeChaseCameraMover::Virtual20() { NativeTrap("camera mover slot +0x20"); }
+void NativeChaseCameraMover::Virtual24() { NativeTrap("camera mover slot +0x24"); }
+// Original 0x404800, the kind-1 chase mover's slot +0x28.
+bool NativeChaseCameraMover::Query28() { return false; }
+
 bool HudCashSuppressed() { return false; } // Native context has no modal career screen.
 int HudBankBalance() { return nativeBankBalance; } // Set only through SetCareerHudState.
 int HudLanguage() { return 0; } // The native loader currently reads English.bin.
@@ -195,7 +216,6 @@ NativeHud::~NativeHud() {
 
 NativeHud::NativeHud() : textures_(0), minimapReady_(false), loaded_(false) {
     activeHud = this;
-    featureHigh_ = 0;
     memset(&controller_, 0, sizeof(controller_));
     memset(&gaugeVisibility_, 0, sizeof(gaugeVisibility_));
     memset(&turbo_, 0, sizeof(turbo_));
@@ -325,7 +345,6 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
         "3rdPersonShiftUp", "3rdPersonGear", "OptimalRPM", "GearBkg", "PerfectShift", "MissedShift",
         "Redline", "tach_fill", "Drift_Angle_Backing2", "tach_fill", "Shift_light"};
     RegisterFeature(&package_, &gaugeVisibility_, gaugeVisibilityNodes_, gaugeNames, 18, 0x10000060, 0);
-    gaugeVisibility_.ApplyMasks(0x60, 0);
     const char *turboNames[] = {"3rdperson_Turbofill", "3rdperson_Turbolines", "3rdperson_TurboDial",
                               "3rdperson_TurboRed_1", "3rdperson_TurboRed_2", "Drift_Angle_Backing2"};
     RegisterFeature(&package_, &turbo_, turboNodes_, turboNames, 6, 0x10000060, 0);
@@ -335,7 +354,6 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     turbo_.red2C = package_.Find(turboNames[3]);
     turbo_.red30 = package_.Find(turboNames[4]);
     turbo_.backing34 = package_.Find(turboNames[5]);
-    turbo_.ApplyMasks(0x60, 0);
     const char *nitrousNames[] = {"NOS_Line", "NOS_GameBreaker", "NOS_Mask", "NOS_Fill"};
     RegisterFeature(&package_, &nitrous_, nitrousNodes_, nitrousNames, 4, 0, 0x40000);
     nitrous_.line20 = package_.Find(nitrousNames[0]);
@@ -361,13 +379,6 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     RegisterFeature(&package_, &reward_, rewardNodes_, rewardNames, 1, 0, 0x80);
     reward_.reward20 = package_.Find(rewardNames[0]);
     FengPackage::SetText(static_cast<FengObject *>(reward_.reward20), "");
-    player_.slot.car4 = vehicle->owner;
-    // Original caller decides nitrous visibility from the car's capacity tick.
-    // Until the full player mask producer is recovered, native setup supplies
-    // this bit only for a present, positive recovered capacity.
-    int capacity = vehicle->owner->State()->timer414;
-    featureHigh_ = capacity != 0 && capacity != 0x7fffffff && capacity > 0 ? 0x40000 : 0;
-    nitrous_.ApplyMasks(0, featureHigh_);
     controller_.package10 = &package_;
     controller_.feature18 = &gaugeVisibility_;
     controller_.feature1C = &turbo_;
@@ -375,9 +386,16 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     controller_.feature74 = 0;
     controller_.feature78 = &reward_;
     controller_.feature80 = &cash_;
-    // Set current masks consistently with setup; the dispatcher owns subsequent transitions.
-    controller_.current8 = 0x60;
-    controller_.currentC = featureHigh_;
+    // Every feature was just applied with masks 0/0; recovered 0x600090 supplies the rest.
+    controller_.current8 = 0;
+    controller_.currentC = 0;
+    player_.car4 = vehicle->owner;
+    player_.camera238 = &camera_;
+    HudPlayerSlot *slot = reinterpret_cast<HudPlayerSlot *>(&player_);
+    hudPlayerSlots8900AC[0] = slot;
+    // Native session seam: one local player in both original player tables.
+    players8900B4[0] = &player_;
+    playerCount8900BC = 1;
     minimap_.map8 = package_.Find(0x90fe80f3u);
     minimap_.maskC = package_.Find(0x40cdc515u);
     minimap_.north10 = package_.Find(0xf2a54430u);
@@ -407,8 +425,6 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
     playerIndicator_.next0 = playerIndicator_.previous4 = end;
     playerIndicator_.id8 = 0;
     playerIndicator_.slot1C = &playerSlot_;
-    player_.slot.car4 = vehicle->owner;
-    hudPlayerSlots8900AC[0] = &player_.slot;
     trackNumber89E7A0 = 4000;
     exploreMapMode83AA1C = 2;
     // Core-map membership and required masks from constructor 0x4f73e0.
@@ -432,29 +448,27 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
         mapVisibility_.previous4 = node;
     }
     mapVisibility_.ApplyMasks(0, 0); // Constructor 0x4f73e0 ends with this call.
-    // The full player mask producer 0x600090 is not recovered here. Native free
-    // drive supplies minimap bit 0; recovered 0x4c6690 owns object visibility.
-    mapVisibility_.ApplyMasks(1, 0);
     controller_.feature5C = &mapVisibility_;
-    controller_.current8 |= 1;
 
 }
 
 void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     if (!loaded_) return;
-    // Native player/context seam supplies active chase gauges, map, equipped NOS,
-    // and career bits only after their state arrives. 0x4ca090 handles transitions.
-    controller_.ApplyMasks(0, 0x61, featureHigh_);
+    // Recovered 0x600090 produces the masks; 0x4ca090 applies the transitions. The original
+    // caller 0x600590 passes the player for the rear-view mirror bit (0x5f1e10, not
+    // recovered); the native seam passes none, so that view is not created.
+    unsigned long long mask = player_.GetHudMask();
+    controller_.ApplyMasks(0, (unsigned int)mask, (unsigned int)(mask >> 32));
     const EngineSpec *engine = reinterpret_cast<const EngineSpec *>(vehicle->info->parameters10.record30.engine1F0);
     std::string units = Localised(metric ? 0x8569a25f : 0x8569ab44);
     gauge_.Update(vehicle->owner, engine, metric, units.c_str());
     HudUpdateShiftLight(vehicle->owner, vehicle->mover->drivetrain4C->indexF0,
                         vehicle->owner->engineValue440, static_cast<FengObject *>(gauge_.objects.shiftLight78));
-    turbo_.Update(&player_.slot);
-    nitrous_.Update(&player_.slot);
+    turbo_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
+    nitrous_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
     region_.Update(&regionPlayer_);
-    cash_.Update(&player_.slot);
-    reward_.Update(&player_.slot);
+    cash_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
+    reward_.Update(reinterpret_cast<HudPlayerSlot *>(&player_));
     package_.AdvanceScripts(seconds);
     if (minimapReady_) minimap_.Update();
 }
@@ -462,11 +476,9 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
 void NativeHud::SetCareerHudState(int balance, unsigned int regionHash) {
     nativeBankBalance = balance;
     regionPlayer_.region9B8 = regionHash;
-    region_.ApplyMasks(1, 0);
+    // Region/cash/reward visibility follows the 0x600090 masks applied by the controller.
     controller_.feature74 = &region_;
-    featureHigh_ |= 0x80000 | 0x80;
-    cash_.ApplyMasks(0, featureHigh_);
-    reward_.ApplyMasks(0, featureHigh_);
+    controller_.current8 &= ~1u; // Reapply bit 0 to the newly attached region feature.
 }
 
 void NativeHud::Draw(int width, int height) {

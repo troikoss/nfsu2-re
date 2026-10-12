@@ -306,6 +306,7 @@ struct MoverOwnerObject {
     char unidentified12[0x1ce];
     MoverOwnerLink *link1E0;
     bool IsRunning();
+    void Reset5FC2A0(struct MoverModeOwner *car); // 0x5fc2a0, not recovered
 };
 
 // Original 0x5a7970; tuning fields remain offset-based until identified.
@@ -617,12 +618,18 @@ public:
 // Replay/ghost recorder object at 0x89cf48; only two queried methods are observed.
 class ReplayRecorder {
 public:
-    char unidentified0[0x21];
+    int state0;
+    int *state4;
+    char unidentified8[0x19];
     unsigned char flag21;
+    char unidentified22[0x36];
+    int tick58;
     bool QueryState5EFE70();
     bool QueryState5F00F0();
+    int QueryState5F0880(); // 0x5f0880
 };
 UG2_CHECK_OFFSET(ReplayRecorder, flag21, 0x21);
+UG2_CHECK_OFFSET(ReplayRecorder, tick58, 0x58);
 extern int *raceState890118;
 unsigned short WheelAngle(float x, float y);
 float ComputeTractionFactor(float slip, float handbrake, float speed, float base, float extra,

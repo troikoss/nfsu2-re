@@ -1,0 +1,173 @@
+{
+  "exe_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": [
+    {
+      "address": 6291600,
+      "size": 1247,
+      "sha256": "93c39d7960da8abe2634751469953433b1e4f8d18b4fd2c8e57bf1dc6a2bce06",
+      "method": "GetHudMask@PlayerRecord"
+    },
+    {
+      "address": 6203584,
+      "size": 29,
+      "sha256": "a04a51a40e21c32ce15439d3cd717abaf1de89bcf79c1af5038fa0b426f9aa7d",
+      "method": "GetScoreMask@PlayerRecord"
+    },
+    {
+      "address": 6203616,
+      "size": 73,
+      "sha256": "887a96d4235946b40eaebc41d720093cb02c6e25653fdc108bdda34ddce35366",
+      "method": "GetMapMask@PlayerRecord"
+    },
+    {
+      "address": 6203696,
+      "size": 68,
+      "sha256": "ad899115573e00a2c0841e1409b7f3be28529662dedb28dd895a7a45a0de4472",
+      "method": "GetCameraMask@PlayerRecord"
+    },
+    {
+      "address": 6238880,
+      "size": 265,
+      "sha256": "5ccf70af0231380791818110f576e99be5949f882bf2b474dcfcfd4acb499a52",
+      "method": "GetGaugeMask@PlayerRecord"
+    },
+    {
+      "address": 6239152,
+      "size": 270,
+      "sha256": "ced524ee8bde57649425faee3d49fc353b61ac508beccc3e3824fda5dc4fc9a9",
+      "method": "GetRaceMask@PlayerRecord"
+    },
+    {
+      "address": 6239424,
+      "size": 140,
+      "sha256": "8d6d1f5359a41647a063ea784ed1b06ee6302770a3105b5ddf51eb81f7098faa",
+      "method": "GetAmbientMask@PlayerRecord"
+    },
+    {
+      "address": 6291280,
+      "size": 306,
+      "sha256": "e07a0f6c5314c172f86e626d54f370e0bc7547f1d3829cf1462e5f4d3d63ab26",
+      "method": "QueryRestart@PlayerRecord"
+    },
+    {
+      "address": 6260144,
+      "size": 80,
+      "sha256": "e8d41e02b61d49d903976ae085b0a41201e12c75b2758ad395ca045892ee80c9",
+      "method": "Query5F85B0@RaceStatus890118"
+    },
+    {
+      "address": 6277776,
+      "size": 106,
+      "sha256": "8903e739c9b0296d27709136a43ec863e3c4926adfe044f78792f2d4ccae55de",
+      "method": "Reset5FCA90@RaceStatus890118"
+    },
+    {
+      "address": 6228096,
+      "size": 108,
+      "sha256": "ae814965fb145947e5ce4b7ee9ec757164353ef9c1a04f1bb82a87d5ec2b814a",
+      "method": "QueryState5F0880@ReplayRecorder"
+    },
+    {
+      "address": 5706320,
+      "size": 40,
+      "sha256": "7067f452ee039ff0b56b063828178cb1b573be93e75f2013d6f4115dd1907dba",
+      "method": "Query571250@Object865480"
+    },
+    {
+      "address": 4200544,
+      "size": 37,
+      "sha256": "66b57676135da37bff23395eb6bc334dc0bb87e65dee19797752817e24fcb244",
+      "method": "GetTimer414Seconds@DrivetrainAuxiliary"
+    },
+    {
+      "address": 4200720,
+      "size": 25,
+      "sha256": "50ec23fdc52c345977f470211020a63f59be04ea973c23695ad5f05d726356f8",
+      "method": "Query401910@GameSession89E7A0"
+    },
+    {
+      "address": 4200752,
+      "size": 25,
+      "sha256": "e7c1bcbb07e8118688a07bdc6d7f99431838a3fc2e8680cd14cabe448dd0181a",
+      "method": "Query401930@GameSession89E7A0"
+    },
+    {
+      "address": 6216080,
+      "size": 31,
+      "sha256": "3eceb7a34778a04e75dbb4bf3a0afab704bbc55840067dbc1564be7974082662",
+      "method": "Query5ED990@GameSession89E7A0"
+    },
+    {
+      "address": 6201744,
+      "size": 27,
+      "sha256": "27d9d2883ad5ad81e0bef01ee2994faeabb14e3496b99ce47fb3875c4702a051",
+      "method": "Query5EA190@GameFlow8900D8"
+    },
+    {
+      "address": 4553632,
+      "size": 27,
+      "sha256": "75f62061865abb1f002f70dab19319232d71f8ed2b59e06c84c5872cb3cb8692",
+      "method": "Query457BA0@ProfileData83A9D0"
+    },
+    {
+      "address": 5247680,
+      "size": 4,
+      "sha256": "efef38aeb810a323430fc66bf44c23344f05bb31daf4f7d709e70ff3be2db95d",
+      "method": "Flag5012C0@Object85EF50"
+    },
+    {
+      "address": 5247696,
+      "size": 4,
+      "sha256": "5275382bdd426544d37b1586398259f5e924f220c4f70e4a3acb1e6512f59835",
+      "method": "Flag5012D0@Object85EF50"
+    },
+    {
+      "address": 5308496,
+      "size": 6,
+      "sha256": "b3c22a7ec5bf90ee25e9d56bed90400641df819f57e8ec516e2266a5de99d058",
+      "method": "Debug510050"
+    },
+    {
+      "address": 5248656,
+      "size": 9,
+      "sha256": "0cac56eeaffa661001e1b393223efac8c90560993af3e6ed447eaeb7cf4347f7",
+      "method": "IsSet@HudFlagHolder"
+    },
+    {
+      "address": 5248640,
+      "size": 11,
+      "sha256": "2c36f92141f3087462e3d5269ca07685d7aeedca35d78a364be759afe5550696",
+      "method": "IsCashSuppressed@HudFlagHolder"
+    },
+    {
+      "address": 5252128,
+      "size": 17,
+      "sha256": "f83dd6a10a0a8e343152f95ab7d216b9bc3729f42b560d5dac54328017cf5d59",
+      "method": "Query502420@CareerState861E7C"
+    },
+    {
+      "address": 5252160,
+      "size": 25,
+      "sha256": "8959aa6e0b58858718e78f79578f53598db5deada9213b6457fa1135b2733edd",
+      "method": "Query502440@CareerState861E7C"
+    },
+    {
+      "address": 5252192,
+      "size": 37,
+      "sha256": "2d05ee5f121cad859011ce8f5809fb9cc4e5e55e6ab6418f62e9afc4659ca368",
+      "method": "Query502460@CareerState861E7C"
+    },
+    {
+      "address": 5252240,
+      "size": 25,
+      "sha256": "fab71470a2f783541e035456d78d3f644a359860f2ee5756a3a5cf25c1615a9d",
+      "method": "Query502490@CareerState861E7C"
+    },
+    {
+      "address": 5252272,
+      "size": 25,
+      "sha256": "a1f267fbb79426c8b72aa50811051cb6a9bb0a2470b04275cff69b59bf34390e",
+      "method": "Query5024B0@CareerState861E7C"
+    }
+  ]
+}

@@ -87,7 +87,12 @@ probe wrapper at the same address for a different target; also reset FPTAG.
    and the input route. Remaining: the input event handlers that write action
    fields. The bWare slot pool is recovered
    (`docs/pc-bware-slotpool.md`); the bWare heap stays a platform seam.
-5. Follow the audit inventory through vehicle/session construction, complete
+5. HUD mask producer `0x600090` and its helpers are recovered and drive the
+   native HUD (`HudPlayerMasks.cpp`, `tools/verify_pc_hud_player_masks.py`, ~3 min).
+   Next HUD targets: caller `0x600590` with controller update `0x4ec5a0`, the
+   trivial career/language readers behind `HudCashSuppressed`/`HudBankBalance`/
+   `HudLanguage` (`0x501680`/`0x500f90` on `0x861e74`/`0x4ff970`), and `0x5f1e10`.
+6. Follow the audit inventory through vehicle/session construction, complete
    update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/
    presentation. Keep committing/pushing verified checkpoints before pauses.
 
@@ -114,6 +119,7 @@ cmake --build build/native -j4
 build/venv/bin/python tools/verify_pc_physics_extra_tuning.py
 build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_parameters.py
+build/venv/bin/python tools/verify_pc_hud_player_masks.py
 build/venv/bin/python tools/verify_pc_physics_record_upgrades.py --native-stock build/native/ug2recordprobe
 python tools/smoke_native_driving.py
 ```

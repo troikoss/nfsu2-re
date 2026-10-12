@@ -249,6 +249,7 @@ struct DrivetrainAuxiliary {
     float GetNitrousElapsed();
     float GetNitrousRemaining();
     void FinishNitrous();
+    float GetTimer414Seconds(); // 0x401860
 };
 
 struct DrivetrainContext {

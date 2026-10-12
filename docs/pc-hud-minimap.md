@@ -109,7 +109,8 @@ checks, separate from the original/rebuilt comparisons.
 - FEng position, size and UV setters remain native operations. Show/hide now
   execute recovered routines against the retained original object prefix.
 - The full feature constructor `0x4f73e0`, its GPS/career/AI registration tail,
-  list allocator `0x440ec0`, and player mask producer `0x600090` remain seams.
+  list allocator `0x440ec0`, and the mask caller `0x600590` remain seams (producer `0x600090` is recovered in
+  `HudPlayerMasks.cpp`).
   Native free drive supplies mask bit 0; the recovered mask application and
   recursive FEng operations determine border visibility from that input.
 - `0x4db900` registers existing `*INDICATOR_%d` objects, then `0x4ec730`

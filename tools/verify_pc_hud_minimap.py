@@ -45,6 +45,7 @@ def main():
         if symbol["section"] == 0 and match:
             externals[name] = int(match[1], 16)
     externals["?engineHalfPi@@3MA"] = 0x784254
+    externals["?IsSet@HudFlagHolder@@QAE_NXZ"] = 0x501690 # Recovered in HudPlayerMasks.cpp.
     linked = link_objects([obj], externals)
     entries = {name: next(address for symbol, address in linked["exports"].items()
                           if symbol.startswith("?" + name + "@")) for name in FUNCTIONS}
@@ -61,7 +62,8 @@ def main():
             uc.mem_write(address, body)
         ranges = linked["ranges"] if rebuilt else [(a, a + n) for a, n in FUNCTIONS.values()]
         ranges = ranges + [(CONVERSION[0], CONVERSION[0] + CONVERSION[1]),
-                           (0x43c2b0, 0x43c387), (0x401100, 0x40111a), (0x502fd0, 0x502fd3)]
+                           (0x43c2b0, 0x43c387), (0x401100, 0x40111a), (0x502fd0, 0x502fd3),
+                           (0x501690, 0x501699)]
         def guard(machine, address, size, user, ranges=ranges):
             assert any(a <= address < b for a, b in ranges), hex(address)
         uc.hook_add(UC_HOOK_CODE, guard)

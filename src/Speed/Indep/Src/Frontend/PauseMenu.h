@@ -33,6 +33,7 @@ struct GameFlow8900D8 {
     int player20;
     int value24;
     void Queue(int type, int value); // 0x5f41e0
+    int Query5EA190(); // 0x5ea190
     void Queue8(int value); // 0x5f4240
 };
 UG2_CHECK_OFFSET(GameFlow8900D8, player20, 0x20);
@@ -48,7 +49,13 @@ struct Career85AD40 {
 };
 struct ProfileData83A9D0 {
     const char *Value502FF0(int value); // 0x502ff0
+    bool Query457BA0(); // 0x457ba0
+    char unidentified0[0xe4];
+    int valueE4;
+    char unidentifiedE8[0x156a8 - 0xe8];
+    int value156A8;
 };
+UG2_CHECK_OFFSET(ProfileData83A9D0, value156A8, 0x156a8);
 struct Network89CF48 {
     bool Value5F0120(); // 0x5f0120
 };

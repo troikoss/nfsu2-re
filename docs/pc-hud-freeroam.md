@@ -30,8 +30,31 @@ execution. This pass extends the existing gauges, visibility and minimap; it
 `HudController.cpp` recovers full mask application `0x4ca090`, including the
 stripped low word, changed-bit dispatch, player visibility callback, lap/leader/
 style group script choices, and the visibility subobject at feature `+0x70 +8`.
-Unidentified slots retain offset names. This is distinct from mask *production*
-at `0x600090`, which remains unrecovered.
+Unidentified slots retain offset names.
+
+`HudPlayerMasks.cpp` recovers mask *production*: `PlayerRecord::GetHudMask`
+`0x600090` (64-bit result, low word in EAX, high in EDX) and its helpers — score
+`0x5ea8c0`, map `0x5ea8e0`, camera `0x5ea930`, gauges `0x5f32a0`, race `0x5f33b0`,
+ambient tail `0x5f34c0`, restart wait `0x5fff50`, race-status queries `0x5f85b0`/
+`0x5fca90`, replay query `0x5f0880`, `0x571250`, the `+0x414` timer reader
+`0x401860`, session queries `0x401910`/`0x401930`/`0x5ed990`, game-flow `0x5ea190`,
+profile `0x457ba0`, flags `0x5012c0`/`0x5012d0`/`0x510050`, holder `0x501690`/
+`0x501680` and career-state queries `0x502420`–`0x5024b0`. The player record keeps
+offset names (`+0x10` settings row, `+0x28` mode, `+0x50` restart frame, `+0x58`
+state, `+0x234`, `+0x238` camera mover, `+0x249`, `+0x24a`). Camera mover kind
+`+0xc` 1 is the chase mover (`0x451660`, vtable `0x787f28`); kinds 2/3 return mask 1
+and 4/`0x12` return 0. The per-car race reset `0x5fc2a0` is not recovered.
+
+`tools/verify_pc_hud_player_masks.py` (manifest `hud-player-masks.json`) runs the
+original and the MSVC 7.1 rebuild on 20,000 randomised player/flow/race/camera/
+settings/replay scenarios: 690,050 comparisons of EAX:EDX (or bool/int/80-bit x87
+results), callee traces, the arena and every read global range, stack cleanup and
+callee-saved registers, all equal (150 distinct `0x600090` masks). `0x5f00f0` and
+`0x4018f0` run as original bytes on both sides; `0x5fc2a0` and the camera vtable
+slot `+0x28` are traced interfaces. Every original basic block executes except
+`0x60050e` (state `1`/`2` after the state `0` test) and `0x6004e2` (bit `0x4000000`,
+which no path sets) — both statically unreachable. A comparison mutation is
+detected. Byte matching is not established.
 
 `HudAnimation.cpp` recovers vector and integer colour interpolation at
 `0x505150`/`0x5051a0`, retaining arithmetic order and rounding.
@@ -133,7 +156,8 @@ Heat, GPS and notification scheduler source are verified but not registered as
 live native features. Their absent inputs are not replaced with fabricated state;
 unsupported GPS/notification callbacks trap if invoked. Remaining work includes:
 
-- Mask producer `0x600090` and its player/race/camera/modal/career dependencies.
+- Mask caller `0x600590` (with controller update `0x4ec5a0`), rear-view mirror view `0x5f1e10`
+  and per-car race reset `0x5fc2a0`.
 - Region world trigger producer `0x5eb040`, including lookup `0x5d9bf0`,
   descriptor lookup `0x5d3de0` and `NEIGHBOURHOOD_%s` localisation hash production.
 - Career bank/save/suppression and reward producers; notification preparation `0x4c8ac0`,

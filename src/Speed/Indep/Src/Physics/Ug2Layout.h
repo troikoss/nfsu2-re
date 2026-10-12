@@ -4,6 +4,10 @@
 // Self-contained: verification compiles run MSVC 7.1 without system include paths.
 #ifdef __GNUC__
 #define UG2_OFFSETOF(type, member) __builtin_offsetof(type, member)
+// MSVC's 64-bit integer keyword; i386 GCC also returns it in EDX:EAX.
+#ifndef __int64
+#define __int64 long long
+#endif
 #else
 #define UG2_OFFSETOF(type, member) ((unsigned int)&(((type *)0)->member))
 #endif
