@@ -445,10 +445,16 @@ int main(int argc, char **argv) {
     Uint64 previous = SDL_GetPerformanceCounter();
     NativeUiInput uiInput;
     bool running = true;
+    const bool scriptedPauseCapture = frames > 0 && pauseAt >= 0 && pauseKeys[0] != 0;
     for (int frame = 0; running && (frames == 0 || frame < frames); ++frame) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
+            // Finite UI captures receive their scripted actions without desktop/device interference.
+            if (scriptedPauseCapture && (event.type == SDL_MOUSEMOTION || event.type == SDL_MOUSEBUTTONDOWN ||
+                event.type == SDL_MOUSEBUTTONUP || event.type == SDL_MOUSEWHEEL || event.type == SDL_KEYDOWN ||
+                event.type == SDL_KEYUP || event.type == SDL_CONTROLLERBUTTONDOWN || event.type == SDL_CONTROLLERBUTTONUP ||
+                event.type == SDL_CONTROLLERAXISMOTION)) continue;
             if (havePause && uiInput.Owns(event) && NativeControlsCapturePad(event)) continue;
             bool padGameplay = uiInput.Owns(event) && event.type == SDL_CONTROLLERBUTTONDOWN && !(havePause && pause.Active());
             if (havePause && !padGameplay && uiInput.Event(event, window, pause)) continue;
@@ -495,7 +501,7 @@ int main(int argc, char **argv) {
                 if (havePause) pause.SetViewSettings(metric, cameraOption);
             }
         }
-        if (havePause) uiInput.Update(pause);
+        if (havePause && !scriptedPauseCapture) uiInput.Update(pause);
         Uint64 now = SDL_GetPerformanceCounter();
         float duration = (float)(now - previous) / (float)SDL_GetPerformanceFrequency();
         previous = now;

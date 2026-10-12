@@ -24,6 +24,7 @@ extern GameFlow8900D8 *gameFlow8900D8;
 extern PCHelpBarFNGObject *pcHelpBar8384D8;
 extern Replay8650B8 *replay8650B8;
 extern int realClock8651AC;
+extern float frontendDelta865198;
 
 namespace {
 
@@ -447,8 +448,8 @@ void CloseAll() {
 }
 
 // IconScroller embedded at IconScrollerFNGObject +0x4c (base vtable 0x795cbc, derived
-// 0x79c0f4). Layout and selection follow reads of 0x543a90, 0x543c10, 0x52f8c0, 0x50d9c0,
-// 0x538a30 and 0x51f9f0; the scroll animation (0x574e30) is not modelled.
+// 0x79c0f4). Construction/insertion and ownership remain native seams. Navigation, selection,
+// placement/reset/frame tick and the cubic tween call recovered routines.
 class NativeIconScroller : public IconScroller4C {
 public:
     struct Entry {
@@ -486,9 +487,20 @@ public:
         memset(&next4, 0, sizeof(IconScroller4C) - 4);
         next4 = previous8 = &next4;
         package1C = owner->package4;
+        value2D = relayout2E = value2F = 1;
+        direction34 = -9;
+        alignmentC0 = 1;
+        option28 = 1;
+        windowCC = 480.0f;
+        tween90.duration24 = 0.3f;
+        tween90.limit28 = 1.0f;
         // 0x543a90: the OPTION_MASTER position anchors the icons; the master itself is hidden.
         S().master = static_cast<FengObject *>(FngFindObject(owner->package4, FngHash("OPTION_MASTER")));
-        if (S().master) FengPackage::Hide(S().master);
+        if (S().master) {
+            masterD4 = S().master->position[0];
+            masterD8 = S().master->position[1];
+            FengPackage::Hide(S().master);
+        }
     }
     ~NativeIconScroller() {
         for (size_t i = 0; i < S().entries.size(); ++i) delete S().entries[i].icon;
@@ -496,26 +508,18 @@ public:
     }
 
     void UnknownSlot00() { NativeTrap("IconScroller scalar destructor 0x543bf0"); }
-    void UnknownSlot04() { Layout(); }  // 0x538940
+    void UnknownSlot04() { UpdateLayout(); }  // 0x538940
     void UnknownSlot08() { NativeTrap("IconScroller add slot 0x543c10 (reached through AddIcon)"); }
     void UnknownSlot0C(unsigned int message, int value8, int valueC, int value10) { Dispatch(message, value8, valueC, value10); }
     bool UnknownSlot10(int index) { return SelectIndex(index); }
     bool UnknownSlot14(IconScrollerIcon *icon) {
         bool accepted = SelectIcon(icon);
-        if (accepted) {
-            for (size_t i = 0; i < S().entries.size(); ++i) {
-                if (S().entries[i].icon == currentC) { S().selected = i; Layout(); break; }
-            }
-        }
+        if (accepted) S().selected = selectedC8 - 1;
         return accepted;
     }
     void UnknownSlot18() { NativeTrap("IconScroller slot 0x538b80"); }
     void UnknownSlot1C() { NativeTrap("IconScroller slot 0x51f870"); }
-    void UnknownSlot20(int index) {  // 0x538a30
-        if (!S().entries.empty()) S().selected = index > 0 && index <= (int)S().entries.size() ? index - 1 : 0;
-        if (S().selected >= 0) SelectIcon(S().entries[S().selected].icon);
-        Layout();
-    }
+    void UnknownSlot20(int index) { ResetLayout(index); }
 
     // 0x543c10: icons fill the package's option_1, option_2, ... objects left to right,
     // 40 units apart; an icon without an object is deleted.
@@ -528,6 +532,7 @@ public:
             return;
         }
         ++S().count;
+        option28 = S().count;
         Entry entry = {icon, object, S().runningX, object->size[0], object->size[1]};
         S().runningX += 40.0f + entry.width;
         // 0x50dab0: the object's texture becomes the icon's valueC.
@@ -538,31 +543,12 @@ public:
         *static_cast<void **>(previous8) = &icon->next4;
         previous8 = &icon->next4;
         icon->object10 = object;
+        icon->offset14 = entry.x;
+        icon->width24 = entry.width;
+        icon->height28 = entry.height;
+        icon->colour1C = 0xffffffff;
         S().entries.push_back(entry);
         if (S().selected < 0) { S().selected = 0; currentC = icon; }
-    }
-
-    void Layout() {
-        if (!S().master || S().selected < 0) return;
-        float masterX = S().master->position[0], masterY = S().master->position[1];
-        float scroll = -S().entries[S().selected].x;
-        for (size_t i = 0; i < S().entries.size(); ++i) {
-            Entry &e = S().entries[i];
-            float x = scroll + e.x + masterX;
-            // 0x50d9c0: shown inside the 480-unit window (0x552330 argument) around the master.
-            if (masterX - 240.0f <= x && x < masterX + 240.0f) FengPackage::Show(e.object);
-            else FengPackage::Hide(e.object);
-            float w = e.width, h = e.height, y = masterY;
-            if ((int)i != S().selected) {
-                // 0x52f8c0, alignment 1: unselected icons at 0.8 (0x7850ec), bottom aligned.
-                w *= 0.8f;
-                y = (h - h * 0.8f) * 0.5f + masterY;
-                h *= 0.8f;
-            }
-            FEngSetSize(e.object, w, h);
-            FEngSetCentre(e.object, x, y);
-        }
-
     }
 
     bool Move(int direction) {
@@ -644,6 +630,25 @@ void FEngQueue::Post(unsigned int message, void *sender, FEPackage *package, int
     }
 }
 
+// Original colour and optional scroller dependencies still supplied by native interfaces.
+unsigned int FEngGetColour(HudVisibilityObject *object) {
+    if (!object || !object->data2C) return 0;
+    const unsigned int *colour = reinterpret_cast<const unsigned int *>(object->data2C);
+    return colour[0] | (colour[1] << 8) | (colour[2] << 16) | (colour[3] << 24);
+}
+void FEngSetColour(HudVisibilityObject *object, unsigned int colour) {
+    FengPackage::SetColour(static_cast<FengObject *>(object), colour);
+}
+void UpdateIconLockScripts(IconScrollerIcon *, void *, void *) {
+    // Native constructors do not bind LOCK/BUTTON_MASTER; their script interface is unrecovered.
+}
+void ScrollerScrollBar::Update(int, int, int) {
+    // The original ScrollBar constructor/controls have not yet been integrated.
+}
+void IconScroller4C::UpdateArrows(int) {
+    // Native constructors do not bind original ScrollBar arrow objects/scripts.
+}
+
 // ---- IconScroller base seams --------------------------------------------------------------
 
 // 0x51f670, as read.
@@ -653,6 +658,7 @@ IconScrollerIcon::IconScrollerIcon(unsigned int value0C, unsigned int value2C_, 
     offset14 = value18 = 0;
     colour1C = 0;
     memset(unidentified21, 0, sizeof(unidentified21));
+    width24 = height28 = 0;
     memset(unidentified34, 0, sizeof(unidentified34));
     memset(unidentified46, 0, sizeof(unidentified46));
     valueC = value0C;
@@ -701,6 +707,9 @@ int IconScrollerFNGObject::UnknownSlot0C(int, int, int, int, int) {
 void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int valueC, int value10) {
     NativeIconScroller *scroller = ScrollerOf(this);
     switch (message) {
+    case kFrontendTick:
+        scroller->UpdateLayout();
+        break;
     case kPadLeft:
     case kPadRight:
         if (scroller->Empty() || !scroller->S().inputEnabled) return;
@@ -1049,6 +1058,7 @@ void NativePause::Pointer(float x, float y, bool click, bool drag) {
 }
 
 void NativePause::Update(float seconds) {
+    frontendDelta865198 = seconds;
     // Real-time clock seam 0x8651ac (4 kHz units assumed); AcceptsInput (0x4a7bc0) waits for
     // it to change after the screen opens.
     clockRemainder += seconds * 4000.0f;

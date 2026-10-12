@@ -289,14 +289,19 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 
 - Remaining IconScroller base (`0x552330`, `0x543d40`, `0x50dab0`/`0x543c10`, `0x50da50`, `0x52fbf0`,
   `0x50da20`, scroller slots `0x538940`/`0x538a30`): icons fill `option_1..n` 40 units apart,
-  anchored on the hidden `OPTION_MASTER`; unselected icons are drawn at 0.8 and bottom aligned
-  (`0x52f8c0`), shown inside a 480-unit window (`0x50d9c0`); moves skip disabled icons without
+  anchored on the hidden `OPTION_MASTER`; unselected icons are drawn at 0.8 and centre aligned
+  by recovered `0x52f8c0`, shown inside a 480-unit window (`0x50d9c0`); moves skip disabled icons without
   wrapping using recovered `0x51f9f0`; accept reacts immediately for dialog items (`+0x45`) and after
-  `EXIT_COMPLETE` otherwise, only for the focused icon object (`0x50d980`). Scroll animation,
+  `EXIT_COMPLETE` otherwise, only for the focused icon object (`0x50d980`). Scroll animation now uses recovered tweening;
   sounds and Dim/UNDIM scripts are not modelled.
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.
+- Pause icon placement/reset/frame tick and cubic tweening now use recovered routines.
+  Smaller icons centre-align; the icon row moves under a fixed selection frame, with placement
+  preceding tween advancement. Native construction/insertion, colour and optional lock/arrow/
+  scrollbar interfaces remain seams. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
+  and run `python tools/smoke_native_pause_scroller.py` for rendered motion checks.
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;
   position writes update live state and matching script baselines. Low-level font lookup,
@@ -334,7 +339,9 @@ right-aligns (dialog button labels sit at their button centres with `Sj` 1; HUD 
 use 2). This corrected the native HUD's swapped centre/right handling.
 
 `--pause-at N` opens the menu at frame N and `--pause-keys LRABUDS` presses left/right/accept/back/up/down/start
-every 30 frames afterwards; `UG2_DEBUG_PAUSE=1` prints delivered messages and game-flow requests.
+every 30 frames afterwards; finite `--frames` captures with `--pause-keys` ignore external
+keyboard/mouse/controller UI actions while accepting the scripted input.
+ `UG2_DEBUG_PAUSE=1` prints delivered messages and game-flow requests.
 
 ## Platform scaffolding (not original code)
 

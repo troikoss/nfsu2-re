@@ -2,6 +2,7 @@
 #define UG2_PAUSE_MENU_H
 
 #include "../Physics/Ug2Layout.h"
+#include "IconScrollerLayout.h"
 
 // FEng/game-flow interfaces at the original call boundaries (all cdecl).
 unsigned int FngHash(const char *name); // 0x505450
@@ -110,7 +111,9 @@ public:
     float value18;
     unsigned int colour1C;
     unsigned char value20;
-    char unidentified21[0xb];
+    char unidentified21[3];
+    float width24;
+    float height28;
     unsigned int value2C;
     unsigned int value30;
     char unidentified34[0x11];
@@ -194,6 +197,12 @@ public:
     virtual void UnknownSlot1C() = 0;
     virtual void UnknownSlot20(int value) = 0;
 
+    void SetWindowVisibility(IconScrollerIcon *icon, float position); // 0x50d9c0
+    void SetIconAlpha(IconScrollerIcon *icon, float factor); // 0x51fd60
+    void LayoutIcon(IconScrollerIcon *icon); // 0x52f8c0
+    void ResetLayout(int index); // 0x538a30
+    void UpdateLayout(); // 0x538940
+    void UpdateArrows(int direction); // 0x52fa70, remaining interface
     bool AtFirst(); // 0x5276d0, only AL is defined
     bool AtLast(); // 0x527700, only AL is defined
     void Next(); // 0x527730
@@ -222,8 +231,8 @@ public:
     unsigned char allowDisabled30;
     char unidentified31[3];
     int direction34;
-    char scrollBar38[0x58];
-    char tween90[0x30];
+    ScrollerScrollBar scrollBar38;
+    ScrollerTween tween90;
     int alignmentC0;
     int valueC4;
     int selectedC8;

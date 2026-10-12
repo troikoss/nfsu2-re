@@ -310,3 +310,70 @@ justification priority and an extra trailing line. **Byte matching is not establ
 The native build, pause verifier (11,723), options verifier (5,730), freeroam HUD verifier
 (15,180), all 19 settings scenarios with slider pixel checks and all 10 Controls scenarios
 pass. These smoke checks establish bounded integration separately from differential execution.
+
+## Scroller placement and cubic tween
+
+`Frontend/IconScrollerLayout.cpp` recovers nine routines:
+
+| Routine | Address | Behavior |
+|---|---|---|
+| End-slope / acceleration limits | `0x5748c0` / `0x574910` | Retain coefficient arithmetic and observed float stores |
+| Tween update | `0x574e30` | States 0/1/2, restart mode, cubic coefficients/evaluation and end-state handling |
+| Edge fade factor | `0x50d8d0` | Window/edge comparisons and fractional fades |
+| Window visibility | `0x50d9c0` | Includes both endpoints; delegates to recovered show/hide |
+| Icon alpha | `0x51fd60` | Current RGB and icon alpha; disabled/not-allowed base alpha 150; float-to-int truncation |
+| Icon placement | `0x52f8c0` | Full size and centre, then unselected size 0.8 and top-left alignment; optional alpha |
+| Layout reset | `0x538a30` | Snap tween, place using old selection, then select and update scrollbar |
+| Frame layout | `0x538940` | Relayout clock/target/arrow updates, lock scripts, place all icons, then advance tween |
+
+`ScrollerTween` describes its original 0x30 bytes. It occupies scroller `+0x90`,
+with states/mode `+0xbc/+0xbe`. The acceleration limiter stores twice-coefficient and
+start acceleration as single precision at original `0x574925`/`0x574942`; preserving
+those rounding points resolves a one-ULP mismatch. Subsequent scaled start acceleration
+remains extended until the coefficient stores. End-slope calculation retains inverse-duration
+multiplication rather than substituting one. No derivative coefficients or algorithms are invented.
+
+Original placement alignment 0/1/2 is top/centre/bottom for smaller image icons. The old
+native seam incorrectly described alignment 1 as bottom-aligned. Frame placement uses the
+current tween value and updates the tween **after** positioning, so the rendered transition
+retains the original frame ordering. Reset performs its selection callback **after** placement.
+
+The native menu now calls recovered reset/frame/placement code; its old direct layout loop
+is removed. The platform frame delta is supplied at `0x865198`, and the original scroller
+clock is bound at `0x8641a0`. Native construction and icon insertion still supply initial
+state, geometry and bindings and remain seams. Colour read/write `0x495570`/`0x51d7f0`,
+lock scripts `0x51df00`, scrollbar update `0x538080` and arrow scripts `0x52fa70` remain
+controlled interfaces. Native constructors currently leave lock/button/scrollbar bindings
+unbound; those dependencies remain explicit native no-ops pending their recovery. This is
+not complete IconScroller or FNG-base recovery.
+
+`build/venv/bin/python tools/verify_pc_icon_scroller_layout.py`: **14,762 original/rebuilt
+comparisons**. Tween cases run with 53-/64-bit x87 precision and cover states/modes, limits,
+completion thresholds, zero/negative/infinite/NaN duration and arithmetic order. Placement
+cases cover empty/null frame paths, every alignment, first/current/other selection, reset
+indices, window edges, disabled alpha policy and fade flags. Actual recovered coordinate,
+state-write and visibility routines execute on both sides; selection/colour/optional UI
+callbacks are controlled and traced, including tween state at callbacks. The original list
+helper and `0x75bed4` conversion runtime are retained dependencies. Placement fixtures are
+image objects, not proof of arbitrary font/group layout. Memory, global clock, callback
+order/arguments, cleanup, preserved registers and precision are checked. Five mutations are
+rejected: exclusive visibility edge, wrong disabled alpha, wrong alignment, changed cubic
+coefficient and moving tween advancement before placement. Fingerprints/results remain
+in ignored `build/analysis/icon-scroller-layout/verification.json`. **Byte matching is
+not established.**
+
+Native smoke: `python tools/smoke_native_pause_scroller.py` samples the Options graphic
+at frames 53/60/75 after Right at frame 50, observing motion toward the fixed selection
+frame and settled centring. The green selection frame itself stays fixed. Captures/logs
+stay in `build/analysis/native-pause-scroller/`; a settled screenshot is at
+`build/analysis/icon-scroller-layout/pause-options-icon.png`. The existing pause/options,
+navigation and selection verifiers pass, as do all 19 native settings scenarios.
+
+Finite scripted UI captures now ignore live keyboard/mouse/controller UI events and controller
+repeat, while still accepting their explicit scripted device and pointer actions. This platform
+fixture change prevents desktop pointer motion from selecting a different Controls row during
+keyboard/gamepad smoke sequences; normal interactive input is unchanged.
+
+After isolating finite scripted UI input, all 10 native Controls scenarios and all 19
+settings scenarios pass, including explicit mouse/gamepad fixture actions. The rendered
+Options graphic centres are 869.0, 758.5 and 640.0 pixels at the three sampled frames.

@@ -835,3 +835,8 @@ fengManager8384C4 = 0x8384c4;
 /* Original FEng coordinate tolerance and script state-key table. */
 fengEpsilon7992EC = 0x7992ec;
 fengStateKeys7992F4 = 0x7992f4;
+
+/* Original icon scroller clock and tween constants, native frame delta binding. */
+frontendDelta865198 = 0x865198;
+scrollerClock8641A0 = 0x8641a0;
+tweenSixth786D94 = 0x786d94;
