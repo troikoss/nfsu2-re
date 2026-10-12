@@ -1,4 +1,4 @@
-# Session handoff — 2026-10-11
+# Session handoff — 2026-10-12
 
 ## Goal and standing instructions
 
@@ -19,9 +19,6 @@ Push authorization persists for `main` at
 assets, executables, compiler binaries, or generated disassembly. Keep unverified
 work clearly identified rather than describing it as a verified checkpoint.
 
-At handoff creation, the goal tool reports **paused**. This handoff request does
-not resume it. Resume recovery when the user resumes the goal.
-
 Follow `AGENTS.md`: always recover original code, never invent replacement game
 algorithms. Preserve arithmetic order, call boundaries, addresses and x86
 layouts; keep unknown fields offset-based. Report behavioral equivalence
@@ -31,81 +28,83 @@ unless the user or applicable repository/skill instructions request delegation.
 
 ## Authoritative checkpoint
 
-Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`.
-Branch: `main`. Last verified recovery commit, already pushed:
-`b864ead61feaef5cebd85c7830dbdbc9a48eceed` —
-**Recover original extra adjustments and tuning eligibility**.
-Local `origin/main` agrees with this recovery checkpoint at handoff creation.
+Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`, branch `main`.
+Last pushed commit: `3e58488` — **Give native FEng objects the original object and script
+prefix**. Working tree clean at handoff.
 
-This checkpoint recovers:
+Recovered and verified since the previous handoff (each with a Unicorn differential verifier and
+mutation tests; byte matching not established):
 
-- Extra adjustment/application `0x5997e0` and removal `0x599d90`.
-- Tuning entry lookup `0x59ae40` and active count `0x59b0e0`.
-- Integer flag layout at selection +0x28, signed tuning kind/priority bytes,
-  first-entry priority ties, and original gear eligibility limits.
-- Native stock construction now runs original record builder `0x5ac4f0`
-  followed by extra application, instead of the former raw stock-record copy.
+- HUD: mask producer `0x600090` + helpers (`verify_pc_hud_player_masks.py`), gauge update
+  `0x4c68d0`, map feature `0x4da640`, feature dispatch `0x4ec5a0`, career/language readers
+  (`verify_pc_hud_freeroam.py`). Evidence: `docs/pc-hud-freeroam.md`.
+- Start grid `0x5eb5d0` and track position markers (`verify_pc_track_markers.py`); the native
+  spawn is now the original grid (smoke 46.6/15.8 km/h from the parking-bay start).
+  Evidence: `docs/pc-track-markers.md`.
+- Collision sound wrappers, game message post, profile readers, camera option step
+  `0x5f2fa0`, game-event record/apply `0x578ef0`/`0x4a7b30`, transmission setter `0x407280`,
+  replay camera score `0x578e90`, control mask, return package (`verify_pc_small_queries.py`,
+  `verify_pc_replay_events.py`). Evidence: `docs/pc-collision-notifications.md`.
+- Native player record and camera-mover seam live in `src/Platform/Native/NativePlayer.h`.
 
-Validation: 33,856 bit-identical comparisons for these four routines; 3,680
-record upgrade/builder comparisons; 46 native stock records/selections match
-original construction plus extra application; native build and forward/reverse
-smoke checks pass (114.6/76.8 km/h). Parameter and constructor/selection checks
-also pass. Byte matching is not established. These are bounded routine and
-integration checks, not proof of complete parameter or game equivalence.
+## Current focus: replace native pause-menu code with original code
 
-Earlier verified recovery includes parameter/tuning constructors, upgrade
-selection/fractions/search, nine record modifiers, drive curve and speed helper,
-refresh wrapper, mode variants, pedals, gear accessors, forward selection, and
-kinematics prefixes. Some recovered routines still await complete caller
-integration. See the subsystem evidence rather than assuming full coverage.
+The user asked to focus on the pause menu. `NativePause.cpp`/`NativePauseOptions.cpp` are mostly
+a stand-in for the FEng UI engine plus native versions of original frontend classes. The original
+classes write FEng internals directly, so the work is staged:
 
-## Tuning value helpers (verified after the interruption)
+1. **Done (`3e58488`)**: native FEng objects keep the original FEObject prefix
+   (`HudVisibilityObject` in `Hud/HudVisibility.h`: guid `+0xc`, hash `+0x10`, type `+0x18`,
+   flags `+0x1c` (0x400000 dirty, 0x4000000 focus), texture `+0x24`, state block `+0x2c`
+   (size at `+0x38/+0x3c`), script list `+0x4c`, current script `+0x54`) and the FEScript
+   prefix (length `+0xc`, time `+0x10`, hash `+0x30`). The native script player runs on
+   `currentScript54->time10`. HUD/pause frames byte-identical.
+2. **Next**: FEPackage prefix for native screens — input masks `+0x1c/+0x20/+0x24/+0x28`,
+   focusable-object array `+0x90`/count `+0x94` (objects with flag 0x10000000, see object reader
+   `0x555140`), and a native FEng manager at `*0x8384c4` (`+8` package node list; node `+0x18` is
+   the FEPackage; lookups `0x52cef0`, `0x51bb70`, `0x517f80`, `0x52c570`; focus `0x52ce40` ->
+   `0x52b3a0`).
+3. Recover the IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
+   IconScrollerFNGObject `+0x4c`) replacing `NativeIconScroller`:
+   ctors `0x543840`/`0x543a90`, ScrollBar `0x542ac0` (at scroller `+0x38`), slots `0x543bf0`,
+   `0x538940`, `0x543c10`, `0x50d980`, `0x52f7c0`, `0x52f680`, `0x538b80`, `0x51f870`,
+   `0x538a30`; helpers `0x52f8c0`, `0x50d9c0`, `0x51fb70`, `0x51f9f0`/`0x51fac0`,
+   `0x527700`/`0x527730`/`0x5276d0`/`0x527750`, `0x51f820`, `0x538080`, `0x52fa70`,
+   `0x538130`, `0x52e4e0`, `0x52e670`, `0x52e200`, `0x52e320`, `0x51fd10`, `0x51fd60`,
+   `0x50cb00`, `0x50d8d0`, tween `0x574e30`, list index `0x43be60`/`0x43be80`.
+   Layout notes: `+4/+8` icon list sentinel (icon node at icon `+4`), `+0xc` current icon,
+   `+0x10/+0x14/+0x18` OPTION/LOCK/BUTTON_MASTER objects, `+0x1c` package, `+0x20` "option_"
+   prefix, `+0x24` spacing (40), `+0x28` next option number, `+0x2c` vertical, `+0x2e` relayout,
+   `+0x30` allow disabled, `+0x34` last direction, `+0x38` ScrollBar (0x58), `+0x90` tween
+   (0x30), `+0xc0` alignment, `+0xc8` selected index, `+0xcc` window width (480),
+   `+0xd4/+0xd8` master position, `+0xe0` running offset, `+0xe4` fade flag.
+   Icon (0x48, ctor `0x51f670`): `+0xc` texture, `+0x10` object, `+0x14` offset, `+0x1c`
+   colour, `+0x20` disabled, `+0x24/+0x28` size, `+0x2c/+0x30` title/description,
+   `+0x34..+0x44` fade state, `+0x45` reacts.
+4. Recover IconScrollerFNGObject: ctors `0x551de0`/`0x552330`, dtor `0x4defb0`, message handler
+   `0x543d40` (sounds via table `0x837fe0` -> `0x458520`), `0x50da50`, `0x50dab0`,
+   `0x52fbf0`/`0x52fba0` (stop/start input on the package masks), `0x50da20`, `0x538c00`/
+   `0x538ca0` (dim scripts on object `0x47ff4e7c`).
+5. Then the options scroller and option items in `NativePauseOptions.cpp`, the in-game dialog
+   `0x558790`, and game-flow queue `0x5f41e0`/`0x5f4240`.
 
-The interrupted draft is now verified and committed: offset query `0x59aee0`,
-field-address switch `0x59b200` (thiscall member ignoring `ecx`), engine
-normalization `0x59b3c0` and value reader `0x5a7da0` in
-`PhysicsTuningValues.cpp`. `tools/verify_pc_physics_tuning_values.py` reports
-94,722 bit-identical comparisons; see `docs/pc-physics-parameters.md`. Native
-CarTypeInfo table installation is still absent, so they are not yet called
-natively. Verifier note: Unicorn keeps translated blocks, so never rewrite a
-probe wrapper at the same address for a different target; also reset FPTAG.
+Decompilations of the scroller set were saved under the session scratchpad (`scroller/`,
+`feng/`); regenerate with ghidra-rpc if missing. Recreate missing Ghidra functions with
+`create-function` first (several of these addresses were undefined).
 
-## Immediate plan on resume
+## Other open work
 
-1. Reinspect Git status and the goal state.
-2. Full tuning application `0x5b4780` and its whole callee tree are recovered
-   and verified (`PhysicsTuningValues.cpp`, `tools/verify_pc_physics_tuning_values.py`,
-   ~7.5 min). Native CarTypeInfo/tuning-table installation is still absent,
-   so none of it runs natively yet.
-3. Composer `0x5b4dc0` (+ `0x59a350`, `0x5b06a0`) is recovered, verified
-   (`tools/verify_pc_physics_compose.py`, ~20 min; `UG2_COMPOSE_TRIAL=n` runs
-   one trial) and builds the native car. Remaining seams: CarTypeInfo chunk
-   loader, tuning-table (`0x86b340`) loader and the caller binding tuning to
-   its car; recover them to make native tuning run.
-4. Human steering and input update are recovered and integrated
-   (`tools/verify_pc_human_steering_update.py`), including constructors
-   and the input route. Remaining: the input event handlers that write action
-   fields. The bWare slot pool is recovered
-   (`docs/pc-bware-slotpool.md`); the bWare heap stays a platform seam.
-5. HUD mask producer `0x600090` and its helpers are recovered and drive the
-   native HUD (`HudPlayerMasks.cpp`, `tools/verify_pc_hud_player_masks.py`, ~3 min).
-   The cash/language readers `0x501680`/`0x500f90`/`0x4ff970` replace native stubs
-   (native seams: bank storage at `0x861e74`, language 0 at `0x7f70d0`). Gauge `0x4c68d0`,
-   map feature `0x4da640` and dispatch `0x4ec5a0` are recovered and drive the native
-   HUD. Remaining: caller `0x600590` (blocked on rear-view mirror view `0x5f1e10`).
-6. The spawn now comes from the original start grid `0x5eb5d0` and free-roam markers
-   (`docs/pc-track-markers.md`); driving smoke from that start reaches 46.6/15.8 km/h
-   (kerb ahead, planter behind). Next: participant setup `0x6065b0` and car ctor `0x604260`.
-7. Native respawn (DemoMain airborne reset) is the remaining invented gameplay logic. The
-   original reset `0x6009a0` (via fall check `0x5ecba0`) needs road navigation: `WRoadNav`
-   (ctor `0x5da2f0` recovered; advance `0x5da370` -> `0x5d5c00`/`0x5d9e30`/`0x5da240`, spline
-   helpers `0x570640`/`0x577710`) over the road network in `TRACKS/L4RA.BUN`: chunk `0x34107`
-   (loader `0x5df8a0`, also `0x80034100` sub-chunks, table at `0x883df0`/`0x883df4`), `0x34108`
-   (`0x5db2e0`, list `0x88f760`), `0x34110..0x34113` (`0x5def30` -> grid `0x88eb00` `0x5da7a0`).
-   Loaders are registered by the static initializers at `0x77e7d0..0x77e8d0`.
-8. Follow the audit inventory through vehicle/session construction, complete
-   update/timing callers, spawn/reset/camera, HUD/frontend, and asset/world/
-   presentation. Keep committing/pushing verified checkpoints before pauses.
+- Native respawn (DemoMain airborne reset) is the remaining invented gameplay logic. The
+  original reset `0x6009a0` (via fall check `0x5ecba0`) needs road navigation: `WRoadNav`
+  (ctor `0x5da2f0` recovered; advance `0x5da370` -> `0x5d5c00`/`0x5d9e30`/`0x5da240`, spline
+  helpers `0x570640`/`0x577710`) over the road network in `TRACKS/L4RA.BUN`: chunk `0x34107`
+  (loader `0x5df8a0`, also `0x80034100` sub-chunks, table at `0x883df0`/`0x883df4`), `0x34108`
+  (`0x5db2e0`, list `0x88f760`), `0x34110..0x34113` (`0x5def30` -> grid `0x88eb00` `0x5da7a0`).
+  Loaders are registered by the static initializers at `0x77e7d0..0x77e8d0`.
+- HUD caller `0x600590` (blocked on rear-view mirror view `0x5f1e10`), participant setup
+  `0x6065b0`, car constructor `0x604260`, world update `0x609ce0`, asset chunk loaders.
+- Earlier physics items (tuning-table loader, CarTypeInfo binding) remain as listed in
+  `docs/demo-substitute-audit.md`.
 
 ## Evidence, tools and useful commands
 
@@ -117,7 +116,7 @@ Reference: local `Need for Speed Underground 2/speed2.exe`, SHA-256
 `f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7`.
 Retail source fixtures come from local `GLOBAL/GLOBALB.BUN`, not committed data.
 
-Ghidra skill: `/home/dq/.codex/skills/ghidra-rpc/SKILL.md` (already used).
+Ghidra skill: `/home/dq/.claude/skills/ghidra-rpc` (`uv run ghidra-rpc ...` from that directory).
 Project: `build/ghidra/ug2.gpr`, program `speed2.exe`. Check current daemon
 status before relying on prior state. Local daemon access may need escalation.
 Ignored `build/analysis/demo-recovery/` contains decompilation JSON and disassembly
@@ -131,6 +130,13 @@ build/venv/bin/python tools/verify_pc_physics_extra_tuning.py
 build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_hud_player_masks.py
+build/venv/bin/python tools/verify_pc_hud_freeroam.py
+build/venv/bin/python tools/verify_pc_pause_menu.py
+build/venv/bin/python tools/verify_pc_pause_options.py
+build/venv/bin/python tools/verify_pc_track_markers.py
+build/venv/bin/python tools/verify_pc_small_queries.py
+build/venv/bin/python tools/verify_pc_replay_events.py
+python tools/smoke_native_pause_options.py
 build/venv/bin/python tools/verify_pc_physics_record_upgrades.py --native-stock build/native/ug2recordprobe
 python tools/smoke_native_driving.py
 ```
