@@ -829,3 +829,5 @@ pcOLLobbyFng78F320 = 0x78f320;
 
 /* FEng archive receiver for recovered package focus lookup (native storage seam). */
 fengArchive8637B0 = 0x8637b0;
+
+fengManager8384C4 = 0x8384c4;

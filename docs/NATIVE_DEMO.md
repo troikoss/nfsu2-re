@@ -297,10 +297,16 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.
+- Icon selection now calls recovered `0x52f680`; indexed selection `0x52f7c0`, list
+  helper `0x43be60` and focus-flag helper `0x51cc60` are recovered too. The embedded
+  scroller has its complete observed 0xe8-byte extent, with native vector/ownership state
+  stored separately. Focus flags and the saved scroller index are written by original
+  code; construction, positioning and tween execution remain seams. See
+  [selection evidence](pc-pause-menu.md#icon-selection-and-the-full-scroller-layout).
 - Icon stepping/indexing/selected-item dispatch now use recovered `0x51f9f0`, `0x51fac0`,
   `0x5276d0`/`0x527700`, `0x527730`/`0x527750`, `0x51f820` and `0x50d980`.
   The native scroller owns the original list/current-icon prefix; its constructor,
-  selection callback and rendering remain seams. See [navigation evidence](pc-pause-menu.md#iconscroller-navigation-and-dispatch).
+  post-selection layout and rendering remain seams. See [navigation evidence](pc-pause-menu.md#iconscroller-navigation-and-dispatch).
 - Package masks, persisted selection and focus now use recovered routines `0x537950`,
   `0x50b8a0`/`0x50b8c0`, `0x52b3a0` and `0x52ce40`. Native screens retain FEPackage
   masks/focus/array offsets, archive-node package `+0x18` and a separate static FNG selection

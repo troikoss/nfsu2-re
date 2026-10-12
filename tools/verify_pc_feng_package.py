@@ -17,6 +17,7 @@ from pc_coff import link_objects, read_object
 
 BUILD = ROOT / "build/analysis/feng-package"
 FUNCTIONS = {
+    "FngSetFocusEnabled": (0x51cc60, 104),
     "FngSetControlMask": (0x537950, 34),
     "FngGetPackageValue10": (0x50b8a0, 30),
     "FngSetPackageValue10": (0x50b8c0, 31),
@@ -130,6 +131,7 @@ def main():
         struct.pack_into("<I", memory, 0x418, rng.choice((0, package)))
         struct.pack_into("<I", memory, 0x508, queue)
         compare("SetFocusByHash", memory, [ARENA, target], manager, 8, FindNode=rng.choice((0, node)))
+        compare("FngSetFocusEnabled", memory, [ARENA, target, rng.choice((0, 1, 2, 0x80, 0xff))], cleanup=12, FindNode=rng.choice((0, node)))
     report = {"comparisons": counts, "total": sum(counts.values()), "byte_matching": "not established",
               "fingerprints": {name: {"address": hex(address), "size": size,
                                       "sha256": hashlib.sha256(image[address-0x400000:address-0x400000+size]).hexdigest()}

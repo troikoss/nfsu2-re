@@ -214,3 +214,48 @@ rendered slider checks pass separately as integration evidence.
 An additional native run (`--frames 240 --pause-at 20 --pause-keys RRA`) skips the
 disabled Replay icon and reaches the Quit dialog with result `0x30ed2368`. Its
 screenshot/log stay in ignored `build/analysis/icon-scroller-navigation/`.
+
+## Icon selection and the full scroller layout
+
+`IconScrollerSelection.cpp` now recovers `SelectIcon` (`0x52f680`), indexed selection
+(`0x52f7c0`) and intrusive list `NodeAt` (`0x43be60`). `FEngPackage.cpp` also recovers
+focus-flag helper `0x51cc60`: only argument byte 1 clears bit `0x4000000`; every
+other byte sets it. Disassembly and stack verification establish that this helper
+is **stdcall**, including its 12-byte callee cleanup.
+
+Both selection paths mark every icon's matching FEObject before deciding whether
+selection can change. Direct selection then checks the disabled byte, assigns current
+icon, clears the selected object's flag, queues package focus and stores its **1-based**
+list index. Indexed selection is different: it passes a **zero-based** input to `NodeAt`,
+rejects the current icon or a disallowed disabled icon, and stores the input unchanged.
+No new range checks are added: `NodeAt` returns the sentinel when an index is outside
+the list, and original indexed selection can interpret that sentinel as an icon.
+These APIs retain their original caller preconditions.
+
+`IconScroller4C` retains the complete observed `0xe8`-byte scroller extent, including
+ScrollBar storage `+0x38` (0x58 bytes), tween storage `+0x90` (0x30), alignment `+0xc0`,
+selected index `+0xc8`, window width `+0xcc`, anchor position `+0xd4/+0xd8`, running offset
+`+0xe0` and fade byte `+0xe4`. This is layout evidence, not recovery of the constructors
+or all fields. The native vector, ownership and other backend state moved to separate
+storage keyed by the embedded scroller; it no longer occupies these original offsets.
+The manager pointer at `0x8384c4` now binds to the native manager when pause assets load.
+Native selection calls recovered `SelectIcon`; native layout still follows that call
+and remains a seam. Original layout/animation/construction remains outstanding.
+
+`build/venv/bin/python tools/verify_pc_icon_scroller_selection.py` compiles selection,
+previously recovered navigation and package focus code together with MSVC 7.1.
+**12,063 comparisons** execute original/rebuilt selection plus the actual focus-flag,
+hash-focus, focus-queue and list-index routines. Only archive lookup `0x51bb70` and queue
+storage `0x51aa20` are controlled interfaces. Cases cover 1–8 icons, null/current/other
+selection, disabled policies, absent manager/node/package, empty or duplicate-hash focus
+arrays, pre-existing focus, same-icon refusal, zero/negative/out-of-range indices and
+empty list indexing. The sentinel fixture includes a valid object so out-of-range
+selection is executable without adding a substitute guard. Checks compare complete
+fixture memory, lookup/queue traces, defined return bits, stack cleanup and preserved
+registers. Fingerprints stay in ignored `build/analysis/icon-scroller-selection/verification.json`.
+The package verifier now includes focus flags for **12,000** comparisons. Navigation
+still passes **34,670**. **Byte matching remains unestablished.**
+
+Four mutation checks reject changing the stored indexed value, leaving the selected object's
+focus flag set, reversing the disabled-selection gate and removing same-icon refusal.
+The native build, existing pause/options verifiers and all 19 settings smoke scenarios pass.

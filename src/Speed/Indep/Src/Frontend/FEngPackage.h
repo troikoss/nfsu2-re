@@ -48,6 +48,8 @@ struct FngRecord {
     char unidentified0[0x10];
     int value10;
 };
+extern FEngManager *fengManager8384C4;
+void __stdcall FngSetFocusEnabled(const char *name, unsigned int hash, unsigned char enabled); // 0x51cc60
 FEPackage *FngFindPackage(const char *name); // 0x52cef0
 FngRecord *FngFindRecord(unsigned int hash); // 0x50b840
 

@@ -459,35 +459,61 @@ public:
         float height;
     };
 
-    explicit NativeIconScroller(IconScrollerFNGObject *owner)
-        : owner_(owner), count_(1), runningX_(0.0f), selected_(-1), inputEnabled_(true), stopped_(false) {
-        memset(&next4, 0, 0x34);  // native constructor seam for the observed scroller prefix
+    struct State {
+        IconScrollerFNGObject *owner;
+        FengObject *master;
+        std::vector<Entry> entries;
+        int count;
+        float runningX;
+        int selected;
+        bool inputEnabled;
+        bool stopped;
+    };
+    static std::map<NativeIconScroller *, State> &States() {
+        static std::map<NativeIconScroller *, State> states;
+        return states;
+    }
+    State &S() { return States()[this]; }
+
+    explicit NativeIconScroller(IconScrollerFNGObject *owner) {
+        State &state = S();
+        state.owner = owner;
+        state.count = 1;
+        state.runningX = 0.0f;
+        state.selected = -1;
+        state.inputEnabled = true;
+        state.stopped = false;
+        memset(&next4, 0, sizeof(IconScroller4C) - 4);
         next4 = previous8 = &next4;
         package1C = owner->package4;
         // 0x543a90: the OPTION_MASTER position anchors the icons; the master itself is hidden.
-        master_ = static_cast<FengObject *>(FngFindObject(owner->package4, FngHash("OPTION_MASTER")));
-        if (master_) FengPackage::Hide(master_);
+        S().master = static_cast<FengObject *>(FngFindObject(owner->package4, FngHash("OPTION_MASTER")));
+        if (S().master) FengPackage::Hide(S().master);
     }
     ~NativeIconScroller() {
-        for (size_t i = 0; i < entries_.size(); ++i) delete entries_[i].icon;
+        for (size_t i = 0; i < S().entries.size(); ++i) delete S().entries[i].icon;
+        States().erase(this);
     }
 
     void UnknownSlot00() { NativeTrap("IconScroller scalar destructor 0x543bf0"); }
     void UnknownSlot04() { Layout(); }  // 0x538940
     void UnknownSlot08() { NativeTrap("IconScroller add slot 0x543c10 (reached through AddIcon)"); }
     void UnknownSlot0C(unsigned int message, int value8, int valueC, int value10) { Dispatch(message, value8, valueC, value10); }
-    void UnknownSlot10() { NativeTrap("IconScroller slot 0x52f7c0"); }
-    void UnknownSlot14(IconScrollerIcon *icon) {  // native selection/layout seam for 0x52f680
-        currentC = icon;
-        for (size_t i = 0; i < entries_.size(); ++i) {
-            if (entries_[i].icon == icon) { selected_ = i; Layout(); return; }
+    bool UnknownSlot10(int index) { return SelectIndex(index); }
+    bool UnknownSlot14(IconScrollerIcon *icon) {
+        bool accepted = SelectIcon(icon);
+        if (accepted) {
+            for (size_t i = 0; i < S().entries.size(); ++i) {
+                if (S().entries[i].icon == currentC) { S().selected = i; Layout(); break; }
+            }
         }
+        return accepted;
     }
     void UnknownSlot18() { NativeTrap("IconScroller slot 0x538b80"); }
     void UnknownSlot1C() { NativeTrap("IconScroller slot 0x51f870"); }
     void UnknownSlot20(int index) {  // 0x538a30
-        if (!entries_.empty()) selected_ = index > 0 && index <= (int)entries_.size() ? index - 1 : 0;
-        currentC = selected_ < 0 ? 0 : entries_[selected_].icon;
+        if (!S().entries.empty()) S().selected = index > 0 && index <= (int)S().entries.size() ? index - 1 : 0;
+        if (S().selected >= 0) SelectIcon(S().entries[S().selected].icon);
         Layout();
     }
 
@@ -495,15 +521,15 @@ public:
     // 40 units apart; an icon without an object is deleted.
     void Add(IconScrollerIcon *icon) {
         char name[32];
-        snprintf(name, sizeof(name), "option_%d", count_);
-        FengObject *object = static_cast<FengObject *>(FngFindObject(owner_->package4, FngHash(name)));
+        snprintf(name, sizeof(name), "option_%d", S().count);
+        FengObject *object = static_cast<FengObject *>(FngFindObject(S().owner->package4, FngHash(name)));
         if (!object) {
             delete icon;
             return;
         }
-        ++count_;
-        Entry entry = {icon, object, runningX_, object->size[0], object->size[1]};
-        runningX_ += 40.0f + entry.width;
+        ++S().count;
+        Entry entry = {icon, object, S().runningX, object->size[0], object->size[1]};
+        S().runningX += 40.0f + entry.width;
         // 0x50dab0: the object's texture becomes the icon's valueC.
         FengPackage::SetTexture(object, icon->valueC);
         // Native list insertion seam: links carry the original icon +4 addresses.
@@ -512,22 +538,22 @@ public:
         *static_cast<void **>(previous8) = &icon->next4;
         previous8 = &icon->next4;
         icon->object10 = object;
-        entries_.push_back(entry);
-        if (selected_ < 0) { selected_ = 0; currentC = icon; }
+        S().entries.push_back(entry);
+        if (S().selected < 0) { S().selected = 0; currentC = icon; }
     }
 
     void Layout() {
-        if (!master_ || selected_ < 0) return;
-        float masterX = master_->position[0], masterY = master_->position[1];
-        float scroll = -entries_[selected_].x;
-        for (size_t i = 0; i < entries_.size(); ++i) {
-            Entry &e = entries_[i];
+        if (!S().master || S().selected < 0) return;
+        float masterX = S().master->position[0], masterY = S().master->position[1];
+        float scroll = -S().entries[S().selected].x;
+        for (size_t i = 0; i < S().entries.size(); ++i) {
+            Entry &e = S().entries[i];
             float x = scroll + e.x + masterX;
             // 0x50d9c0: shown inside the 480-unit window (0x552330 argument) around the master.
             if (masterX - 240.0f <= x && x < masterX + 240.0f) FengPackage::Show(e.object);
             else FengPackage::Hide(e.object);
             float w = e.width, h = e.height, y = masterY;
-            if ((int)i != selected_) {
+            if ((int)i != S().selected) {
                 // 0x52f8c0, alignment 1: unselected icons at 0.8 (0x7850ec), bottom aligned.
                 w *= 0.8f;
                 y = (h - h * 0.8f) * 0.5f + masterY;
@@ -537,8 +563,7 @@ public:
             e.object->size[1] = h;
             FengPackage::SetPosition(e.object, x, y);
         }
-        // 0x52f680 -> 0x52ce40: the selected icon's object takes the package focus.
-        nativeFengManager.SetFocusByHash(owner_->package4, entries_[selected_].object->hash10);
+
     }
 
     bool Move(int direction) {
@@ -550,10 +575,10 @@ public:
 
     // 0x50d980: React only when the message names the selected icon's object.
     bool Pointer(float x, float y) {
-        FengPackage *package = NativeFrontendPackage(owner_->package4);
-        for (size_t i = 0; package && i < entries_.size(); ++i) {
-            if (!entries_[i].icon->value20 && package->Contains(entries_[i].object, x, y)) {
-                if (selected_ != (int)i) { selected_ = (int)i; currentC = entries_[i].icon; Layout(); owner_->SelectedIconChanged(); }
+        FengPackage *package = NativeFrontendPackage(S().owner->package4);
+        for (size_t i = 0; package && i < S().entries.size(); ++i) {
+            if (!S().entries[i].icon->value20 && package->Contains(S().entries[i].object, x, y)) {
+                if (S().selected != (int)i) { UnknownSlot14(S().entries[i].icon); S().owner->SelectedIconChanged(); }
                 return true;
             }
         }
@@ -565,18 +590,10 @@ public:
     }
 
     IconScrollerIcon *Selected() { return currentC; }
-    FengObject *SelectedObject() { return selected_ >= 0 ? entries_[selected_].object : 0; }
+    FengObject *SelectedObject() { return S().selected >= 0 ? S().entries[S().selected].object : 0; }
     int SelectedIndex() { return IndexOf(currentC); }
-    bool Empty() const { return entries_.empty(); }
+    bool Empty() { return S().entries.empty(); }
 
-    IconScrollerFNGObject *owner_;
-    FengObject *master_;
-    std::vector<Entry> entries_;
-    int count_;
-    float runningX_;
-    int selected_;
-    bool inputEnabled_;  // native seam for original owner +0x7b
-    bool stopped_;       // native seam for original owner +0x14c
 };
 
 NativeIconScroller *ScrollerOf(IconScrollerFNGObject *object) {
@@ -687,7 +704,7 @@ void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int
     switch (message) {
     case kPadLeft:
     case kPadRight:
-        if (scroller->Empty() || !scroller->inputEnabled_) return;
+        if (scroller->Empty() || !scroller->S().inputEnabled) return;
         if (scroller->Move(message == kPadLeft ? -1 : 1)) {
             SelectedIconChanged();
             FngSetPackageValue10(package4, scroller->SelectedIndex());
@@ -695,7 +712,7 @@ void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int
         break;
     case kAccept: {
         IconScrollerIcon *icon = scroller->Selected();
-        if (scroller->Empty() || !scroller->inputEnabled_ || !icon || icon->value20) return;
+        if (scroller->Empty() || !scroller->S().inputEnabled || !icon || icon->value20) return;
         if (!icon->value45) {
             StopInput();
         } else {
@@ -717,9 +734,9 @@ void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int
         break;
     }
     case kStopDim:
-        if (scroller->stopped_) {
-            scroller->inputEnabled_ = true;
-            scroller->stopped_ = false;
+        if (scroller->S().stopped) {
+            scroller->S().inputEnabled = true;
+            scroller->S().stopped = false;
         }
         break;
     }
@@ -734,8 +751,8 @@ void IconScrollerFNGObject::SelectedIconChanged() {
 void IconScrollerFNGObject::AddIcon(IconScrollerIcon *icon) { ScrollerOf(this)->Add(icon); }  // 0x50dab0
 
 void IconScrollerFNGObject::StopInput() {  // 0x52fbf0
-    ScrollerOf(this)->inputEnabled_ = false;
-    ScrollerOf(this)->stopped_ = true;
+    ScrollerOf(this)->S().inputEnabled = false;
+    ScrollerOf(this)->S().stopped = true;
 }
 
 void IconScrollerFNGObject::Value50DA20(unsigned int message, int value8, int valueC, int value10) {  // 0x50da20
@@ -932,6 +949,7 @@ NativePause::~NativePause() { CloseAll(); }
 
 bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, const char *fontPath, char *error,
                        int errorSize) {
+    fengManager8384C4 = &nativeFengManager;
     textures = cache;
     std::string base = gameDirectory;
     std::vector<unsigned char> bundle, global;
@@ -969,6 +987,7 @@ bool NativePause::Loaded() const { return pauseScreen.loaded; }
 bool NativePause::Active() const { return ActiveScreen() != 0; }
 
 void NativePause::Open() {
+    fengManager8384C4 = &nativeFengManager;
     if (!pauseScreen.loaded || ActiveScreen()) return;
     request = kPauseRequestNone;
     ShowScreen(&pauseScreen);

@@ -51,3 +51,19 @@ void FEngManager::SetFocusByHash(const char *name, unsigned int hash) {
         if (object) package->SetFocus(queue8, object, 1);
     }
 }
+
+// Original 0x51cc60: only byte value 1 clears the object's 0x4000000 focus flag.
+void __stdcall FngSetFocusEnabled(const char *name, unsigned int hash, unsigned char enabled) {
+    FEngPackageNode *node = fengArchive8637B0.FindNode(name);
+    if (node && node->package18) {
+        FEPackage *package = node->package18;
+        HudVisibilityObject *object = 0;
+        for (unsigned int i = 0; i < package->focusCount94; ++i) {
+            if (package->focusObjects90[i]->hash10 == hash) object = package->focusObjects90[i];
+        }
+        if (object) {
+            if (enabled == 1) object->flags1C &= ~0x4000000u;
+            else object->flags1C |= 0x4000000;
+        }
+    }
+}

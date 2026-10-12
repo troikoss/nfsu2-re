@@ -173,6 +173,13 @@ public:
     void React(const char *package, unsigned int message, int value8, int valueC, int value10);
 };
 
+// Intrusive list helper, original 0x43be60. Links address icon +4.
+struct ScrollerIconList {
+    void *first0;
+    void *last4;
+    void *NodeAt(int index);
+};
+
 // Polymorphic scroller embedded at IconScrollerFNGObject +0x4c (base vtable
 // 0x795cbc). The pause menu dispatches slots +0x04 and +0x20 through it.
 class IconScroller4C {
@@ -181,8 +188,8 @@ public:
     virtual void UnknownSlot04() = 0;
     virtual void UnknownSlot08() = 0;
     virtual void UnknownSlot0C(unsigned int message, int value8, int valueC, int value10) = 0;
-    virtual void UnknownSlot10() = 0;
-    virtual void UnknownSlot14(IconScrollerIcon *icon) = 0;
+    virtual bool UnknownSlot10(int index) = 0;
+    virtual bool UnknownSlot14(IconScrollerIcon *icon) = 0;
     virtual void UnknownSlot18() = 0;
     virtual void UnknownSlot1C() = 0;
     virtual void UnknownSlot20(int value) = 0;
@@ -193,6 +200,8 @@ public:
     void Previous(); // 0x527750
     void StepNoWrap(int direction); // 0x51f9f0
     void StepWrap(int direction); // 0x51fac0
+    bool SelectIcon(IconScrollerIcon *icon); // 0x52f680
+    bool SelectIndex(int index); // 0x52f7c0, zero-based input
     int IndexOf(IconScrollerIcon *icon); // 0x51f820, 1-based; -1 if absent
     void Dispatch(unsigned int message, int value8, int valueC, int value10); // 0x50d980
 
@@ -213,6 +222,19 @@ public:
     unsigned char allowDisabled30;
     char unidentified31[3];
     int direction34;
+    char scrollBar38[0x58];
+    char tween90[0x30];
+    int alignmentC0;
+    int valueC4;
+    int selectedC8;
+    float windowCC;
+    int valueD0;
+    float masterD4;
+    float masterD8;
+    float valueDC;
+    float runningE0;
+    unsigned char fadeE4;
+    char unidentifiedE5[3];
 };
 
 UG2_CHECK_OFFSET(IconScroller4C, next4, 4);
@@ -222,7 +244,12 @@ UG2_CHECK_OFFSET(IconScroller4C, vertical2C, 0x2c);
 UG2_CHECK_OFFSET(IconScroller4C, relayout2E, 0x2e);
 UG2_CHECK_OFFSET(IconScroller4C, allowDisabled30, 0x30);
 UG2_CHECK_OFFSET(IconScroller4C, direction34, 0x34);
-UG2_CHECK_SIZE(IconScroller4C, 0x38);
+UG2_CHECK_OFFSET(IconScroller4C, tween90, 0x90);
+UG2_CHECK_OFFSET(IconScroller4C, alignmentC0, 0xc0);
+UG2_CHECK_OFFSET(IconScroller4C, selectedC8, 0xc8);
+UG2_CHECK_OFFSET(IconScroller4C, masterD4, 0xd4);
+UG2_CHECK_OFFSET(IconScroller4C, runningE0, 0xe0);
+UG2_CHECK_SIZE(IconScroller4C, 0xe8);
 
 // IconScrollerFNGObject: constructor 0x552330, destructor 0x4defb0, vtable 0x7974d4.
 class IconScrollerFNGObject {

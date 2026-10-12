@@ -29,9 +29,9 @@ unless the user or applicable repository/skill instructions request delegation.
 ## Authoritative checkpoint
 
 Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`, branch `main`.
-Latest verified checkpoint: **Recover pause icon scroller navigation and dispatch**
-(see Git history for its commit). Package mask/focus checkpoint: `3878b16`. Direct user authorization to commit and push to `main`
-was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
+Latest verified checkpoint: **Recover icon selection and preserve the full scroller layout**
+(see Git history for its commit). Navigation checkpoint: `c0b18f1`; package mask/focus
+checkpoint: `3878b16`. Direct user authorization to commit and push to `main` was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
 FEng objects the original object and script prefix**.
 
 Recovered and verified since the previous handoff (each with a Unicorn differential verifier and
@@ -77,18 +77,34 @@ classes write FEng internals directly, so the work is staged:
 3. **Navigation/dispatch done**: `IconScrollerNavigation.cpp` recovers `0x51f9f0`/`0x51fac0`,
    `0x5276d0`/`0x527700`, `0x527730`/`0x527750`, `0x51f820` and `0x50d980`. Native
    scroller retains the original prefix through `+0x34`, supplies icon +4 intrusive links,
-   and uses recovered navigation/indexing/dispatch. Slot +0x14 (selection/layout), constructor,
+   and uses recovered navigation/indexing/dispatch. Post-selection layout, construction,
    insertion and the remainder of the scroller still use native seams. The original wrap routine
    loops when every icon is disabled and disabled selection is disallowed; do not add a guard.
    `verify_pc_icon_scroller_navigation.py`: 34,670 comparisons, four rejected mutations;
    byte matching not established. Pause/options verifiers and all 19 native settings scenarios pass.
+   **Selection/layout storage done**: `IconScrollerSelection.cpp` recovers `0x52f680`,
+   `0x52f7c0`, and list `0x43be60`; FEng focus flag helper `0x51cc60` is stdcall (12-byte
+   cleanup). Selection marks all icon objects before the disabled/same-item gates. Direct
+   selection stores a 1-based index, indexed selection stores its zero-based input unchanged.
+   Native selection now calls recovered SelectIcon. The complete scroller extent is 0xe8:
+   ScrollBar +0x38, tween +0x90, alignment +0xc0, index +0xc8, window +0xcc, master +0xd4/+0xd8,
+   running offset +0xe0 and fade +0xe4. Native ownership/vector state lives separately.
+   The mapped manager pointer at 0x8384c4 is bound during native pause loading.
+   `verify_pc_icon_scroller_selection.py`: 12,063 comparisons; four rejected mutations,
+   package verifier now 12,000; native build and all 19 settings smoke scenarios pass.
+   Layout recovery must distinguish original coordinate helpers: `0x51d4d0` takes image
+   centre coordinates, `0x51d070` returns top-left, and `0x51d380` sets top-left. The native
+   GetPosition seam currently returns centre and cannot be reused unchanged. Alignment 1 in
+   `0x52f8c0` appears centre-aligned; the older native comments calling it bottom-aligned need
+   correction when verified. `0x537a10` is a type-2 string lookup, not the generic lookup that
+   the native seam currently provides; original constructors inline the generic path.
    **Next**: recover the rest of IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
    IconScrollerFNGObject `+0x4c`) replacing `NativeIconScroller`:
    ctors `0x543840`/`0x543a90`, ScrollBar `0x542ac0` (at scroller `+0x38`), slots `0x543bf0`,
-   `0x538940`, `0x543c10`, `0x52f7c0`, `0x52f680`, `0x538b80`, `0x51f870`,
+   `0x538940`, `0x543c10`, `0x538b80`, `0x51f870`,
    `0x538a30`; helpers `0x52f8c0`, `0x50d9c0`, `0x51fb70`, `0x538080`, `0x52fa70`,
    `0x538130`, `0x52e4e0`, `0x52e670`, `0x52e200`, `0x52e320`, `0x51fd10`, `0x51fd60`,
-   `0x50cb00`, `0x50d8d0`, tween `0x574e30`, list index `0x43be60`/`0x43be80`.
+   `0x50cb00`, `0x50d8d0`, tween `0x574e30`, list helper `0x43be80`.
    Layout notes: `+4/+8` icon list sentinel (icon node at icon `+4`), `+0xc` current icon,
    `+0x10/+0x14/+0x18` OPTION/LOCK/BUTTON_MASTER objects, `+0x1c` package, `+0x20` "option_"
    prefix, `+0x24` spacing (40), `+0x28` next option number, `+0x2c` vertical, `+0x2e` relayout,
@@ -148,6 +164,7 @@ build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_hud_player_masks.py
 build/venv/bin/python tools/verify_pc_hud_freeroam.py
+build/venv/bin/python tools/verify_pc_icon_scroller_selection.py
 build/venv/bin/python tools/verify_pc_icon_scroller_navigation.py
 build/venv/bin/python tools/verify_pc_feng_package.py
 build/venv/bin/python tools/verify_pc_pause_menu.py
