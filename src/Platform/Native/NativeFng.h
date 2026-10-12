@@ -9,6 +9,7 @@
 // Coordinates are the 640x480 FEng screen with its origin at the screen centre, y down.
 #include "NativeScene.h"
 #include "../../Speed/Indep/Src/Hud/HudVisibility.h"
+#include "../../Speed/Indep/Src/Frontend/FEngCoordinates.h"
 
 #include <GL/gl.h>
 #include <string>
@@ -21,6 +22,9 @@ unsigned int FengHash(const char *text);
 // Platform ownership of the retail script data. Arithmetic primitives are recovered.
 struct FengTrack {
     int type, size, interpolation, cycle, duration, offset;
+    signed char state7;
+    unsigned char flags3;
+    std::vector<unsigned char> baseline;
     std::vector<std::pair<int, std::vector<unsigned char> > > keys;
 };
 // Script event ('EV' records of 12 bytes): message hash, target and time in milliseconds.
@@ -35,6 +39,7 @@ struct FengScript {
     unsigned int hash;
     int duration;
     std::vector<FengTrack> tracks;
+    std::vector<FEScriptTrack> originalTracks;
     std::vector<FengEvent> events;
 };
 
@@ -52,7 +57,7 @@ struct FengResponse {
 };
 const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses, unsigned int message);
 
-struct FengObject : HudVisibilityObject {
+struct FengObject : FEStringObject {
     // Original prefix (HudVisibilityObject): guidC ('OP' +0), hash10 ('Oh'), type18 (1 image,
     // 2 string, 5 group), flags1C, texture24 (image resource hash), data2C (-> colour below),
     // script list scripts4C / currentScript54 (FEScript headers of `scripts`), child list.
@@ -66,10 +71,8 @@ struct FengObject : HudVisibilityObject {
     float uv[4];             // 17..20 (images)
     // Strings
     std::string text;
-    int justification;       // 'Sj' (object +0x6c)
+    std::vector<unsigned short> originalText;
     unsigned int font;       // 'SH': string label hash (0x534fc0 hands it to 0x4fe940), not a font
-    int leading;             // 'Sl' (object +0x70): extra pixels between lines
-    unsigned int maxWidth;   // 'Sw' (object +0x74): wrap width, 0 for none
     unsigned int fontHash;   // resource hash of the string's .ffn font (object +0x24)
     // Set by FengPackage
     FengObject *parent;
@@ -84,6 +87,11 @@ struct FengObject : HudVisibilityObject {
 
     bool Hidden() const { return (flags1C & 1) != 0; }
 };
+
+UG2_CHECK_OFFSET(FengObject, justification6C, 0x6c);
+UG2_CHECK_OFFSET(FengObject, leading70, 0x70);
+typedef char FengObject_position_state_check[(UG2_OFFSETOF(FengObject, position) - UG2_OFFSETOF(FengObject, colour) == 0x1c) ? 1 : -1];
+typedef char FengObject_size_state_check[(UG2_OFFSETOF(FengObject, size) - UG2_OFFSETOF(FengObject, colour) == 0x38) ? 1 : -1];
 
 class NativeFont;
 
@@ -146,19 +154,18 @@ private:
 class NativeFont {
 public:
     NativeFont();
+    ~NativeFont();
     bool Load(const char *gameDirectory, NativeTextureCache *textures, const char *explicitPath);
+    FEngFont *FindOriginalFont(unsigned int hash) const;
     bool Ready() const { return texture_ != 0 || !fonts_.empty(); }
     // Draws a string object in its local frame (the current GL matrix, FEng units).
     void DrawString(const FengObject *object);
     struct Glyph { float x0, y0, x1, y1, u0, v0, u1, v1, advance; };
 
 private:
-    struct FengFont {
+    struct FengFont : FEngFont {
         unsigned int hash;         // +0x14: name hash
         unsigned int textureHash;  // +0x18: texture name hash
-        float lineHeight;          // +0x24: FNTF +0x24
-        float offsetY;             // +0x28: per-font table 0x7f918c, else 0
-        float leadingScale;        // +0x2c: per-font table 0x7f918c, else 1
         std::vector<unsigned char> fntf;
     };
     const FengFont *Find(unsigned int hash) const;  // 0x51bd70

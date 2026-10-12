@@ -559,9 +559,8 @@ public:
                 y = (h - h * 0.8f) * 0.5f + masterY;
                 h *= 0.8f;
             }
-            e.object->size[0] = w;
-            e.object->size[1] = h;
-            FengPackage::SetPosition(e.object, x, y);
+            FEngSetSize(e.object, w, h);
+            FEngSetCentre(e.object, x, y);
         }
 
     }

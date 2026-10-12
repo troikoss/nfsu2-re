@@ -297,6 +297,10 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.
+- FEng image centre/size writes and rendered text height now call recovered coordinate
+  and metric routines. String and script-track prefixes expose the original offsets;
+  position writes update live state and matching script baselines. Low-level font lookup,
+  line measurement and script playback remain seams; see [coordinate evidence](pc-pause-menu.md#feng-coordinates-text-metrics-and-script-state).
 - Icon selection now calls recovered `0x52f680`; indexed selection `0x52f7c0`, list
   helper `0x43be60` and focus-flag helper `0x51cc60` are recovered too. The embedded
   scroller has its complete observed 0xe8-byte extent, with native vector/ownership state

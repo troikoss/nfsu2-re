@@ -23,9 +23,25 @@ struct FEScript {
 UG2_CHECK_OFFSET(FEScript, time10, 0x10);
 UG2_CHECK_OFFSET(FEScript, hash30, 0x30);
 
+// Original 0x38-byte script track prefix, used by state writers.
+struct FEScriptTrack {
+    unsigned char value0;
+    unsigned char value1;
+    unsigned char value2;
+    unsigned char flags3;
+    unsigned char unidentified4[3];
+    signed char state7;
+    char unidentified8[0x10];
+    float base18[4];
+    char unidentified28[0x10];
+};
+UG2_CHECK_OFFSET(FEScriptTrack, base18, 0x18);
+UG2_CHECK_SIZE(FEScriptTrack, 0x38);
+
 // Partial original FEng object (FEObject) layout, from the object reader 0x555140 and its users.
 // Native FNG objects retain this prefix so recovered routines operate on it directly.
 struct HudVisibilityObject {
+    void SetVectorState(int key, const float *value, unsigned char add); // 0x5178d0
     char unidentified0[4];
     HudVisibilityObject *next4;
     HudVisibilityObject *previous8;
@@ -45,7 +61,10 @@ struct HudVisibilityObject {
     FEScript *currentScript54;
     char unidentified58[8];
     int childCount60;
-    HudVisibilityObject *firstChild64;
+    union {
+        HudVisibilityObject *firstChild64;
+        unsigned short *text64;
+    };
 };
 UG2_CHECK_OFFSET(HudVisibilityObject, hash10, 0x10);
 UG2_CHECK_OFFSET(HudVisibilityObject, type18, 0x18);

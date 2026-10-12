@@ -60,7 +60,7 @@ void ReadResponses(const unsigned char *data, size_t size, std::vector<FengRespo
 void ApplyTrack(const FengTrack &track, unsigned char *state, int stateBytes, int time) {
     if (track.keys.empty() || track.offset < 0 || track.offset * 4 + track.size > stateBytes) return;
     unsigned char *out = state + track.offset * 4;
-    const unsigned char *base = &track.keys[0].second[0];
+    const unsigned char *base = track.baseline.empty() ? &track.keys[0].second[0] : &track.baseline[0];
     if (track.keys.size() == 1) { memcpy(out, base, track.size); return; }
     if (track.interpolation != 1 || track.cycle > 1 || (track.type != 4 && track.type != 6)) {
         // The loader can still use a constant first key for unrecovered tracks.
@@ -187,10 +187,10 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             object->resource = -1;
                             object->texture24 = 0;
                             object->data2C = reinterpret_cast<float *>(object->colour);
-                            object->justification = 0;
+                            object->justification6C = 0;
                             object->font = 0;
-                            object->leading = 0;
-                            object->maxWidth = 0;
+                            object->leading70 = 0;
+                            object->maxWidth74 = 0;
                             object->fontHash = 0;
                             object->parent = 0;
                             object->imageMask = 0;
@@ -228,14 +228,15 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                             for (unsigned int i = 0; i + 1 < len; i += 2) {
                                                 unsigned int c = Rd16(pl + i);
                                                 if (!c) break;
+                                                object->originalText.push_back((unsigned short)c);
                                                 object->text += (char)(c < 256 ? c : '?');
                                             }
                                             break;
                                         }
-                                        case 0x6a53: object->justification = (int)Rd32(pl); break;  // 'Sj'
+                                        case 0x6a53: object->justification6C = (int)Rd32(pl); break;  // 'Sj'
                                         case 0x4853: object->font = Rd32(pl); break;                 // 'SH'
-                                        case 0x6c53: object->leading = (int)Rd32(pl); break;         // 'Sl'
-                                        case 0x7753: object->maxWidth = Rd32(pl); break;             // 'Sw'
+                                        case 0x6c53: object->leading70 = (int)Rd32(pl); break;         // 'Sl'
+                                        case 0x7753: object->maxWidth74 = Rd32(pl); break;             // 'Sw'
                                         }
                                         t += 4 + len;
                                     }
@@ -253,6 +254,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                 script.hash = 0;
                                 script.duration = 0;
                                 std::vector<FengTrack> &tracks = script.tracks;
+                                int nextState = 0;  // 0x5515e0: FI advances by value size / 4
                                 size_t t = 0;
                                 while (t + 4 <= sc.size()) {
                                     unsigned int tag = Rd16(&sc[t]);
@@ -265,11 +267,23 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         track.size = pl[1];
                                         track.interpolation = pl[2];
                                         track.cycle = pl[3] & 0x7f;
+                                        track.flags3 = pl[3];
+                                        track.state7 = (signed char)nextState;
                                         track.duration = (int)(Rd32(pl + 4) & 0xffffff);
-                                        track.offset = 0;
+                                        track.offset = (signed char)nextState;
+                                        nextState += track.size >> 2;
                                         tracks.push_back(track);
                                     } else if (tag == 0x6f54 && !tracks.empty()) {  // 'To'
-                                        tracks.back().offset = (int)Rd32(pl);
+                                        tracks.back().offset = (signed char)pl[0];
+                                        tracks.back().state7 = (signed char)pl[0];
+                                    } else if (tag == 0x6254 && !tracks.empty()) {  // 'Tb': inline base, after time dword
+                                        FengTrack &track = tracks.back();
+                                        if (len >= 4 + track.size) track.baseline.assign(pl + 4, pl + 4 + track.size);
+                                    } else if (tag == 0x6154 && !tracks.empty()) {  // 'Ta'
+                                        tracks.back().flags3 = pl[0];
+                                        tracks.back().cycle = pl[0] & 0x7f;
+                                    } else if (tag == 0x7454 && !tracks.empty()) {  // 'Tt'
+                                        tracks.back().interpolation = pl[0];
                                     } else if (tag == 0x5645) {  // 'EV'
                                         for (unsigned int k = 0; k + 12 <= len; k += 12) {
                                             FengEvent event = {Rd32(pl + k), Rd32(pl + k + 4), (int)Rd32(pl + k + 8)};
@@ -280,6 +294,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         unsigned int stride = track.size + 4;
                                         for (unsigned int k = 0; k + stride <= len; k += stride) {
                                             int time = (int)Rd32(pl + k);
+                                            if (track.keys.empty()) track.baseline.assign(pl + k + 4, pl + k + stride);
                                             track.keys.push_back(std::make_pair(
                                                 time, std::vector<unsigned char>(pl + k + 4, pl + k + stride)));
                                         }
@@ -295,7 +310,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             if (!state.empty()) ReadState(object, &state[0], (int)state.size());
                             if (object->resource >= 0 && object->resource < (int)resourceHashes.size()) {
                                 if (object->type18 == 1) object->texture24 = resourceHashes[object->resource];
-                                else if (object->type18 == 2) object->fontHash = resourceHashes[object->resource];
+                                else if (object->type18 == 2) object->texture24 = object->fontHash = resourceHashes[object->resource];
                             }
                             // Rotation about z from the quaternion (screen y down, positive = clockwise).
                             object->angle = 2.0f * atan2f(object->rotation[2], object->rotation[3]) * 180.0f / 3.14159265f;
@@ -328,14 +343,36 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         FengObject *object = objects_[i];
         object->childCount60 = (int)object->children.size();
         object->firstChild64 = object->children.empty() ? 0 : object->children[0];
+        if (object->type18 == 2) {
+            if (object->originalText.empty()) {
+                for (size_t k = 0; k < object->text.size(); ++k) object->originalText.push_back((unsigned char)object->text[k]);
+            }
+            object->originalText.push_back(0);
+            object->text64 = &object->originalText[0];
+        }
         for (size_t j = 0; j < object->children.size(); ++j)
             object->children[j]->next4 = j + 1 < object->children.size() ? object->children[j + 1] : 0;
         // Native loader seam: original FEScript headers of the loaded scripts, linked in file order.
         for (size_t j = 0; j < object->scripts.size(); ++j) {
-            FEScript &header = object->scripts[j].header;
+            FengScript &script = object->scripts[j];
+            script.originalTracks.resize(script.tracks.size());
+            for (size_t k = 0; k < script.tracks.size(); ++k) {
+                const FengTrack &native = script.tracks[k];
+                FEScriptTrack &track = script.originalTracks[k];
+                memset(&track, 0, sizeof(track));
+                track.value0 = native.type;
+                track.value1 = native.size;
+                track.value2 = native.interpolation;
+                track.flags3 = native.flags3;
+                track.state7 = native.state7;
+                if (!native.baseline.empty()) memcpy(track.base18, &native.baseline[0], native.size < 16 ? native.size : 16);
+            }
+            FEScript &header = script.header;
             memset(&header, 0, sizeof(header));
             header.lengthC = object->scripts[j].duration;
             header.hash30 = object->scripts[j].hash;
+            header.trackCount1C = script.originalTracks.size();
+            header.tracks20 = script.originalTracks.empty() ? 0 : &script.originalTracks[0];
             header.previous8 = j ? &object->scripts[j - 1].header : 0;
             header.next4 = j + 1 < object->scripts.size() ? &object->scripts[j + 1].header : 0;
         }
@@ -419,8 +456,13 @@ void FengPackage::AdvanceScripts(float seconds) {
         memcpy(state + 40, object->rotation, 16);
         memcpy(state + 56, object->size, 12);
         memcpy(state + 68, object->uv, 16);
-        for (size_t k = 0; k < script.tracks.size(); ++k)
-            ApplyTrack(script.tracks[k], state, sizeof(state), script.header.time10);
+        for (size_t k = 0; k < script.tracks.size(); ++k) {
+            FengTrack &track = script.tracks[k];
+            if (!track.baseline.empty()) {
+                memcpy(&track.baseline[0], script.originalTracks[k].base18, track.size < 16 ? track.size : 16);
+            }
+            ApplyTrack(track, state, sizeof(state), script.header.time10);
+        }
         ReadState(object, state, sizeof(state));
         float milliseconds = (float)script.header.time10 + object->scriptRemainder + seconds * 1000.0f;
         bool cycling = false;
@@ -471,7 +513,13 @@ void FengPackage::SetState(FengObject *object, int key, const float *value) {
 }
 
 void FengPackage::SetText(FengObject *object, const char *text) {
-    if (object) object->text = text;
+    if (object) {
+        object->text = text;
+        object->originalText.clear();
+        for (size_t i = 0; i < object->text.size(); ++i) object->originalText.push_back((unsigned char)object->text[i]);
+        object->originalText.push_back(0);
+        if (object->type18 == 2) object->text64 = &object->originalText[0];
+    }
 }
 
 void FengPackage::Gather(FengObject *object, const float *parent, float parentAlpha, std::vector<DrawItem> *items) {
@@ -825,24 +873,10 @@ float LineWidth(const unsigned char *fntf, const unsigned short *p, unsigned int
 
 // 0x50bf40: height of all lines, `leading` added per line break.
 float TextHeight(const unsigned char *fntf, float lineHeight, const unsigned short *p, int leading) {
-    if (!p) return 0.0f;
-    unsigned short c = *p;
-    float height = 0.0f;
-    bool glyphs = true;
-    if (c != 0) {
-        do {
-            ++p;
-            if (c == 10 || c == 0x5e) {
-                glyphs = false;
-                height = (float)leading + height + lineHeight;
-            } else if (c != 0xd) {
-                if (FindGlyph(fntf, c & 0xff)) glyphs = true;
-            }
-            c = *p;
-        } while (c != 0);
-        if (!glyphs) return height;
-    }
-    return height + lineHeight;
+    FEngFont font;
+    font.fntfC = const_cast<unsigned char *>(fntf);
+    font.lineHeight24 = lineHeight;
+    return font.TextHeight(p, leading);
 }
 
 // 0x50c080: number of lines. A line break only counts once a space has been seen on its line.
@@ -918,7 +952,13 @@ const unsigned int kFontSubstitutes[][2] = {
 
 }  // namespace
 
+// Process-lifetime lookup storage survives global font destruction ordering.
+static std::vector<NativeFont *> *coordinateFonts = new std::vector<NativeFont *>;
+
 NativeFont::NativeFont() : textures_(0), texture_(0), bakedSize_(48.0f) { memset(glyphs_, 0, sizeof(glyphs_)); }
+NativeFont::~NativeFont() {
+    coordinateFonts->erase(std::remove(coordinateFonts->begin(), coordinateFonts->end(), this), coordinateFonts->end());
+}
 
 // Platform seam for the 0x30201 handler 0x52cd00 and constructor 0x51bdc0: font name at +0,
 // texture name at +0x100, FNTF at +0x200. Language-suffix stripping of the name is not needed for
@@ -942,13 +982,13 @@ void NativeFont::AddFonts(const std::vector<unsigned char> &bundle) {
                 offset += 8 + length;
                 continue;
             }
-            font.lineHeight = (float)(int)Rd32(fntf + 0x24);
-            font.offsetY = 0.0f;
-            font.leadingScale = 1.0f;
+            font.lineHeight24 = (float)(int)Rd32(fntf + 0x24);
+            font.offset28 = 0.0f;
+            font.leadingScale2C = 1.0f;
             for (size_t i = 0; i < sizeof(kFontAdjustments) / sizeof(kFontAdjustments[0]); ++i) {
                 if (kFontAdjustments[i].hash == font.hash) {
-                    font.offsetY = kFontAdjustments[i].offsetY;
-                    font.leadingScale = kFontAdjustments[i].leadingScale;
+                    font.offset28 = kFontAdjustments[i].offsetY;
+                    font.leadingScale2C = kFontAdjustments[i].leadingScale;
                 }
             }
             fonts_.push_back(font);
@@ -969,10 +1009,30 @@ const NativeFont::FengFont *NativeFont::Find(unsigned int hash) const {
     return 0;
 }
 
+// Native resource lookup and line measurement boundaries for recovered coordinate logic.
+FEngFont *NativeFont::FindOriginalFont(unsigned int hash) const {
+    FengFont *font = const_cast<FengFont *>(Find(hash));
+    if (font) font->fntfC = &font->fntf[0];
+    return font;
+}
+FEngFont *FindFEngFont(unsigned int hash) {
+    for (size_t i = 0; i < coordinateFonts->size(); ++i) {
+        if (FEngFont *font = (*coordinateFonts)[i]->FindOriginalFont(hash)) return font;
+    }
+    return 0;
+}
+float FEngFont::LineWidth(const unsigned short *text, unsigned int flags, unsigned int maxWidth, unsigned char *wrapped) {
+    bool nativeWrapped = false;
+    float width = ::LineWidth(fntfC, text, flags, maxWidth, wrapped ? &nativeWrapped : 0);
+    if (wrapped) *wrapped = nativeWrapped;
+    return width;
+}
+
 static bool LoadTrueType(const char *explicitPath, GLuint *texture, float bakedSize, NativeFont::Glyph *glyphs);
 
 bool NativeFont::Load(const char *gameDirectory, NativeTextureCache *textures, const char *explicitPath) {
     textures_ = textures;
+    if (std::find(coordinateFonts->begin(), coordinateFonts->end(), this) == coordinateFonts->end()) coordinateFonts->push_back(this);
     std::string base = gameDirectory ? gameDirectory : ".";
     const char *bundles[][2] = {
         {"/GLOBAL/GLOBALA.BUN", 0},
@@ -1002,7 +1062,7 @@ bool NativeFont::Load(const char *gameDirectory, NativeTextureCache *textures, c
 void NativeFont::DrawString(const FengObject *object) {
     const FengFont *font = Find(object->fontHash);
     if (!font) {
-        if (texture_) DrawTrueType(object->text, object->size[0], object->justification);
+        if (texture_) DrawTrueType(object->text, object->size[0], object->justification6C);
         return;
     }
     // Native seam: the string's size scales its FEng units like the retail object matrix.
@@ -1022,13 +1082,13 @@ void NativeFont::DrawRetail(const FengFont &font, const FengObject *object) {
     text.push_back(0);
     const unsigned char *fntf = &font.fntf[0];
     const unsigned short *p = &text[0];
-    int justification = object->justification;
+    int justification = object->justification6C;
     unsigned int flags = object->flags1C;
-    unsigned int maxWidth = object->maxWidth;
-    int leading = (int)((float)object->leading * font.leadingScale);
+    unsigned int maxWidth = object->maxWidth74;
+    int leading = (int)((float)object->leading70 * font.leadingScale2C);
     float height;
-    if ((justification & 5) == 0) height = TextHeight(fntf, font.lineHeight, p, leading);
-    else height = ((float)object->leading * font.leadingScale + font.lineHeight) *
+    if ((justification & 5) == 0) height = TextHeight(fntf, font.lineHeight24, p, leading);
+    else height = ((float)object->leading70 * font.leadingScale2C + font.lineHeight24) *
                   (float)LineCount(fntf, p, flags, maxWidth);
     float y = 0.0f;
     if (justification & 4) y = height * -0.5f;
@@ -1074,7 +1134,7 @@ void NativeFont::DrawRetail(const FengFont &font, const FengObject *object) {
                     // around the glyph. GL seam: a half-texel inset keeps bilinear filtering from
                     // reaching the neighbouring glyphs of the packed texture when scaled up.
                     float x0 = (float)(signed char)glyph[9] + pen;
-                    float y0 = (float)(signed char)glyph[10] + font.offsetY + y;
+                    float y0 = (float)(signed char)glyph[10] + font.offset28 + y;
                     float w = glyph[2] < 4 ? 4.0f : (float)glyph[2];
                     float x1 = x0 + w, y1 = (float)glyph[3] + y0;
                     float u0 = ((float)((int)Rd16(glyph + 4) - 1) + 0.5f) / textureWidth;
@@ -1097,7 +1157,7 @@ void NativeFont::DrawRetail(const FengFont &font, const FengObject *object) {
             }
         }
         if (newLine) {
-            y = (float)leading + font.lineHeight + y;
+            y = (float)leading + font.lineHeight24 + y;
             pen = lineStart;
         }
         c = *p;

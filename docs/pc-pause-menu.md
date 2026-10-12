@@ -259,3 +259,54 @@ still passes **34,670**. **Byte matching remains unestablished.**
 Four mutation checks reject changing the stored indexed value, leaving the selected object's
 focus flag set, reversing the disabled-selection gate and removing same-icon refusal.
 The native build, existing pause/options verifiers and all 19 settings smoke scenarios pass.
+
+## FEng coordinates, text metrics and script state
+
+`Frontend/FEngCoordinates.cpp` recovers these original routines:
+
+| Routine | Address | Behavior |
+|---|---|---|
+| Glyph binary search | `0x6f45b0` | Sorted ushort keys with variable stride |
+| Text width / height | `0x50bec0` / `0x50bf40` | Maximum suffix/line measurements; low-byte glyph lookup and trailing-break policy |
+| Horizontal / vertical justification | `0x50c020` / `0x50c050` | Bit priority, -0.5 scale or negation; stdcall |
+| Vector equality tolerance | `0x504500` | Ordered inclusive bounds using `0x7992ec`; AL result |
+| State offset lookup | `0x5046f0` | Keys 1–10; offset zero otherwise; stdcall |
+| Vector state writer | `0x5178d0` | First matching track per script, then live state; set/add and clear the track's high flag bit |
+| Top-left getter | `0x51d070` | Image half-size subtraction, string metrics/justification, group no-op |
+| Top-left setter | `0x51d380` | Image half-size addition, string alignment subtraction; preserve z and guard type >= 0x100 |
+| Centre setter | `0x51d4d0` | Image centre directly, string metric midpoint/alignment subtraction; same dirty/state-write path |
+| Size setter | `0x50cb00` | Writes size and dirty bit, including non-image types |
+
+The state writer **always updates live state**, including when scripts exist; it also
+updates only the first matching 0x38-byte track of each script. The original state-key
+table is bound at `0x7992f4`. Dirty-bit decisions use the original epsilon comparisons,
+including ordered NaN behavior, rather than rounded coordinate differences.
+
+Native strings now retain UTF-16 `+0x64`, justification `+0x6c`, leading `+0x70` and
+wrap width `+0x74`; font resource hash is also at the original `+0x24`. Script headers
+point to track prefixes with baseline `+0x18` and state selector byte `+7`. Loader evidence
+from `0x5515e0` establishes that FI selectors advance by value size/4 and To overrides
+that selector (it is not FI payload byte 7); Tb/first Kd values supply the inline base.
+Ta/Tt update flags/interpolation. The loader remains a platform seam, not a recovered
+or original/rebuilt-verified package loader. Native playback synchronizes its baseline
+from those prefixes. Icon positioning/size calls the recovered centre and size setters;
+rendered text height uses the recovered height routine. Font lookup `0x51bd70` and low-level
+line measurement `0x50bce0` remain native boundaries. Their native implementations, full
+track dispatch, scroller placement and tweening are outside this proof.
+
+`build/venv/bin/python tools/verify_pc_feng_coordinates.py`: **24,024 comparisons** over
+12 routines, with 53-bit and 64-bit x87 precision. The tests execute the actual recovered
+state/metric/helper dependency chain, controlling only font lookup and line measurement.
+Cases include null object/font/text, image/string/group/default/high object types,
+justification combinations, multiline/trailing-break strings, glyph hits/misses and strides,
+empty/multiple script lists and repeated matching tracks, set/add bytes, offset keys,
+pre-existing flags/z and NaNs/infinities/epsilon edges for vector comparison. Checks cover
+fixture memory, defined return bits, x87 float returns, font-call arguments, stack cleanup,
+callee-saved registers and unchanged precision. Fingerprints/results remain local in
+`build/analysis/feng-coordinates/verification.json`. Five mutations are rejected: reversed
+half-size subtraction, updating multiple matching tracks, wrong position offset, changed
+justification priority and an extra trailing line. **Byte matching is not established.**
+
+The native build, pause verifier (11,723), options verifier (5,730), freeroam HUD verifier
+(15,180), all 19 settings scenarios with slider pixel checks and all 10 Controls scenarios
+pass. These smoke checks establish bounded integration separately from differential execution.

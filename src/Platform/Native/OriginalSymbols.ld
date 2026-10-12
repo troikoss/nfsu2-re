@@ -831,3 +831,7 @@ pcOLLobbyFng78F320 = 0x78f320;
 fengArchive8637B0 = 0x8637b0;
 
 fengManager8384C4 = 0x8384c4;
+
+/* Original FEng coordinate tolerance and script state-key table. */
+fengEpsilon7992EC = 0x7992ec;
+fengStateKeys7992F4 = 0x7992f4;
