@@ -294,9 +294,14 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   wrapping (`0x51f9f0`); accept reacts immediately for dialog items (`+0x45`) and after
   `EXIT_COMPLETE` otherwise, only for the focused icon object (`0x50d980`). Scroll animation,
   sounds and Dim/UNDIM scripts are not modelled.
-- FEng (`0x537a10`, `0x50c900`, `0x50b8a0`/`0x50b8c0`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
+- FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.
+- Package masks, persisted selection and focus now use recovered routines `0x537950`,
+  `0x50b8a0`/`0x50b8c0`, `0x52b3a0` and `0x52ce40`. Native screens retain FEPackage
+  masks/focus/array offsets, archive-node package `+0x18` and a separate static FNG selection
+  record. Object/record/archive loading and queue dispatch remain seams; see
+  [package evidence](pc-pause-menu.md#feng-package-masks-selection-and-focus).
 - FEng sprite rendering: the object quaternion is projected onto the screen plane, so the
   180-degree x/y turns UI_Pause uses to mirror frame corners and bar caps draw as mirrors; sprites
   with UVs inside [0,1] sample with GL_CLAMP_TO_EDGE so linear filtering does not wrap edge texels.

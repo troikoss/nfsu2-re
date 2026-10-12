@@ -29,8 +29,10 @@ unless the user or applicable repository/skill instructions request delegation.
 ## Authoritative checkpoint
 
 Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`, branch `main`.
-Last pushed commit: `3e58488` — **Give native FEng objects the original object and script
-prefix**. Working tree clean at handoff.
+Latest verified checkpoint: **Recover FEng package masks and focus for the pause menu**
+(see Git history for its commit). Direct user authorization to commit and push to `main`
+was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
+FEng objects the original object and script prefix**.
 
 Recovered and verified since the previous handoff (each with a Unicorn differential verifier and
 mutation tests; byte matching not established):
@@ -59,11 +61,19 @@ classes write FEng internals directly, so the work is staged:
    (size at `+0x38/+0x3c`), script list `+0x4c`, current script `+0x54`) and the FEScript
    prefix (length `+0xc`, time `+0x10`, hash `+0x30`). The native script player runs on
    `currentScript54->time10`. HUD/pause frames byte-identical.
-2. **Next**: FEPackage prefix for native screens — input masks `+0x1c/+0x20/+0x24/+0x28`,
-   focusable-object array `+0x90`/count `+0x94` (objects with flag 0x10000000, see object reader
-   `0x555140`), and a native FEng manager at `*0x8384c4` (`+8` package node list; node `+0x18` is
-   the FEPackage; lookups `0x52cef0`, `0x51bb70`, `0x517f80`, `0x52c570`; focus `0x52ce40` ->
-   `0x52b3a0`).
+2. **Done**: native screens retain FEPackage masks `+0x1c/+0x20/+0x24/+0x28`, focus
+   `+0x8c`, focusable-object array `+0x90`/count `+0x94` (flag 0x10000000, reader `0x555140`),
+   archive node's package `+0x18` and manager's queue pointer `+8`. `FEngPackage.cpp` recovers
+   mask setter `0x537950`, selection get/set `0x50b8a0`/`0x50b8c0`, focus setter `0x52b3a0`
+   and hash focus `0x52ce40`. `verify_pc_feng_package.py`: 10,000 comparisons; four rejected
+   source mutations. Native icon selection uses hash focus; option widget focus uses SetFocus.
+   Focus notifications are queued before assignment. **Correction:** selection `+0x10` is
+   in the static FNG record (table `0x7f7dc8`, lookup `0x50b840`), not the live package.
+   Native package/archive/record lookups and queue dispatch remain seams, including unmodelled
+   target -5 delivery. The global manager at `*0x8384c4` and original lookup lists are still
+   unrecovered (`0x52cef0`, `0x51bb70`, `0x517f80`, `0x52c570`). Native build, pause verifier
+   (11,723), options verifier (5,730) and all 19 native settings scenarios pass.
+   Evidence: `docs/pc-pause-menu.md#feng-package-masks-selection-and-focus`.
 3. Recover the IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
    IconScrollerFNGObject `+0x4c`) replacing `NativeIconScroller`:
    ctors `0x543840`/`0x543a90`, ScrollBar `0x542ac0` (at scroller `+0x38`), slots `0x543bf0`,
@@ -116,7 +126,7 @@ Reference: local `Need for Speed Underground 2/speed2.exe`, SHA-256
 `f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7`.
 Retail source fixtures come from local `GLOBAL/GLOBALB.BUN`, not committed data.
 
-Ghidra skill: `/home/dq/.claude/skills/ghidra-rpc` (`uv run ghidra-rpc ...` from that directory).
+Ghidra skill: `/home/dq/.codex/skills/ghidra-rpc` (`uv run ghidra-rpc ...` from that directory).
 Project: `build/ghidra/ug2.gpr`, program `speed2.exe`. Check current daemon
 status before relying on prior state. Local daemon access may need escalation.
 Ignored `build/analysis/demo-recovery/` contains decompilation JSON and disassembly
@@ -131,6 +141,7 @@ build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_hud_player_masks.py
 build/venv/bin/python tools/verify_pc_hud_freeroam.py
+build/venv/bin/python tools/verify_pc_feng_package.py
 build/venv/bin/python tools/verify_pc_pause_menu.py
 build/venv/bin/python tools/verify_pc_pause_options.py
 build/venv/bin/python tools/verify_pc_track_markers.py
@@ -146,4 +157,4 @@ filenames. Local tools are `build/tools/wibo` and
 `build/compilers/Win32/7.1/cl.exe`. Native32 execution requires escalation in this
 sandbox; a sandbox exit 159 does not establish a native program failure.
 Git mutations/push also require escalation because `.git` is sandbox read-only.
-No analysis jobs were left running by the interrupted draft-edit step.
+No analysis jobs are left running at this checkpoint.

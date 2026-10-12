@@ -1,8 +1,8 @@
 #ifndef UG2_NATIVE_FRONTEND_H
 #define UG2_NATIVE_FRONTEND_H
 
-// Platform scaffolding shared by the native pause and options seams (NativePause.cpp,
-// NativePauseOptions.cpp). Not original code: FEng package ownership, focus and scripts.
+// Platform scaffolding shared by native pause and options (NativePause.cpp,
+// NativePauseOptions.cpp): package ownership and scripts; focus calls recovered FEng code.
 #include "NativeFng.h"
 
 // Package of a shown screen, or null.

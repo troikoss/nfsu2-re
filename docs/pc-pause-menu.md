@@ -3,8 +3,8 @@
 Reference: UG2 PC v1.2 `speed2.exe`, SHA-256
 `f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7`.
 Ghidra decompilation was checked against x86 disassembly and original/rebuilt
-execution. This pass covers `UI_Pause.fng` and its option items. It **does not
-recover the IconScroller base, FEng, the in-game dialog, or the game-flow states the menu queues**.
+execution. This pass covers `UI_Pause.fng` and its option items. The IconScroller base, most of FEng, the in-game dialog and the game-flow states the menu queues
+remain unrecovered. Package mask, selection and focus recovery is recorded below.
 
 ## Recovered source
 
@@ -98,7 +98,7 @@ and the help-bar removal; the rebuilt `/Ob0` objects call them out of line.
 
 ### Controlled interfaces (not verified)
 
-FEng (`0x505450`, `0x537a10`, `0x50c900`, `0x50b8a0`/`0x50b8c0`, `0x50cea0`,
+FEng (`0x505450`, `0x537a10`, `0x50c900`, `0x50cea0`,
 `0x52cf60`, `0x5379a0`, `0x555f10`, `0x537980`, `0x537950`, `0x50d2d0`,
 `0x537cc0`, `0x537c00`, `0x55dda0`, `0x558790`, `0x50c8d0`, `0x50d1d0`),
 controller `0x571a60`, game flow `0x5f41e0`/`0x5f4240`, help bar
@@ -119,3 +119,47 @@ pause routines read.
   queued messages.
 - Recover the IconScroller base and FEng message/script dispatch that the native demo
   currently supplies as seams (`NativePause.cpp`).
+
+## FEng package masks, selection and focus
+
+`Frontend/FEngPackage.cpp` recovers five routines from Ghidra and checked x86 disassembly:
+
+| Routine | Address | Behavior |
+|---|---|---|
+| `FngSetControlMask` | `0x537950` | Writes all four masks `+0x1c/+0x20/+0x24/+0x28`; missing package is ignored |
+| `FngGetPackageValue10` | `0x50b8a0` | Hashes package name and reads the static FNG record's `+0x10`; zero if absent |
+| `FngSetPackageValue10` | `0x50b8c0` | Writes that same record; missing record is ignored |
+| `FEPackage::SetFocus` | `0x52b3a0` | Queues old-object lost-focus `0x55d1e635` and new-object gained-focus `0xabc08912`, each first to the object then to target -5, before assigning `+0x8c` |
+| `FEngManager::SetFocusByHash` | `0x52ce40` | Looks up archive node, reads package `+0x18`, scans the full focus array, and selects the last matching hash |
+
+The selection field is **not** a live FEPackage field: `0x50b840` finds it in the
+static 0x1c-byte FNG records beginning at `0x7f7dc8`. The earlier native seam and
+handoff described its ownership incorrectly, although they preserved it across reloads.
+`FEngPackage.h` now defines the observed FEPackage prefix through `+0x94`, the
+archive node's package pointer and manager's queue pointer at `+8` with offset checks.
+Unknown storage stays unnamed beyond its offset.
+
+Native screens own an FEPackage prefix, an archive-node prefix and a separate persisted
+record. The native loader builds the focus array from objects with flag `0x10000000`
+(as read in original object reader `0x555140`). Icon selection calls the recovered
+hash lookup; option widget selection calls recovered `SetFocus` directly. Input routing
+reads `focus8C`. Native archive lookup, object loading, record lookup and queue storage
+remain explicit seams; target -5 delivery remains unmodelled. This does not establish
+recovery of the archive lists, manager lifecycle or original FEng dispatch.
+
+`build/venv/bin/python tools/verify_pc_feng_package.py` compiles with MSVC 7.1 and
+executes original/rebuilt code in Unicorn. **10,000 passing comparisons** cover null
+package/record/node, null node package, arbitrary input masks and saved values, null/old/new/same
+focus, notifications disabled or enabled (including noncanonical byte values), empty arrays,
+missing hashes and duplicate hashes. It checks complete fixture memory, queue message/order/
+arguments, focus at each queue call, return values where defined, stack cleanup and preserved
+registers. Lookup/hash/queue boundaries are controlled interfaces at their original addresses;
+their implementations are outside this proof. Fingerprints and results are saved locally in
+`build/analysis/feng-package/verification.json`. **Byte matching is not established.**
+
+Mutation checks reject zeroing one mask, changing the gained-focus message, selecting the
+first duplicate hash and assigning focus before notifications. Existing pause verification
+still passes 11,723 comparisons and 25 vtable slots; options passes 5,730 comparisons over
+89 routines and 510 vtable slots. The native build and all 19 settings smoke scenarios,
+including rendered slider checks, pass. Native smoke evidence establishes routing and
+session integration only, separately from original/rebuilt execution.

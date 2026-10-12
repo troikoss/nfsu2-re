@@ -1,5 +1,5 @@
 // Platform scaffolding for the recovered pause menu and in-game options. Nothing in this file is
-// original code: it supplies the unrecovered FEng, IconScroller, dialog and game-flow interfaces
+// original code: it supplies the remaining FEng, IconScroller, dialog and game-flow interfaces
 // that Speed/Indep/Src/Frontend/PauseMenu.cpp and PauseOptions.cpp call, at the original call
 // boundaries. Each seam names the retail routine it stands in for; behaviour taken from a read of
 // that routine is marked as such and is not verified.
@@ -8,6 +8,7 @@
 #include "NativeFrontend.h"
 #include "NativeControls.h"
 #include "NativeHud.h"
+#include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/PauseOptions.h"
 #include "../../Speed/Indep/Libs/bWare/Compression.h"
 
@@ -56,14 +57,27 @@ void *CreateOptions(void *data) { return CreatePauseOptionsFNGObject(data); }
 struct NativeScreen {
     NativeScreen(const char *packageName, ScreenFactory create, bool list)
         : name(packageName), factory(create), optionsList(list), package(0), loaded(false), shown(false),
-          value10(0), controlMask(0), focus(0), object(0) {}
+          object(0) {
+        memset(&fePackage, 0, sizeof(fePackage));
+        memset(&record, 0, sizeof(record));
+        memset(&node, 0, sizeof(node));
+        node.package18 = &fePackage;
+    }
     // Every showing starts from the package's loaded state, as a newly pushed FEng package does.
     bool Reset(std::string *error) {
         delete package;
         package = new FengPackage;
         currentScript.clear();
-        focus = 0;
-        return package->Load(&data[0], data.size(), 0, error);
+        memset(&fePackage, 0, sizeof(fePackage));
+        focusObjects.clear();
+        if (!package->Load(&data[0], data.size(), 0, error)) return false;
+        const std::vector<FengObject *> &objects = package->Objects();
+        for (size_t i = 0; i < objects.size(); ++i) {
+            if (objects[i]->flags1C & 0x10000000) focusObjects.push_back(objects[i]);
+        }
+        fePackage.focusObjects90 = focusObjects.empty() ? 0 : &focusObjects[0];
+        fePackage.focusCount94 = focusObjects.size();
+        return true;
     }
     void Deliver(unsigned int message, int value8, int valueC) {
         if (!object) return;
@@ -86,9 +100,10 @@ struct NativeScreen {
     FengPackage *package;
     bool loaded;
     bool shown;
-    int value10;           // FEng package +0x10 (0x50b8a0 / 0x50b8c0), kept across showings
-    unsigned int controlMask;
-    FengObject *focus;     // package +0x8c
+    FEPackage fePackage;  // original prefix, native object loading remains a seam
+    FngRecord record;      // static FNG selection survives package reloads
+    FEngPackageNode node;
+    std::vector<HudVisibilityObject *> focusObjects;
     std::map<FengObject *, unsigned int> currentScript;  // object +0x54 script hash
     void *object;          // FNG object created by the package's FNGINIT factory
 };
@@ -144,6 +159,8 @@ float clockRemainder = 0.0f;
 GameFlow8900D8 nativeFlow;
 PCHelpBarFNGObject nativeHelpBar;
 Replay8650B8 nativeReplay;
+FEngQueue nativeFengQueue;
+FEngManager nativeFengManager = {{0}, &nativeFengQueue};
 
 NativeScreen *FindScreen(const char *name) {
     if (!name) return 0;
@@ -360,7 +377,7 @@ void Pump() {
 // package-level responses; nothing else is sent. Accept is 0x0c407210 on the focus object and
 // PAD_ACCEPT on the package.
 void Input(NativeScreen *screen, unsigned int message) {
-    FengObject *focus = screen->focus;
+    FengObject *focus = static_cast<FengObject *>(screen->fePackage.focus8C);
     if (focus && FindFengResponse(focus->responses, message)) {
         Post(screen, message, 0, kTargetObject, focus);
         Post(screen, message, focus, kTargetInput);
@@ -506,7 +523,7 @@ public:
             FengPackage::SetPosition(e.object, x, y);
         }
         // 0x52f680 -> 0x52ce40: the selected icon's object takes the package focus.
-        NativeFrontendSetFocus(owner_->package4, entries_[selected_].object);
+        nativeFengManager.SetFocusByHash(owner_->package4, entries_[selected_].object->hash10);
     }
 
     // 0x51f9f0 (no wrap): steps over disabled icons (+0x20); stays put when none is left.
@@ -568,7 +585,7 @@ FengPackage *NativeFrontendPackage(const char *package) {
 
 void NativeFrontendSetFocus(const char *package, FengObject *object) {
     NativeScreen *screen = FindScreen(package);
-    if (screen) screen->focus = object;
+    if (screen) screen->fePackage.SetFocus(&nativeFengQueue, object, 1);
 }
 
 void NativeFrontendPlayScript(FengObject *object, unsigned int hash, bool restart) {
@@ -576,6 +593,31 @@ void NativeFrontendPlayScript(FengObject *object, unsigned int hash, bool restar
 }
 
 std::string NativeFrontendString(unsigned int hash) { return Localised(hash); }
+
+// Package lookup, static-record lookup and queue storage remain native seams.
+FEPackage *FngFindPackage(const char *name) {
+    NativeScreen *screen = FindScreen(name);
+    return screen && screen->shown ? &screen->fePackage : 0;
+}
+FngRecord *FngFindRecord(unsigned int hash) {
+    for (size_t i = 0; i < kScreenCount; ++i) {
+        if (screens[i]->loaded && FengHash(screens[i]->name) == hash) return &screens[i]->record;
+    }
+    return 0;
+}
+FEngPackageNode *FEngArchive::FindNode(const char *name) {
+    NativeScreen *screen = FindScreen(name);
+    return screen && screen->shown ? &screen->node : 0;
+}
+void FEngQueue::Post(unsigned int message, void *sender, FEPackage *package, int target, int) {
+    for (size_t i = 0; i < kScreenCount; ++i) {
+        if (&screens[i]->fePackage != package) continue;
+        ::Post(screens[i], message, static_cast<FengObject *>(sender),
+               target == -5 ? kTargetInput : kTargetObject,
+               target == -5 ? 0 : reinterpret_cast<FengObject *>(target));
+        return;
+    }
+}
 
 // ---- IconScroller base seams --------------------------------------------------------------
 
@@ -724,16 +766,6 @@ void FngSetObjectScript(void *object, const char *script, bool restart) {
 // 0x50d150: menu sound from table 0x837fe0; there is no frontend audio in the demo.
 void FngPlayMenuSound(const char *, int, int) {}
 
-void FngSetPackageValue10(const char *package, int value) {  // 0x50b8c0
-    NativeScreen *screen = FindScreen(package);
-    if (screen) screen->value10 = value;
-}
-
-int FngGetPackageValue10(const char *package) {  // 0x50b8a0
-    NativeScreen *screen = FindScreen(package);
-    return screen ? screen->value10 : 0;
-}
-
 // The PC help bar (UI_PC_Help_Bar.fng) is tracked but not drawn: PCHelpBarFNGObject
 // 0x54e6a0/0x54e6e0 is not recovered.
 const char *FngHelpBarName() { return "UI_PC_Help_Bar.fng"; }  // 0x50cea0
@@ -770,12 +802,6 @@ void FngShow(const char *from, const char *name, int) {
     switchFrom = FindScreen(from);
     switchTo = target;
 }
-
-void FngSetControlMask(const char *package, unsigned int mask) {  // 0x537950
-    NativeScreen *screen = FindScreen(package);
-    if (screen) screen->controlMask = mask;
-}
-
 
 bool FngScriptActive(const char *package, unsigned int object, const char *script) {  // 0x537cc0
     return FngScriptRunning(package, object, FengHash(script));
