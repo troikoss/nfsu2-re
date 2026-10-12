@@ -41,6 +41,7 @@ UG2_CHECK_SIZE(FEScriptTrack, 0x38);
 // Partial original FEng object (FEObject) layout, from the object reader 0x555140 and its users.
 // Native FNG objects retain this prefix so recovered routines operate on it directly.
 struct HudVisibilityObject {
+    void SetColourState(int key, const unsigned int *value, unsigned char add); // 0x517ad0
     void SetVectorState(int key, const float *value, unsigned char add); // 0x5178d0
     char unidentified0[4];
     HudVisibilityObject *next4;

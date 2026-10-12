@@ -299,8 +299,9 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   scripts fire package events and the bounded animation tracks described in the settings pass below.
 - Pause icon placement/reset/frame tick and cubic tweening now use recovered routines.
   Smaller icons centre-align; the icon row moves under a fixed selection frame, with placement
-  preceding tween advancement. Native construction/insertion, colour and optional lock/arrow/
-  scrollbar interfaces remain seams. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
+  preceding tween advancement. Native construction/insertion, script activation, arrows and
+  scrollbar interfaces remain seams. Colour and lock-script policy use recovered routines;
+  LOCK/BUTTON_MASTER now bind the retail objects. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
   and run `python tools/smoke_native_pause_scroller.py` for rendered motion checks.
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;
@@ -310,12 +311,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   helper `0x43be60` and focus-flag helper `0x51cc60` are recovered too. The embedded
   scroller has its complete observed 0xe8-byte extent, with native vector/ownership state
   stored separately. Focus flags and the saved scroller index are written by original
-  code; construction, positioning and tween execution remain seams. See
+  code; construction and insertion remain seams. See
   [selection evidence](pc-pause-menu.md#icon-selection-and-the-full-scroller-layout).
 - Icon stepping/indexing/selected-item dispatch now use recovered `0x51f9f0`, `0x51fac0`,
   `0x5276d0`/`0x527700`, `0x527730`/`0x527750`, `0x51f820` and `0x50d980`.
   The native scroller owns the original list/current-icon prefix; its constructor,
-  post-selection layout and rendering remain seams. See [navigation evidence](pc-pause-menu.md#iconscroller-navigation-and-dispatch).
+  construction and rendering remain seams. See [navigation evidence](pc-pause-menu.md#iconscroller-navigation-and-dispatch).
 - Package masks, persisted selection and focus now use recovered routines `0x537950`,
   `0x50b8a0`/`0x50b8c0`, `0x52b3a0` and `0x52ce40`. Native screens retain FEPackage
   masks/focus/array offsets, archive-node package `+0x18` and a separate static FNG selection

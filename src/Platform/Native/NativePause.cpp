@@ -15,6 +15,7 @@
 #include <map>
 #include <new>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -496,6 +497,8 @@ public:
         tween90.limit28 = 1.0f;
         // 0x543a90: the OPTION_MASTER position anchors the icons; the master itself is hidden.
         S().master = static_cast<FengObject *>(FngFindObject(owner->package4, FngHash("OPTION_MASTER")));
+        object14 = NativeFrontendPackage(owner->package4)->Find("LOCK");
+        object18 = NativeFrontendPackage(owner->package4)->Find("BUTTON_MASTER");
         if (S().master) {
             masterD4 = S().master->position[0];
             masterD8 = S().master->position[1];
@@ -630,17 +633,15 @@ void FEngQueue::Post(unsigned int message, void *sender, FEPackage *package, int
     }
 }
 
-// Original colour and optional scroller dependencies still supplied by native interfaces.
-unsigned int FEngGetColour(HudVisibilityObject *object) {
-    if (!object || !object->data2C) return 0;
-    const unsigned int *colour = reinterpret_cast<const unsigned int *>(object->data2C);
-    return colour[0] | (colour[1] << 8) | (colour[2] << 16) | (colour[3] << 24);
-}
-void FEngSetColour(HudVisibilityObject *object, unsigned int colour) {
-    FengPackage::SetColour(static_cast<FengObject *>(object), colour);
-}
-void UpdateIconLockScripts(IconScrollerIcon *, void *, void *) {
-    // Native constructors do not bind LOCK/BUTTON_MASTER; their script interface is unrecovered.
+// Formatting and optional scroller dependencies still supplied by native interfaces.
+unsigned int FngFormatHash(const char *format, ...) {
+    // Linux formatting backend for the original 0x50b9c0 boundary.
+    char text[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(text, sizeof(text), format, args);
+    va_end(args);
+    return FengHash(text);
 }
 void ScrollerScrollBar::Update(int, int, int) {
     // The original ScrollBar constructor/controls have not yet been integrated.

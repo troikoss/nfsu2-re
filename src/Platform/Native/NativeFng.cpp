@@ -1,5 +1,6 @@
 #include "NativeFng.h"
 #include "NativeAssets.h"
+#include "../../Speed/Indep/Src/Frontend/FEngColour.h"
 #include "../../Speed/Indep/Src/Hud/HudAnimation.h"
 
 #include <algorithm>
@@ -474,11 +475,7 @@ void FengPackage::AdvanceScripts(float seconds) {
 }
 
 void FengPackage::SetColour(FengObject *object, unsigned int argb) {
-    if (!object) return;
-    object->colour[0] = argb & 0xff;
-    object->colour[1] = (argb >> 8) & 0xff;
-    object->colour[2] = (argb >> 16) & 0xff;
-    object->colour[3] = argb >> 24;
+    FEngSetColour(object, argb);
 }
 
 void FengPackage::SetTexture(FengObject *object, unsigned int hash) {

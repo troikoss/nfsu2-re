@@ -29,7 +29,7 @@ unless the user or applicable repository/skill instructions request delegation.
 ## Authoritative checkpoint
 
 Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`, branch `main`.
-Latest verified checkpoint: **Recover pause icon placement and cubic tweening**
+Latest verified checkpoint: **Recover FEng colours and pause icon lock scripts**
 (see Git history for its commit). Navigation checkpoint: `c0b18f1`; package mask/focus
 checkpoint: `3878b16`. Direct user authorization to commit and push to `main` was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
 FEng objects the original object and script prefix**.
@@ -118,16 +118,22 @@ classes write FEng internals directly, so the work is staged:
    `smoke_native_pause_scroller.py` (869 -> 758.5 -> 640 px). Finite scripted UI captures
    ignore external UI events/repeat to prevent desktop pointer interference; explicit script
    pointer/gamepad actions and normal interactive input remain supported.
-   Colour `0x495570`/`0x51d7f0`, lock script `0x51df00`, scrollbar `0x538080` and arrow script
-   `0x52fa70` are still controlled/native dependencies; constructors leave those optional UI
-   bindings unbound. Do not claim full scroller/base recovery until these and construction,
-   insertion and the remaining virtuals are recovered.
+   **Colour/lock policy done**: `FEngColour.cpp` and `IconScrollerScripts.cpp` recover
+   `0x5054d0`, `0x50ccc0`, `0x495570`, `0x504640`, `0x517ad0`, `0x51d7f0`, `0x51d040`
+   and `0x51df00`. Signed clamps and wrapping ±1 tolerance, first matching track per script,
+   live state writes, channel alias/load/store order and inclusive script expiry are verified.
+   `verify_pc_feng_colour_scripts.py`: 29,200 comparisons, five rejected mutations.
+   Native colours delegate to recovered setter; LOCK/BUTTON_MASTER bind retail objects.
+   Layout chain's 14,762 comparisons now execute real recovered colours and lock policy.
+   Formatted hash `0x50b9c0`, script activation `0x51cf70`, scrollbar `0x538080` and
+   arrows `0x52fa70` remain interfaces. Native build, pause/options verifiers, 19 settings,
+   10 Controls and rendered motion pass. Byte matching remains unestablished.
    **Next**: recover the rest of IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
    IconScrollerFNGObject `+0x4c`) replacing `NativeIconScroller`:
    ctors `0x543840`/`0x543a90`, ScrollBar `0x542ac0` (at scroller `+0x38`), slots `0x543bf0`,
    `0x543c10`, `0x538b80`, `0x51f870`; helpers `0x51fb70`, `0x538080`, `0x52fa70`,
    `0x538130`, `0x52e4e0`, `0x52e670`, `0x52e200`, `0x52e320`, `0x51fd10`, `0x51fd60`,
-   colour `0x495570`/`0x51d7f0`, lock helper `0x51df00`, list helper `0x43be80`.
+   list helper `0x43be80`; script activation `0x51cf70`/`0x517720`.
    Layout notes: `+4/+8` icon list sentinel (icon node at icon `+4`), `+0xc` current icon,
    `+0x10/+0x14/+0x18` OPTION/LOCK/BUTTON_MASTER objects, `+0x1c` package, `+0x20` "option_"
    prefix, `+0x24` spacing (40), `+0x28` next option number, `+0x2c` vertical, `+0x2e` relayout,
@@ -187,6 +193,7 @@ build/venv/bin/python tools/verify_pc_physics_construction.py
 build/venv/bin/python tools/verify_pc_physics_parameters.py
 build/venv/bin/python tools/verify_pc_hud_player_masks.py
 build/venv/bin/python tools/verify_pc_hud_freeroam.py
+build/venv/bin/python tools/verify_pc_feng_colour_scripts.py
 build/venv/bin/python tools/verify_pc_icon_scroller_layout.py
 build/venv/bin/python tools/verify_pc_feng_coordinates.py
 build/venv/bin/python tools/verify_pc_icon_scroller_selection.py

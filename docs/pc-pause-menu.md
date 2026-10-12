@@ -341,19 +341,18 @@ retains the original frame ordering. Reset performs its selection callback **aft
 The native menu now calls recovered reset/frame/placement code; its old direct layout loop
 is removed. The platform frame delta is supplied at `0x865198`, and the original scroller
 clock is bound at `0x8641a0`. Native construction and icon insertion still supply initial
-state, geometry and bindings and remain seams. Colour read/write `0x495570`/`0x51d7f0`,
-lock scripts `0x51df00`, scrollbar update `0x538080` and arrow scripts `0x52fa70` remain
-controlled interfaces. Native constructors currently leave lock/button/scrollbar bindings
-unbound; those dependencies remain explicit native no-ops pending their recovery. This is
-not complete IconScroller or FNG-base recovery.
+state, geometry and bindings and remain seams. Colour read/write and lock policy are now
+recovered as described below. Scrollbar update `0x538080` and arrow scripts `0x52fa70`
+remain controlled interfaces and native no-ops. This is not complete IconScroller or FNG-base recovery.
 
 `build/venv/bin/python tools/verify_pc_icon_scroller_layout.py`: **14,762 original/rebuilt
 comparisons**. Tween cases run with 53-/64-bit x87 precision and cover states/modes, limits,
 completion thresholds, zero/negative/infinite/NaN duration and arithmetic order. Placement
 cases cover empty/null frame paths, every alignment, first/current/other selection, reset
 indices, window edges, disabled alpha policy and fade flags. Actual recovered coordinate,
-state-write and visibility routines execute on both sides; selection/colour/optional UI
-callbacks are controlled and traced, including tween state at callbacks. The original list
+state-write, visibility, colour and lock-policy routines execute on both sides; selection,
+formatted hash, script activation, scrollbar and arrow callbacks remain controlled and
+traced, including tween state at callbacks. The original list
 helper and `0x75bed4` conversion runtime are retained dependencies. Placement fixtures are
 image objects, not proof of arbitrary font/group layout. Memory, global clock, callback
 order/arguments, cleanup, preserved registers and precision are checked. Five mutations are
@@ -377,3 +376,44 @@ keyboard/gamepad smoke sequences; normal interactive input is unchanged.
 After isolating finite scripted UI input, all 10 native Controls scenarios and all 19
 settings scenarios pass, including explicit mouse/gamepad fixture actions. The rendered
 Options graphic centres are 869.0, 758.5 and 640.0 pixels at the three sampled frames.
+
+
+## FEng colours and icon lock scripts
+
+`Frontend/FEngColour.cpp` and `Frontend/IconScrollerScripts.cpp` recover eight routines:
+
+| Routine | Address | Behaviour |
+|---|---|---|
+| Pack colour | `0x5054d0` | Clamp signed R/G/B/A channels to 0–255 and pack ARGB |
+| Copy object colour | `0x50ccc0` | Read state channels, or zero channels for a null object |
+| Get packed colour | `0x495570` | Copy then pack |
+| Colour proximity | `0x504640` | Signed comparisons against wrapping ±1 bounds |
+| Write colour state | `0x517ad0` | Update first matching track in each script, then live state |
+| Set colour | `0x51d7f0` | Gate on type < 0x100; mark dirty outside tolerance; always write |
+| Script active | `0x51d040` | Hash even for null object; current hash and time ≤ length |
+| Icon lock policy | `0x51df00` | Select lock SHOW/HIDE and button HIDE/FadeIn/Animate policy |
+
+The state writer preserves modulo-32-bit additions and observed channel load/store order,
+including aliased input. Matching tracks clear flag 0x80 and stop the search within that script.
+The colour setter's tolerance only gates the dirty flag; it does not suppress the state write.
+Icon byte +0x22 selects SHOW lock/HIDE button. Otherwise +0x23 enables button FadeIn,
+unless the current FadeIn or Animate is still active. Script time equal to length remains active.
+Unknown flag bytes retain offset-based storage.
+
+`build/venv/bin/python tools/verify_pc_feng_colour_scripts.py`: **29,200 original/rebuilt
+comparisons**, checking fixture memory, call traces, arguments, cleanup, preserved registers
+and return values. Cases include signed extrema, clamp/tolerance edges, null objects,
+type gates, multiple scripts and repeated matching tracks, additive/aliased writes,
+noncanonical flag bytes and script expiry boundaries. Five source mutations are rejected:
+wrong clamp, widened tolerance, processing later matching tracks, exclusive expiry and wrong
+lock flag byte. Formatted hash `0x50b9c0` and script activation `0x51cf70` are controlled
+interfaces; previously verified state-offset `0x5046f0` executes as a retained dependency.
+Fingerprints/results remain in ignored `build/analysis/feng-colour-scripts/verification.json`.
+**Finite behavioural verification passes; byte matching is not established.**
+
+Native FEng colour writes now use the recovered setter, including script baseline updates.
+Native construction binds the retail LOCK and BUTTON_MASTER objects so recovered lock policy
+can run. Construction, formatted hashing, script activation/playback, scrollbar and arrows
+remain seams. The layout verifier passes its 14,762 comparisons with actual recovered colour
+and lock-policy routines linked in. Native build, pause/options regression verifiers,
+19 settings scenarios, 10 Controls scenarios and rendered scroller motion pass.
